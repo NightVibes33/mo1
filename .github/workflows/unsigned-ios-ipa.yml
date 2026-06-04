@@ -1,0 +1,90 @@
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  unsigned-ipa:
+    name: Unsigned real-device IPA
+    runs-on: macos-26-intel
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode 26
+        run: |
+          set -euo pipefail
+          XCODE_PATH="$(ls -1d /Applications/Xcode_26*.app 2>/dev/null | tail -1)"
+          if [ -z "${XCODE_PATH}" ]; then
+            echo "No Xcode 26 app found under /Applications" >&2
+            ls -la /Applications | grep Xcode || true
+            exit 1
+          fi
+          sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
+          xcodebuild -version
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm install
+
+      - name: Expo dependency check
+        run: npx expo-doctor@latest
+
+      - name: Prebuild iOS native project
+        run: npx expo prebuild --platform ios --clean --non-interactive
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: Build unsigned device app
+        run: |
+          set -euo pipefail
+          WORKSPACE="ios/mo1.xcworkspace"
+          SCHEME="mo1"
+          DERIVED="$PWD/build/DerivedData"
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath "$DERIVED" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            build
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find build/DerivedData/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)"
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app bundle found" >&2
+            find build/DerivedData/Build/Products -maxdepth 3 -type d
+            exit 1
+          fi
+          rm -rf build/Payload build/mo1-unsigned.ipa
+          mkdir -p build/Payload
+          cp -R "$APP_PATH" build/Payload/
+          cd build
+          /usr/bin/zip -qry mo1-unsigned.ipa Payload
+          ls -lh mo1-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mo1-unsigned-ipa
+          path: build/mo1-unsigned.ipa
+          if-no-files-found: error
