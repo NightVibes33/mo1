@@ -21,14 +21,16 @@ class LyricsView extends StatefulWidget {
 }
 
 class _LyricsViewState extends State<LyricsView> {
-  static const double _lineExtent = 34;
+  static const Duration _lyricLead = Duration(milliseconds: 180);
   late List<_LyricLine> _lines;
+  late List<GlobalKey> _lineKeys;
   int _lastFocusedLine = -1;
 
   @override
   void initState() {
     super.initState();
     _lines = _parseLyrics(widget.lyrics);
+    _lineKeys = _keysForLines(_lines);
   }
 
   @override
@@ -36,6 +38,7 @@ class _LyricsViewState extends State<LyricsView> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.lyrics != widget.lyrics) {
       _lines = _parseLyrics(widget.lyrics);
+      _lineKeys = _keysForLines(_lines);
       _lastFocusedLine = -1;
     }
   }
@@ -66,30 +69,34 @@ class _LyricsViewState extends State<LyricsView> {
       stream: widget.positionStream,
       initialData: Duration.zero,
       builder: (context, snapshot) {
-        final currentLine = _currentLineIndex(snapshot.data ?? Duration.zero);
+        final currentLine = _currentLineIndex(
+          (snapshot.data ?? Duration.zero) + _lyricLead,
+        );
         _syncScroll(currentLine);
         return ListView.builder(
           controller: widget.scrollController,
-          padding: const EdgeInsets.fromLTRB(4, 28, 12, 48),
-          itemExtent: _lineExtent,
+          padding: const EdgeInsets.fromLTRB(4, 28, 12, 60),
           itemCount: _lines.length,
           itemBuilder: (context, index) {
             final isCurrent = index == currentLine;
-            return AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
-              style: TextStyle(
-                fontSize: isCurrent ? 18 : 15,
-                height: 1.25,
-                fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-                color: isCurrent
-                    ? context.appPrimaryTextColor
-                    : context.appSecondaryTextColor.withValues(alpha: 0.62),
-              ),
-              child: Text(
-                _lines[index].text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            return Padding(
+              key: _lineKeys[index],
+              padding: const EdgeInsets.only(bottom: 10),
+              child: AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 140),
+                curve: Curves.easeOutCubic,
+                style: TextStyle(
+                  fontSize: isCurrent ? 18 : 15,
+                  height: 1.26,
+                  fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                  color: isCurrent
+                      ? context.appPrimaryTextColor
+                      : context.appSecondaryTextColor.withValues(alpha: 0.62),
+                ),
+                child: Text(
+                  _lines[index].text,
+                  softWrap: true,
+                ),
               ),
             );
           },
@@ -123,21 +130,24 @@ class _LyricsViewState extends State<LyricsView> {
       if (!mounted || !widget.scrollController.hasClients) {
         return;
       }
-      final position = widget.scrollController.position;
-      final viewportOffset = position.viewportDimension * 0.42;
-      final target = max(0.0, index * _lineExtent - viewportOffset).clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      ).toDouble();
+      final lineContext = _lineKeys[index].currentContext;
+      if (lineContext == null) {
+        return;
+      }
       unawaited(
-        widget.scrollController.animateTo(
-          target,
-          duration: const Duration(milliseconds: 260),
+        Scrollable.ensureVisible(
+          lineContext,
+          duration: const Duration(milliseconds: 160),
           curve: Curves.easeOutCubic,
+          alignment: 0.38,
         ),
       );
     });
   }
+}
+
+List<GlobalKey> _keysForLines(List<_LyricLine> lines) {
+  return List<GlobalKey>.generate(lines.length, (_) => GlobalKey());
 }
 
 class _PlainLyricsView extends StatelessWidget {

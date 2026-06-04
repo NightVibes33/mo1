@@ -32,6 +32,7 @@ class _MetadataMatchSheetState extends ConsumerState<MetadataMatchSheet> {
   List<MusicMetadataMatch> _matches = [];
   bool _isSearching = false;
   String? _errorText;
+  int _searchSerial = 0;
 
   @override
   void initState() {
@@ -60,39 +61,42 @@ class _MetadataMatchSheetState extends ConsumerState<MetadataMatchSheet> {
 
   Future<void> _search() async {
     final query = _queryController.text.trim();
-    if (query.isEmpty || _isSearching) {
+    if (query.isEmpty) {
       return;
     }
 
+    final source = _source;
+    final requestId = ++_searchSerial;
     setState(() {
       _isSearching = true;
+      _matches = [];
       _errorText = null;
     });
 
     try {
       final matches = await ref.read(musicMetadataLookupServiceProvider).search(
-            source: _source,
+            source: source,
             query: query,
           );
-      if (!mounted) {
+      if (!mounted || requestId != _searchSerial) {
         return;
       }
       setState(() {
         _matches = matches;
         _errorText = matches.isEmpty
-            ? 'No ${_source.label} matches found for this search.'
+            ? 'No ${source.label} matches found for this search.'
             : null;
       });
     } catch (error) {
-      if (!mounted) {
+      if (!mounted || requestId != _searchSerial) {
         return;
       }
       setState(() {
         _matches = [];
-        _errorText = 'Metadata lookup failed. Try another source.';
+        _errorText = '${source.label} lookup failed. Try another source.';
       });
     } finally {
-      if (mounted) {
+      if (mounted && requestId == _searchSerial) {
         setState(() {
           _isSearching = false;
         });

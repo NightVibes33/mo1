@@ -112,7 +112,10 @@ Future<dynamic> _readJson(Uri uri) async {
   try {
     final request = await client.getUrl(uri);
     request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-    request.headers.set(HttpHeaders.userAgentHeader, 'mo1/1.0');
+    request.headers.set(
+      HttpHeaders.userAgentHeader,
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) mo1/1.0',
+    );
     final response = await request.close();
     if (response.statusCode < 200 || response.statusCode >= 300) {
       return null;

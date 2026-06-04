@@ -34,10 +34,19 @@ class MusicMetadataLookupService {
       case MusicMetadataSource.deezer:
         return _searchDeezer(cleanQuery, limit);
       case MusicMetadataSource.appleMusic:
-        return _appleMusicBridge.searchSongs(
+        final nativeMatches = await _appleMusicBridge.searchSongs(
           query: cleanQuery,
           limit: limit,
           storefront: storefront,
+        );
+        if (nativeMatches.isNotEmpty) {
+          return nativeMatches;
+        }
+        return _searchItunes(
+          cleanQuery,
+          limit,
+          storefront,
+          source: MusicMetadataSource.appleMusic,
         );
     }
   }
@@ -71,20 +80,27 @@ class MusicMetadataLookupService {
       return destination.path;
     }
 
-    final bytes = await _readBytes(uri);
-    if (bytes == null || bytes.isEmpty) {
-      return null;
+    for (final artworkUri in _artworkCandidates(uri)) {
+      final bytes = await _readBytes(
+        artworkUri,
+        acceptHeader: 'image/avif,image/webp,image/apng,image/*,*/*',
+      );
+      if (bytes == null || bytes.isEmpty) {
+        continue;
+      }
+      await destination.writeAsBytes(bytes, flush: true);
+      return destination.path;
     }
 
-    await destination.writeAsBytes(bytes, flush: true);
-    return destination.path;
+    return null;
   }
 
   Future<List<MusicMetadataMatch>> _searchItunes(
     String query,
     int limit,
-    String storefront,
-  ) async {
+    String storefront, {
+    MusicMetadataSource source = MusicMetadataSource.itunes,
+  }) async {
     final response = await _readJson(
       Uri.https('itunes.apple.com', '/search', {
         'term': query,
@@ -103,7 +119,7 @@ class MusicMetadataLookupService {
 
     return rawResults
         .whereType<Map<String, dynamic>>()
-        .map(_itunesMatchFromJson)
+        .map((json) => _itunesMatchFromJson(json, source: source))
         .where((match) => match.title.isNotEmpty || match.artist.isNotEmpty)
         .toList(growable: false);
   }
@@ -167,9 +183,12 @@ class AppleMusicCatalogBridge {
   }
 }
 
-MusicMetadataMatch _itunesMatchFromJson(Map<String, dynamic> json) {
+MusicMetadataMatch _itunesMatchFromJson(
+  Map<String, dynamic> json, {
+  MusicMetadataSource source = MusicMetadataSource.itunes,
+}) {
   return MusicMetadataMatch(
-    source: MusicMetadataSource.itunes,
+    source: source,
     id: _string(json['trackId']).isEmpty
         ? _string(json['collectionId'])
         : _string(json['trackId']),
@@ -235,18 +254,24 @@ Future<dynamic> _readJson(Uri uri) async {
   return jsonDecode(utf8.decode(bytes));
 }
 
-Future<List<int>?> _readBytes(Uri uri) async {
+Future<List<int>?> _readBytes(
+  Uri uri, {
+  String acceptHeader = 'application/json,*/*',
+}) async {
   final client = HttpClient()
     ..connectionTimeout = const Duration(seconds: 12);
   try {
     final request = await client.getUrl(uri);
-    request.headers.set(HttpHeaders.acceptHeader, 'application/json,*/*');
-    request.headers.set(HttpHeaders.userAgentHeader, 'mo1/1.0');
+    request.headers.set(HttpHeaders.acceptHeader, acceptHeader);
+    request.headers.set(
+      HttpHeaders.userAgentHeader,
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) mo1/1.0',
+    );
     final response = await request.close();
     if (response.statusCode < 200 || response.statusCode >= 300) {
       return null;
     }
-    return response.expand((chunk) => chunk).toList();
+    return await response.expand((chunk) => chunk).toList();
   } finally {
     client.close(force: true);
   }
@@ -304,6 +329,30 @@ String? _highResolutionArtworkUrl(String? url) {
   return url
       .replaceAll(RegExp(r'/\d+x\d+bb\.'), '/1200x1200bb.')
       .replaceAll(RegExp(r'/\d+x\d+cw\.'), '/1200x1200bb.');
+}
+
+List<Uri> _artworkCandidates(Uri uri) {
+  final urls = <String>[
+    uri.toString(),
+    _replaceArtworkSize(uri.toString(), '1000x1000bb'),
+    _replaceArtworkSize(uri.toString(), '600x600bb'),
+    _replaceArtworkSize(uri.toString(), '300x300bb'),
+    _replaceArtworkSize(uri.toString(), '100x100bb'),
+  ];
+  final seen = <String>{};
+  return urls
+      .where((url) => url.trim().isNotEmpty)
+      .where(seen.add)
+      .map(Uri.tryParse)
+      .whereType<Uri>()
+      .where((candidate) => candidate.hasScheme)
+      .toList(growable: false);
+}
+
+String _replaceArtworkSize(String url, String size) {
+  return url
+      .replaceAll(RegExp(r'/\d+x\d+(?:bb|cw)\.'), '/$size.')
+      .replaceAll(RegExp(r'/source/\d+x\d+(?:bb|cw)\.'), '/source/$size.');
 }
 
 String _artworkExtension(String path) {
