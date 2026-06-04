@@ -34,9 +34,9 @@ class DeviceFrame extends ConsumerWidget {
       builder: (context, constraints) {
         final topInset = mediaQuery.padding.top;
         final bottomInset = mediaQuery.padding.bottom;
-        final horizontalInset = constraints.maxWidth < 430 ? 3.0 : 10.0;
-        final topGap = max(18.0, min(topInset * 0.62, 38.0));
-        final bottomGap = max(5.0, bottomInset * 0.25);
+        final horizontalInset = constraints.maxWidth < 430 ? 7.0 : 18.0;
+        final topGap = max(topInset + 8, constraints.maxHeight * 0.045);
+        final bottomGap = max(bottomInset + 8, 12.0);
         final availableWidth = max(
           0.0,
           constraints.maxWidth - horizontalInset * 2,
@@ -45,7 +45,7 @@ class DeviceFrame extends ConsumerWidget {
           0.0,
           constraints.maxHeight - topGap - bottomGap,
         );
-        const bodyAspectRatio = 1.98;
+        const bodyAspectRatio = 1.88;
         var bodyWidth = min(availableWidth, 620.0);
         var bodyHeight = bodyWidth * bodyAspectRatio;
         if (bodyHeight > availableHeight) {
@@ -57,8 +57,8 @@ class DeviceFrame extends ConsumerWidget {
         );
         final innerWidth = max(0.0, bodyWidth - 20);
         final screenHeight = min(
-          bodyHeight * 0.30,
-          (innerWidth * 0.56).clamp(190.0, 252.0).toDouble(),
+          bodyHeight * 0.37,
+          (innerWidth * 0.72).clamp(218.0, 316.0).toDouble(),
         );
 
         return Stack(
@@ -136,9 +136,9 @@ class DeviceFrame extends ConsumerWidget {
                                 height: screenHeight,
                                 child: child,
                               ),
-                              const Spacer(flex: 18),
+                              const Spacer(flex: 34),
                               DeviceControls(key: deviceControlsGlobalKey),
-                              const Spacer(flex: 30),
+                              const Spacer(flex: 26),
                             ],
                           ),
                         ],
