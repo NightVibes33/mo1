@@ -27,17 +27,17 @@ class DeviceControls extends ConsumerStatefulWidget {
 }
 
 class _DeviceControlsState extends ConsumerState<DeviceControls> {
-  Duration durationSinceLastScroll = Duration.zero;
+  Duration? _lastScrollTimestamp;
   bool _centerPressed = false;
   bool _wheelActive = false;
   Alignment _touchAlignment = const Alignment(-0.28, -0.35);
 
-  Future<void> onClickWheelScroll({
+  void onClickWheelScroll({
     required DragUpdateDetails dragUpdateDetails,
     required double radius,
     required double smallThresholdRotationalChange,
     required double bigThresholdRotationalChange,
-  }) async {
+  }) {
     // Pan location on the wheel
     final bool onTop = dragUpdateDetails.localPosition.dy <= radius;
     final bool onLeftSide = dragUpdateDetails.localPosition.dx <= radius;
@@ -68,41 +68,34 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
         (verticalRotation + horizontalRotation) *
         (dragUpdateDetails.delta.distance * 0.8);
 
-    int millisecondsSinceLastScroll = 0;
-    if (durationSinceLastScroll.inMinutes ==
-            dragUpdateDetails.sourceTimeStamp?.inMinutes &&
-        durationSinceLastScroll.inSeconds ==
-            dragUpdateDetails.sourceTimeStamp?.inSeconds) {
-      millisecondsSinceLastScroll =
-          dragUpdateDetails.sourceTimeStamp!.inMilliseconds -
-          durationSinceLastScroll.inMilliseconds;
-    } else {
-      durationSinceLastScroll =
-          dragUpdateDetails.sourceTimeStamp ?? Duration.zero;
-    }
+    final timestamp = dragUpdateDetails.sourceTimeStamp;
+    final millisecondsSinceLastScroll =
+        _lastScrollTimestamp != null && timestamp != null
+        ? timestamp.inMilliseconds - _lastScrollTimestamp!.inMilliseconds
+        : Constants.milliSecondsBeforeNextScroll + 1;
 
     final bool isForwardDirection = rotationalChange > 0;
     final double absRotationalChange = rotationalChange.abs();
-
-    if ((absRotationalChange > bigThresholdRotationalChange) ||
+    final shouldEmitAction =
+        absRotationalChange > bigThresholdRotationalChange ||
         (absRotationalChange > smallThresholdRotationalChange &&
             millisecondsSinceLastScroll >
-                Constants.milliSecondsBeforeNextScroll)) {
-      await ref
-          .read(deviceButtonsServiceProvider.notifier)
-          .buttonPressVibrate();
-      await ref.read(deviceButtonsServiceProvider.notifier).clickWheelSound();
-      if (isForwardDirection) {
-        await ref
-            .read(deviceButtonsServiceProvider.notifier)
-            .setDeviceAction(DeviceAction.rotateForward);
-      } else {
-        await ref
-            .read(deviceButtonsServiceProvider.notifier)
-            .setDeviceAction(DeviceAction.rotateBackward);
-      }
-      durationSinceLastScroll = Duration.zero;
+                Constants.milliSecondsBeforeNextScroll);
+
+    if (!shouldEmitAction) {
+      return;
     }
+
+    _lastScrollTimestamp = timestamp;
+    unawaited(
+      ref
+          .read(deviceButtonsServiceProvider.notifier)
+          .setDeviceAction(
+            isForwardDirection
+                ? DeviceAction.rotateForward
+                : DeviceAction.rotateBackward,
+          ),
+    );
   }
 
   void _setCenterPressed(bool value) {
@@ -217,13 +210,11 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
           ),
           onPanUpdate: (dragUpdateDetails) {
             _updateWheelTouch(dragUpdateDetails.localPosition, wheelSize);
-            unawaited(
-              onClickWheelScroll(
-                dragUpdateDetails: dragUpdateDetails,
-                radius: wheelRadius,
-                smallThresholdRotationalChange: smallThresholdRotationalChange,
-                bigThresholdRotationalChange: bigThresholdRotationalChange,
-              ),
+            onClickWheelScroll(
+              dragUpdateDetails: dragUpdateDetails,
+              radius: wheelRadius,
+              smallThresholdRotationalChange: smallThresholdRotationalChange,
+              bigThresholdRotationalChange: bigThresholdRotationalChange,
             );
           },
           onPanEnd: (_) => _clearWheelTouch(),
@@ -307,14 +298,9 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                             .read(deviceButtonsServiceProvider.notifier)
                             .setDeviceAction(DeviceAction.menu),
                         onLongPress: () async {
-                          await Future.wait([
-                            ref
-                                .read(deviceButtonsServiceProvider.notifier)
-                                .buttonPressVibrate(),
-                            ref
-                                .read(deviceButtonsServiceProvider.notifier)
-                                .clickWheelSound(),
-                          ]);
+                          ref
+                              .read(deviceButtonsServiceProvider.notifier)
+                              .playClickFeedback();
                           if (context.mounted) {
                             context.goNamed(Routes.menu.name);
                             if (!ref

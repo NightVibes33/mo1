@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:classipod/core/services/audio_player_service.dart';
@@ -14,15 +15,26 @@ final deviceButtonsServiceProvider =
     );
 
 class DeviceButtonsServiceNotifier extends Notifier<DeviceAction?> {
+  static const Duration _feedbackMinimumGap = Duration(milliseconds: 45);
+  static const Duration _feedbackTimeout = Duration(milliseconds: 120);
+
+  bool _feedbackInFlight = false;
+  DateTime? _lastFeedbackAt;
+
   @override
   DeviceAction? build() {
     return null;
   }
 
   Future<void> buttonPressVibrate() async {
-    if (ref.read(settingsPreferencesControllerProvider).vibrate &&
-        (kIsWeb || Platform.isAndroid || Platform.isIOS)) {
+    if (!ref.read(settingsPreferencesControllerProvider).vibrate) {
+      return;
+    }
+
+    if (kIsWeb || Platform.isAndroid) {
       await Vibration.vibrate(duration: 5);
+    } else if (Platform.isIOS) {
+      await HapticFeedback.selectionClick();
     }
   }
 
@@ -33,14 +45,46 @@ class DeviceButtonsServiceNotifier extends Notifier<DeviceAction?> {
     }
   }
 
-  Future<void> setDeviceAction(DeviceAction action) async {
-    await Future.wait([buttonPressVibrate(), clickWheelSound()]);
+  void playClickFeedback() {
+    final now = DateTime.now();
+    if (_feedbackInFlight ||
+        (_lastFeedbackAt != null &&
+            now.difference(_lastFeedbackAt!) < _feedbackMinimumGap)) {
+      return;
+    }
+
+    _feedbackInFlight = true;
+    _lastFeedbackAt = now;
+    unawaited(_runClickFeedback());
+  }
+
+  Future<void> _runClickFeedback() async {
+    try {
+      await Future.wait([
+        buttonPressVibrate(),
+        clickWheelSound(),
+      ]).timeout(_feedbackTimeout);
+    } catch (_) {
+      // Feedback must never block or break click-wheel control.
+    } finally {
+      _feedbackInFlight = false;
+    }
+  }
+
+  Future<void> setDeviceAction(
+    DeviceAction action, {
+    bool feedback = true,
+  }) {
     state = null;
     state = action;
+    if (feedback) {
+      playClickFeedback();
+    }
+    return Future.value();
   }
 
   Future<void> playPauseButtonClick() async {
-    await Future.wait([buttonPressVibrate(), clickWheelSound()]);
+    playClickFeedback();
     await ref.read(audioPlayerServiceProvider.notifier).togglePlayback();
   }
 
