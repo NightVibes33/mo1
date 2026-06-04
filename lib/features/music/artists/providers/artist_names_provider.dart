@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final artistNamesProvider = Provider<List<String>>((ref) {
   final artistNamesSet = <String>{};
-  ref.read(filteredAudioFilesProvider).requireValue.forEach((audioFile) {
+  ref.watch(filteredAudioFilesProvider).requireValue.forEach((audioFile) {
     artistNamesSet.add(audioFile.getMainArtistName);
   });
 

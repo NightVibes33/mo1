@@ -56,6 +56,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> with CustomScreen {
 
   @override
   Widget build(BuildContext context) {
+    final displayItems = ref.watch(songsProvider);
     final int? currentlyPlayingOriginalIndex = ref
         .watch(nowPlayingDetailsProvider.select((e) => e.currentMetadata))
         ?.originalSongIndex;

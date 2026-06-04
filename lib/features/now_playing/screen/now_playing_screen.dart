@@ -402,6 +402,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                             'lyrics-view-${nowPlayingDetails.currentMetadata?.originalSongIndex ?? 0}',
                           ),
                           lyrics: lyrics,
+                          positionStream: ref.read(audioPlayerProvider).positionStream,
                           scrollController: _lyricsScrollController,
                         )
                       : NowPlayingWidget(

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:ui';
 
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:flutter/cupertino.dart';
@@ -77,12 +78,14 @@ class _AccurateWaveformVisualizerState extends State<AccurateWaveformVisualizer>
       final cacheDirectory = await getTemporaryDirectory();
       final waveDirectory = Directory('${cacheDirectory.path}/classipod-waves');
       waveDirectory.createSync(recursive: true);
-      final waveFile = File('${waveDirectory.path}/${_safeWaveName(filePath)}.wave');
+      final waveFile = File(
+        '${waveDirectory.path}/${_safeWaveName(filePath)}.wave',
+      );
 
       _waveformSubscription = JustWaveform.extract(
         audioInFile: File(filePath),
         waveOutFile: waveFile,
-        zoom: const WaveformZoom.pixelsPerSecond(90),
+        zoom: const WaveformZoom.pixelsPerSecond(80),
       ).listen(
         (progress) {
           if (!mounted) return;
@@ -124,22 +127,15 @@ class _AccurateWaveformVisualizerState extends State<AccurateWaveformVisualizer>
       builder: (context, snapshot) {
         final position = snapshot.data ?? Duration.zero;
         final duration = widget.duration ?? _waveform?.duration ?? Duration.zero;
-        final waveform = _waveform;
-
         return RepaintBoundary(
           child: CustomPaint(
-            painter: waveform == null
-                ? _ActualProgressPainter(
-                    position: position,
-                    duration: duration,
-                    extractionProgress: _extractionProgress,
-                    showExtractionProgress: _canExtractWaveform,
-                  )
-                : _WaveformPainter(
-                    waveform: waveform,
-                    position: position,
-                    duration: duration,
-                  ),
+            painter: _WaveformBarsPainter(
+              waveform: _waveform,
+              position: position,
+              duration: duration,
+              extractionProgress: _extractionProgress,
+              showExtractionProgress: _canExtractWaveform && _waveform == null,
+            ),
             child: const SizedBox.expand(),
           ),
         );
@@ -148,118 +144,15 @@ class _AccurateWaveformVisualizerState extends State<AccurateWaveformVisualizer>
   }
 }
 
-class _WaveformPainter extends CustomPainter {
-  final Waveform waveform;
-  final Duration position;
-  final Duration duration;
-
-  _WaveformPainter({
-    required this.waveform,
-    required this.position,
-    required this.duration,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (size.width <= 0 || size.height <= 0) return;
-
-    final visibleDuration = duration == Duration.zero
-        ? waveform.duration
-        : duration;
-    if (visibleDuration == Duration.zero || waveform.length == 0) return;
-
-    final strokeWidth = max(2.6, size.width / 46);
-    final pixelsPerStep = max(5.0, size.width / 22);
-    final waveformPixelsPerWindow = max(
-      1,
-      waveform.positionToPixel(visibleDuration).toInt(),
-    );
-    final waveformPixelsPerDevicePixel = waveformPixelsPerWindow / size.width;
-    final waveformPixelsPerStep = max(
-      1.0,
-      waveformPixelsPerDevicePixel * pixelsPerStep,
-    );
-    final playedX = size.width * _durationRatio(position, visibleDuration);
-    final sampleStart = -waveform.positionToPixel(Duration.zero) %
-        waveformPixelsPerStep;
-
-    final inactivePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = strokeWidth
-      ..color = CupertinoColors.white.withValues(alpha: 0.26);
-
-    final activePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = strokeWidth;
-
-    for (var i = sampleStart.toDouble();
-        i <= waveformPixelsPerWindow + 1.0;
-        i += waveformPixelsPerStep) {
-      final sampleIdx = i.toInt().clamp(0, waveform.length - 1).toInt();
-      final x = i / waveformPixelsPerDevicePixel;
-      if (x < 0 || x > size.width + strokeWidth) {
-        continue;
-      }
-
-      final minY = _normalise(waveform.getPixelMin(sampleIdx), size.height);
-      final maxY = _normalise(waveform.getPixelMax(sampleIdx), size.height);
-      final top = max(strokeWidth * 0.75, min(minY, maxY));
-      final bottom = min(size.height - strokeWidth * 0.75, max(minY, maxY));
-      final paint = x <= playedX ? activePaint : inactivePaint;
-      if (x <= playedX) {
-        paint.shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFFFF4FD8).withValues(alpha: 0.95),
-            const Color(0xFF55F3B8).withValues(alpha: 0.82),
-          ],
-        ).createShader(Rect.fromLTWH(x - strokeWidth, top, strokeWidth * 2, bottom - top));
-      } else {
-        paint.shader = null;
-      }
-      canvas.drawLine(
-        Offset(x + strokeWidth / 2, top),
-        Offset(x + strokeWidth / 2, bottom),
-        paint,
-      );
-    }
-  }
-
-  double _normalise(int sample, double height) {
-    if (waveform.flags == 0) {
-      final y = 32768 + sample.clamp(-32768, 32767).toDouble();
-      return height - 1 - y * height / 65536;
-    } else {
-      final y = 128 + sample.clamp(-128, 127).toDouble();
-      return height - 1 - y * height / 256;
-    }
-  }
-
-  double _durationRatio(Duration value, Duration total) {
-    if (total.inMilliseconds <= 0) {
-      return 0;
-    }
-    return (value.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
-  }
-
-  @override
-  bool shouldRepaint(covariant _WaveformPainter oldDelegate) {
-    return oldDelegate.waveform != waveform ||
-        oldDelegate.position != position ||
-        oldDelegate.duration != duration;
-  }
-}
-
-class _ActualProgressPainter extends CustomPainter {
+class _WaveformBarsPainter extends CustomPainter {
+  final Waveform? waveform;
   final Duration position;
   final Duration duration;
   final double extractionProgress;
   final bool showExtractionProgress;
 
-  const _ActualProgressPainter({
+  const _WaveformBarsPainter({
+    required this.waveform,
     required this.position,
     required this.duration,
     required this.extractionProgress,
@@ -270,28 +163,82 @@ class _ActualProgressPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (size.width <= 0 || size.height <= 0) return;
 
-    final centerY = size.height / 2;
-    final strokeWidth = max(3.0, size.height / 12);
-    final basePaint = Paint()
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..color = CupertinoColors.white.withValues(alpha: 0.2);
-    final playedPaint = Paint()
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..shader = const LinearGradient(
-        colors: [Color(0xFFFF4FD8), Color(0xFF55F3B8)],
-      ).createShader(Offset.zero & size);
+    final radius = Radius.circular(size.height / 2);
+    final backgroundRect = Offset.zero & size;
+    final backgroundPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          CupertinoColors.black.withValues(alpha: 0.24),
+          CupertinoColors.white.withValues(alpha: 0.10),
+          CupertinoColors.black.withValues(alpha: 0.18),
+        ],
+      ).createShader(backgroundRect);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(backgroundRect, radius),
+      backgroundPaint,
+    );
 
-    canvas.drawLine(Offset(0, centerY), Offset(size.width, centerY), basePaint);
-    final playedX = size.width * _durationRatio(position, duration);
-    canvas.drawLine(Offset(0, centerY), Offset(playedX, centerY), playedPaint);
+    final progress = _durationRatio(position, _effectiveDuration);
+    final barCount = (size.width / 5.6).clamp(24, 52).round();
+    final gap = max(2.0, size.width / 95);
+    final barWidth = max(2.2, (size.width - gap * (barCount - 1)) / barCount);
+    final centerY = size.height / 2;
+    final maxBarHeight = size.height * 0.74;
+    final minBarHeight = max(5.0, size.height * 0.18);
+    final activeGradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: const [Color(0xFFF8F7FF), Color(0xFF66FFE0), Color(0xFFFF55D8)],
+    ).createShader(backgroundRect);
+    final inactivePaint = Paint()
+      ..color = CupertinoColors.white.withValues(alpha: 0.28);
+    final activePaint = Paint()..shader = activeGradient;
+    final currentPaint = Paint()
+      ..color = CupertinoColors.white.withValues(alpha: 0.94);
+
+    final currentBar = (progress * (barCount - 1)).round();
+    for (var index = 0; index < barCount; index++) {
+      final ratio = barCount == 1 ? 0.0 : index / (barCount - 1);
+      final sourceAmplitude = waveform == null
+          ? _fallbackAmplitude(index, ratio)
+          : _waveformAmplitude(ratio);
+      final distanceToCurrent = (index - currentBar).abs();
+      final currentBoost = max(0.0, 1 - distanceToCurrent / 3.2);
+      final amplitude = (sourceAmplitude + currentBoost * 0.18)
+          .clamp(0.0, 1.0)
+          .toDouble();
+      final barHeight = lerpDouble(minBarHeight, maxBarHeight, amplitude)!;
+      final left = index * (barWidth + gap);
+      final top = centerY - barHeight / 2;
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(left, top, barWidth, barHeight),
+        Radius.circular(barWidth / 2),
+      );
+      final isActive = ratio <= progress;
+      final isCurrent = distanceToCurrent <= 1;
+      canvas.drawRRect(rect, isCurrent ? currentPaint : isActive ? activePaint : inactivePaint);
+    }
+
+    final playheadX = (progress * size.width).clamp(0.0, size.width).toDouble();
+    final playheadPaint = Paint()
+      ..color = CupertinoColors.white.withValues(alpha: 0.9)
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    final glowPaint = Paint()
+      ..color = const Color(0xFF66FFE0).withValues(alpha: 0.22)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7);
+    canvas.drawCircle(Offset(playheadX, centerY), size.height * 0.38, glowPaint);
+    canvas.drawLine(
+      Offset(playheadX, size.height * 0.15),
+      Offset(playheadX, size.height * 0.85),
+      playheadPaint,
+    );
 
     if (showExtractionProgress && extractionProgress > 0 && extractionProgress < 1) {
       final loadingPaint = Paint()
-        ..strokeWidth = 1.4
-        ..strokeCap = StrokeCap.round
-        ..color = CupertinoColors.white.withValues(alpha: 0.45);
+        ..color = CupertinoColors.white.withValues(alpha: 0.36)
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round;
       canvas.drawLine(
         Offset(0, size.height - 1.5),
         Offset(size.width * extractionProgress, size.height - 1.5),
@@ -300,16 +247,52 @@ class _ActualProgressPainter extends CustomPainter {
     }
   }
 
+  Duration get _effectiveDuration {
+    final waveformDuration = waveform?.duration;
+    if (duration > Duration.zero) {
+      return duration;
+    }
+    return waveformDuration ?? Duration.zero;
+  }
+
+  double _waveformAmplitude(double ratio) {
+    final currentWaveform = waveform;
+    if (currentWaveform == null || currentWaveform.length == 0) {
+      return 0.35;
+    }
+    final sampleIndex = (ratio * (currentWaveform.length - 1))
+        .round()
+        .clamp(0, currentWaveform.length - 1)
+        .toInt();
+    final minSample = currentWaveform.getPixelMin(sampleIndex);
+    final maxSample = currentWaveform.getPixelMax(sampleIndex);
+    final divisor = currentWaveform.flags == 0 ? 32768.0 : 128.0;
+    final amplitude = max(minSample.abs(), maxSample.abs()) / divisor;
+    return amplitude.clamp(0.14, 1.0).toDouble();
+  }
+
+  double _fallbackAmplitude(int index, double ratio) {
+    final phase = position.inMilliseconds / 260.0;
+    final waveA = sin(index * 0.72 + phase).abs();
+    final waveB = sin(index * 0.31 + phase * 0.58 + ratio * pi).abs();
+    return (0.18 + waveA * 0.38 + waveB * 0.30)
+        .clamp(0.12, 0.86)
+        .toDouble();
+  }
+
   double _durationRatio(Duration value, Duration total) {
     if (total.inMilliseconds <= 0) {
       return 0;
     }
-    return (value.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);
+    return (value.inMilliseconds / total.inMilliseconds)
+        .clamp(0.0, 1.0)
+        .toDouble();
   }
 
   @override
-  bool shouldRepaint(covariant _ActualProgressPainter oldDelegate) {
-    return oldDelegate.position != position ||
+  bool shouldRepaint(covariant _WaveformBarsPainter oldDelegate) {
+    return oldDelegate.waveform != waveform ||
+        oldDelegate.position != position ||
         oldDelegate.duration != duration ||
         oldDelegate.extractionProgress != extractionProgress ||
         oldDelegate.showExtractionProgress != showExtractionProgress;

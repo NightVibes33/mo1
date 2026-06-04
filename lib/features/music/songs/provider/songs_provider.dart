@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final songsProvider = Provider<List<MusicMetadata>>((ref) {
   final metadataList = ref
-      .read(filteredAudioFilesProvider)
+      .watch(filteredAudioFilesProvider)
       .requireValue
       .toList();
   metadataList.sort((a, b) => a.getTrackName.compareTo(b.getTrackName));

@@ -40,7 +40,7 @@ class _ArtistsSelectionScreenState extends ConsumerState<ArtistsSelectionScreen>
         extra: AlbumModel(
           albumName: context.localization.allAlbums,
           albumArtistName: "",
-          albumSongs: ref.read(filteredAudioFilesProvider).requireValue,
+          albumSongs: allSongs,
         ),
       );
     } else {
@@ -56,6 +56,8 @@ class _ArtistsSelectionScreenState extends ConsumerState<ArtistsSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
+    final displayItems = ref.watch(artistNamesProvider);
+    final allSongs = ref.watch(filteredAudioFilesProvider).requireValue;
     if (displayItems.isEmpty) {
       return CupertinoPageScaffold(
         child: Column(

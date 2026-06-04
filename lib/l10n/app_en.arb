@@ -391,7 +391,7 @@
   "@menuButtonTutorialText": {
     "description": "The tutorial text for the menu button when user opens menu for the first time"
   },
-  "deviceScreenMenuTutorialText": "This is the display screen. Touch Screen and Split Screen Mode are enabled by default and can be configured further in the settings.",
+  "deviceScreenMenuTutorialText": "This is the display screen. Go to Music > + MP3 Import to add local files. Long-press a song, or hold Center on a selected song, for Edit Song, Match Metadata, and Find Lyrics.",
   "@deviceScreenMenuTutorialText": {
     "description": "The tutorial text for the device screen when user opens menu for the first time"
   },

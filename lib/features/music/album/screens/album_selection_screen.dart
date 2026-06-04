@@ -73,6 +73,8 @@ class _AlbumsSelectionScreenState extends ConsumerState<AlbumsSelectionScreen>
 
   @override
   Widget build(BuildContext context) {
+    final displayItems = ref.watch(albumDetailsProvider);
+    final allSongs = ref.watch(filteredAudioFilesProvider).requireValue;
     if (displayItems.isEmpty) {
       return CupertinoPageScaffold(
         child: Column(
@@ -110,9 +112,6 @@ class _AlbumsSelectionScreenState extends ConsumerState<AlbumsSelectionScreen>
                 ),
                 itemBuilder: (context, index) {
                   if (index == 0) {
-                    final allSongs = ref
-                        .read(filteredAudioFilesProvider)
-                        .requireValue;
                     return AlbumListTile(
                       albumDetails: AlbumModel(
                         albumName: context.localization.allSongs,

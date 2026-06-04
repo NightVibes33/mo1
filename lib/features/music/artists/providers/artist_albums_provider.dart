@@ -6,7 +6,7 @@ final artistAlbumDetailListProvider = Provider.autoDispose
     .family<List<AlbumModel>, String>((ref, artistName) {
       final List<AlbumModel> artistAlbumDetailsList = [];
 
-      ref.read(albumDetailsProvider).forEach((albumDetail) {
+      ref.watch(albumDetailsProvider).forEach((albumDetail) {
         if (albumDetail.albumArtistName == artistName) {
           artistAlbumDetailsList.add(albumDetail);
         }
