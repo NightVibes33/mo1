@@ -99,20 +99,15 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
       curve: Curves.easeOutCubic,
       reverseCurve: Curves.easeInCubic,
     );
+    if (splitScreenType == SplitScreenType.albumArt) {
+      return FadeTransition(opacity: curvedAnimation, child: child);
+    }
+
     final scale = Tween<double>(begin: 0.97, end: 1).animate(curvedAnimation);
-    final preview = FadeTransition(
+    return FadeTransition(
       opacity: curvedAnimation,
       child: ScaleTransition(scale: scale, child: child),
     );
-
-    if (splitScreenType == SplitScreenType.albumArt) {
-      final slideAnimation = Tween<Offset>(
-        begin: const Offset(1, 0),
-        end: Offset.zero,
-      ).animate(curvedAnimation);
-      return SlideTransition(position: slideAnimation, child: preview);
-    }
-    return preview;
   }
 
   @override

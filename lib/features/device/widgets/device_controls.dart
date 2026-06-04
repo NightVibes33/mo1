@@ -234,37 +234,43 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
               image: DecorationImage(
                 image: const AssetImage(Assets.noiseImage),
                 fit: BoxFit.cover,
-                opacity: deviceColorStyle.noiseOpacity * 0.26,
+                opacity: deviceColorStyle.noiseOpacity * 0.34,
               ),
               gradient: RadialGradient(
-                center: _wheelActive ? _touchAlignment : const Alignment(-0.28, -0.35),
-                radius: 0.96,
+                center: _wheelActive
+                    ? _touchAlignment
+                    : const Alignment(-0.34, -0.42),
+                radius: 1.05,
+                stops: const [0, 0.34, 0.72, 1],
                 colors: [
                   CupertinoColors.white.withValues(
-                    alpha: deviceColorStyle.isDark ? 0.2 : 0.86,
+                    alpha: deviceColorStyle.isDark ? 0.26 : 0.94,
+                  ),
+                  CupertinoColors.white.withValues(
+                    alpha: deviceColorStyle.isDark ? 0.14 : 0.62,
                   ),
                   deviceColorStyle.controlBackgroundColor.withValues(
-                    alpha: deviceColorStyle.isDark ? 0.84 : 0.64,
+                    alpha: deviceColorStyle.isDark ? 0.82 : 0.58,
                   ),
                   deviceColorStyle.controlBackgroundColor.withValues(alpha: 0.98),
                 ],
               ),
               border: Border.all(
-                color: deviceColorStyle.controlBorderColor.withValues(alpha: 0.72),
-                width: 1.1,
+                color: CupertinoColors.white.withValues(alpha: 0.76),
+                width: 1.35,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: CupertinoColors.black.withValues(alpha: 0.22),
-                  blurRadius: 18,
-                  offset: const Offset(0, 11),
+                  color: CupertinoColors.black.withValues(alpha: 0.28),
+                  blurRadius: 24,
+                  offset: const Offset(0, 14),
                 ),
                 BoxShadow(
                   color: CupertinoColors.white.withValues(
-                    alpha: deviceColorStyle.isDark ? 0.02 : 0.26,
+                    alpha: deviceColorStyle.isDark ? 0.04 : 0.42,
                   ),
-                  blurRadius: 10,
-                  offset: const Offset(-2, -2),
+                  blurRadius: 12,
+                  offset: const Offset(-3, -3),
                 ),
               ],
             ),
@@ -274,15 +280,49 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                 Positioned.fill(
                   child: LiquidReflectionOverlay(
                     borderRadius: wheelBorderRadius,
-                    opacity: deviceColorStyle.isDark ? 0.46 : 0.72,
+                    opacity: deviceColorStyle.isDark ? 0.62 : 0.92,
                   ),
                 ),
                 Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: CupertinoColors.white.withValues(alpha: 0.18),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        stops: const [0, 0.42, 0.7, 1],
+                        colors: [
+                          CupertinoColors.white.withValues(alpha: 0.58),
+                          CupertinoColors.white.withValues(alpha: 0.10),
+                          CupertinoColors.white.withValues(alpha: 0.02),
+                          CupertinoColors.black.withValues(alpha: 0.08),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: CupertinoColors.white.withValues(alpha: 0.26),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.all(30),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: CupertinoColors.white.withValues(alpha: 0.12),
+                        ),
                       ),
                     ),
                   ),

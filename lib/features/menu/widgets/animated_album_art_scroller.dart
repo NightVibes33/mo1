@@ -1,10 +1,10 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
 import 'package:classipod/core/constants/assets.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/widgets/empty_state_widget.dart';
+import 'package:classipod/core/widgets/liquid_glass.dart';
 import 'package:classipod/features/menu/models/split_screen_type.dart';
 import 'package:classipod/features/music/album/providers/album_details_provider.dart';
 import 'package:flutter/cupertino.dart';
@@ -18,14 +18,10 @@ class AnimatedAlbumArtScroller extends ConsumerStatefulWidget {
 }
 
 class _AnimatedAlbumArtScrollerState
-    extends ConsumerState<AnimatedAlbumArtScroller>
-    with SingleTickerProviderStateMixin {
+    extends ConsumerState<AnimatedAlbumArtScroller> {
   ImageProvider _albumArtImage = const AssetImage(
     Assets.defaultAlbumCoverImage,
   );
-  late final AnimationController _animationController;
-  late Animation<Alignment> _alignmentAnimation;
-  double alignment = 0;
   bool _isEmptyState = false;
 
   void _getRandomAlbumArt() {
@@ -39,74 +35,22 @@ class _AnimatedAlbumArtScrollerState
       });
       return;
     }
-    final nonEmptyAlbums = albumDetails.where(
-      (album) => album.albumArtPath != null,
+
+    final randomAlbum = albumDetails.elementAt(
+      Random().nextInt(albumDetails.length),
     );
-    if (nonEmptyAlbums.isNotEmpty) {
-      final randomAlbum = nonEmptyAlbums.elementAt(
-        Random().nextInt(nonEmptyAlbums.length),
-      );
-      setState(() {
-        _albumArtImage = randomAlbum.isOnDevice()
-            ? FileImage(File(randomAlbum.albumArtPath!))
-            : NetworkImage(randomAlbum.albumArtPath!);
-      });
-    }
-  }
-
-  void _setRandomAnimationDirection() {
-    final randomNumber = Random().nextInt(4);
-    if (randomNumber == 0) {
-      _alignmentAnimation = Tween<Alignment>(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).animate(_animationController);
-    } else if (randomNumber == 1) {
-      _alignmentAnimation = Tween<Alignment>(
-        begin: Alignment.topRight,
-        end: Alignment.bottomLeft,
-      ).animate(_animationController);
-    } else if (randomNumber == 2) {
-      _alignmentAnimation = Tween<Alignment>(
-        begin: Alignment.bottomLeft,
-        end: Alignment.topRight,
-      ).animate(_animationController);
-    } else {
-      _alignmentAnimation = Tween<Alignment>(
-        begin: Alignment.bottomRight,
-        end: Alignment.topLeft,
-      ).animate(_animationController);
-    }
-  }
-
-  void _repeatAnimation() {
-    if (_animationController.isCompleted) {
-      _setRandomAnimationDirection();
-      _getRandomAlbumArt();
-      unawaited(_animationController.repeat(count: 1));
-    }
+    setState(() {
+      _isEmptyState = false;
+      _albumArtImage = randomAlbum.isOnDevice()
+          ? FileImage(File(randomAlbum.albumArtPath!))
+          : NetworkImage(randomAlbum.albumArtPath!);
+    });
   }
 
   @override
   void initState() {
     super.initState();
     _getRandomAlbumArt();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 10),
-    );
-    if (!_isEmptyState) {
-      _setRandomAnimationDirection();
-      unawaited(_animationController.forward());
-      _animationController.addListener(_repeatAnimation);
-    }
-  }
-
-  @override
-  void dispose() {
-    _animationController.removeListener(_repeatAnimation);
-    _animationController.dispose();
-    super.dispose();
   }
 
   @override
@@ -119,41 +63,56 @@ class _AnimatedAlbumArtScrollerState
 
     return RepaintBoundary(
       key: const ValueKey(SplitScreenType.albumArt),
-      child: AnimatedAlbumArt(
-        animation: _alignmentAnimation,
-        child: AnimatedSwitcher(
-          duration: const Duration(seconds: 1),
-          child: Image(key: ValueKey(_albumArtImage), image: _albumArtImage),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              context.appDeviceScreenBackgroundColor.withValues(alpha: 0.96),
+              const Color(0xFF101215).withValues(alpha: 0.92),
+            ],
+          ),
         ),
-      ),
-    );
-  }
-}
-
-class AnimatedAlbumArt extends AnimatedWidget {
-  final Widget child;
-
-  const AnimatedAlbumArt({
-    super.key,
-    required Animation<Alignment> animation,
-    required this.child,
-  }) : super(listenable: animation);
-
-  @override
-  Widget build(BuildContext context) {
-    final animation = listenable as Animation<Alignment>;
-    return SizedBox(
-      width: double.infinity,
-      child: AspectRatio(
-        aspectRatio: 1 / 2,
-        child: FittedBox(
-          fit: BoxFit.cover,
-          clipBehavior: Clip.hardEdge,
-          alignment: animation.value,
-          child: Transform.scale(
-            scale: 1.5,
-            alignment: animation.value,
-            child: child,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: LiquidGlass(
+                borderRadius: BorderRadius.circular(18),
+                blur: 10,
+                opacity: 0.18,
+                borderColor: CupertinoColors.white.withValues(alpha: 0.28),
+                padding: const EdgeInsets.all(8),
+                shadows: [
+                  BoxShadow(
+                    color: CupertinoColors.black.withValues(alpha: 0.34),
+                    blurRadius: 18,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.black.withValues(alpha: 0.18),
+                    ),
+                    child: Image(
+                      key: ValueKey(_albumArtImage),
+                      image: _albumArtImage,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
+                      errorBuilder: (_, _, _) => Image.asset(
+                        Assets.defaultAlbumCoverImage,
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),
