@@ -1,9 +1,18 @@
+import 'dart:io';
+
+import 'package:classipod/core/constants/assets.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
+import 'package:classipod/core/services/music_metadata_lookup_service.dart';
+import 'package:classipod/features/music/songs/models/music_metadata_match.dart';
+import 'package:classipod/features/music/songs/widgets/lyrics_search_sheet.dart';
+import 'package:classipod/features/music/songs/widgets/metadata_match_sheet.dart';
 import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:classipod/features/status_bar/widgets/status_bar.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
 class SongEditScreen extends ConsumerStatefulWidget {
   final MusicMetadata songMetadata;
@@ -19,15 +28,25 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
   late final TextEditingController _artistController;
   late final TextEditingController _albumController;
   late final TextEditingController _genreController;
+  late final TextEditingController _yearController;
+  late final TextEditingController _trackNumberController;
+  late final TextEditingController _discNumberController;
   late final TextEditingController _lyricsController;
 
   late final String _initialTitle;
   late final String _initialArtists;
   late final String _initialAlbum;
   late final String _initialGenre;
+  late final String _initialYear;
+  late final String _initialTrackNumber;
+  late final String _initialDiscNumber;
   late final String _initialLyrics;
 
+  String? _pendingThumbnailPath;
+  int? _pendingAlbumLength;
+  int? _pendingTrackDuration;
   bool _isSaving = false;
+  bool _isApplyingLookup = false;
 
   @override
   void initState() {
@@ -37,12 +56,18 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
     _initialArtists = (metadata.trackArtistNames ?? []).join(', ');
     _initialAlbum = metadata.albumName ?? '';
     _initialGenre = metadata.genres.join(', ');
+    _initialYear = metadata.year?.toString() ?? '';
+    _initialTrackNumber = metadata.trackNumber?.toString() ?? '';
+    _initialDiscNumber = metadata.discNumber?.toString() ?? '';
     _initialLyrics = metadata.lyrics ?? '';
 
     _titleController = TextEditingController(text: _initialTitle);
     _artistController = TextEditingController(text: _initialArtists);
     _albumController = TextEditingController(text: _initialAlbum);
     _genreController = TextEditingController(text: _initialGenre);
+    _yearController = TextEditingController(text: _initialYear);
+    _trackNumberController = TextEditingController(text: _initialTrackNumber);
+    _discNumberController = TextEditingController(text: _initialDiscNumber);
     _lyricsController = TextEditingController(text: _initialLyrics);
   }
 
@@ -52,6 +77,9 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
     _artistController.dispose();
     _albumController.dispose();
     _genreController.dispose();
+    _yearController.dispose();
+    _trackNumberController.dispose();
+    _discNumberController.dispose();
     _lyricsController.dispose();
     super.dispose();
   }
@@ -64,24 +92,42 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
       _isSaving = true;
     });
 
-    final String titleInput = _titleController.text.trim();
-    final String albumInput = _albumController.text.trim();
-    final String genreInput = _genreController.text.trim();
-    final String lyricsInput = _lyricsController.text.trim();
-    final String artistInput = _artistController.text.trim();
+    final titleInput = _titleController.text.trim();
+    final albumInput = _albumController.text.trim();
+    final genreInput = _genreController.text.trim();
+    final lyricsInput = _lyricsController.text.trim();
+    final artistInput = _artistController.text.trim();
+    final yearInput = _yearController.text.trim();
+    final trackNumberInput = _trackNumberController.text.trim();
+    final discNumberInput = _discNumberController.text.trim();
 
-    final bool titleChanged = titleInput != _initialTitle.trim();
-    final bool albumChanged = albumInput != _initialAlbum.trim();
-    final bool genreChanged = genreInput != _initialGenre.trim();
-    final bool lyricsChanged = lyricsInput != _initialLyrics.trim();
-    final bool artistChanged = artistInput != _initialArtists.trim();
+    final titleChanged = titleInput != _initialTitle.trim();
+    final albumChanged = albumInput != _initialAlbum.trim();
+    final genreChanged = genreInput != _initialGenre.trim();
+    final lyricsChanged = lyricsInput != _initialLyrics.trim();
+    final artistChanged = artistInput != _initialArtists.trim();
+    final yearChanged = yearInput != _initialYear.trim();
+    final trackNumberChanged = trackNumberInput != _initialTrackNumber.trim();
+    final discNumberChanged = discNumberInput != _initialDiscNumber.trim();
+    final artistNames = _splitInput(artistInput);
 
     final updatedMetadata = widget.songMetadata.copyWith(
       trackName: titleChanged ? titleInput : null,
       albumName: albumChanged ? albumInput : null,
       genres: genreChanged ? _splitInput(genreInput) : null,
       lyrics: lyricsChanged ? lyricsInput : null,
-      trackArtistNames: artistChanged ? _splitInput(artistInput) : null,
+      trackArtistNames: artistChanged ? artistNames : null,
+      albumArtistName: artistChanged && artistNames.isNotEmpty
+          ? artistNames.first
+          : null,
+      year: yearChanged ? _parseInteger(yearInput) : null,
+      trackNumber: trackNumberChanged
+          ? _parseInteger(trackNumberInput)
+          : null,
+      discNumber: discNumberChanged ? _parseInteger(discNumberInput) : null,
+      albumLength: _pendingAlbumLength,
+      trackDuration: _pendingTrackDuration,
+      thumbnailPath: _pendingThumbnailPath,
     );
 
     await ref
@@ -93,6 +139,117 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
     }
   }
 
+  Future<void> _showMetadataSearch() async {
+    final match = await showMetadataMatchSheet(context, _draftMetadata());
+    if (match == null) {
+      return;
+    }
+    await _applyMetadataMatch(match);
+  }
+
+  Future<void> _applyMetadataMatch(MusicMetadataMatch match) async {
+    setState(() {
+      _isApplyingLookup = true;
+    });
+
+    String? thumbnailPath;
+    try {
+      thumbnailPath = await ref
+          .read(musicMetadataLookupServiceProvider)
+          .cacheArtworkForMatch(match, widget.songMetadata);
+    } catch (_) {
+      thumbnailPath = null;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      if (match.title.trim().isNotEmpty) {
+        _titleController.text = match.title;
+      }
+      if (match.artist.trim().isNotEmpty) {
+        _artistController.text = match.artist;
+      }
+      if (match.album.trim().isNotEmpty) {
+        _albumController.text = match.album;
+      }
+      if (match.genres.isNotEmpty) {
+        _genreController.text = match.genres.join(', ');
+      }
+      if (match.releaseDate != null) {
+        _yearController.text = match.releaseDate!.year.toString();
+      }
+      if (match.trackNumber != null) {
+        _trackNumberController.text = match.trackNumber.toString();
+      }
+      if (match.discNumber != null) {
+        _discNumberController.text = match.discNumber.toString();
+      }
+      _pendingThumbnailPath = thumbnailPath ?? _pendingThumbnailPath;
+      _pendingAlbumLength = match.trackCount ?? _pendingAlbumLength;
+      _pendingTrackDuration = match.durationMs ?? _pendingTrackDuration;
+      _isApplyingLookup = false;
+    });
+  }
+
+  Future<void> _showLyricsSearch() async {
+    final lyrics = await showLyricsSearchSheet(context, _draftMetadata());
+    if (lyrics == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _lyricsController.text = lyrics;
+    });
+  }
+
+  Future<void> _pickArtwork() async {
+    final picked = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      type: FileType.image,
+      withData: false,
+      allowCompression: false,
+    );
+    final sourcePath = picked?.files.single.path;
+    if (sourcePath == null || sourcePath.isEmpty) {
+      return;
+    }
+
+    final documentsDirectory = await getApplicationDocumentsDirectory();
+    final artworkDirectory = Directory(
+      '${documentsDirectory.path}/ClassiPod/artwork',
+    );
+    await artworkDirectory.create(recursive: true);
+
+    final extension = _imageExtension(sourcePath);
+    final destination = File(
+      '${artworkDirectory.path}/manual_${widget.songMetadata.originalSongIndex}_${DateTime.now().millisecondsSinceEpoch}.$extension',
+    );
+    await File(sourcePath).copy(destination.path);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _pendingThumbnailPath = destination.path;
+    });
+  }
+
+  MusicMetadata _draftMetadata() {
+    final artists = _splitInput(_artistController.text.trim());
+    return widget.songMetadata.copyWith(
+      trackName: _nonEmpty(_titleController.text) ?? widget.songMetadata.trackName,
+      trackArtistNames: artists.isEmpty ? widget.songMetadata.trackArtistNames : artists,
+      albumName: _nonEmpty(_albumController.text) ?? widget.songMetadata.albumName,
+      genres: _splitInput(_genreController.text.trim()),
+      thumbnailPath: _pendingThumbnailPath,
+      year: _parseInteger(_yearController.text.trim()),
+      trackNumber: _parseInteger(_trackNumberController.text.trim()),
+      discNumber: _parseInteger(_discNumberController.text.trim()),
+      lyrics: _nonEmpty(_lyricsController.text) ?? widget.songMetadata.lyrics,
+    );
+  }
+
   List<String> _splitInput(String value) {
     if (value.isEmpty) {
       return [];
@@ -101,11 +258,32 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
         .split(',')
         .map((entry) => entry.trim())
         .where((entry) => entry.isNotEmpty)
-        .toList();
+        .toList(growable: false);
+  }
+
+  int? _parseInteger(String value) {
+    if (value.trim().isEmpty) {
+      return null;
+    }
+    return int.tryParse(value.trim());
+  }
+
+  String? _nonEmpty(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  String _imageExtension(String path) {
+    final extension = path.split('.').last.toLowerCase();
+    if (extension == 'png' || extension == 'jpg' || extension == 'jpeg') {
+      return extension;
+    }
+    return 'jpg';
   }
 
   @override
   Widget build(BuildContext context) {
+    final thumbnailPath = _pendingThumbnailPath ?? widget.songMetadata.thumbnailPath;
     return SafeArea(
       child: CupertinoPageScaffold(
         child: Column(
@@ -116,6 +294,18 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
+                    _ArtworkEditor(
+                      thumbnailPath: thumbnailPath,
+                      isApplyingLookup: _isApplyingLookup,
+                      onPickArtwork: _pickArtwork,
+                    ),
+                    const SizedBox(height: 12),
+                    _LookupActions(
+                      isApplyingLookup: _isApplyingLookup,
+                      onSearchMetadata: _showMetadataSearch,
+                      onFindLyrics: _showLyricsSearch,
+                    ),
+                    const SizedBox(height: 18),
                     _SongEditField(
                       label: context.localization.editSongNameLabel,
                       controller: _titleController,
@@ -128,6 +318,33 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
                       label: context.localization.editSongAlbumLabel,
                       controller: _albumController,
                     ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _SongEditField(
+                            label: 'Year',
+                            controller: _yearController,
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _SongEditField(
+                            label: 'Track',
+                            controller: _trackNumberController,
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _SongEditField(
+                            label: 'Disc',
+                            controller: _discNumberController,
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
                     _SongEditField(
                       label: context.localization.editSongGenreLabel,
                       controller: _genreController,
@@ -135,11 +352,13 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
                     _SongEditField(
                       label: context.localization.editSongLyricsLabel,
                       controller: _lyricsController,
-                      maxLines: 5,
+                      maxLines: 6,
                     ),
                     const SizedBox(height: 24),
                     CupertinoButton.filled(
-                      onPressed: _isSaving ? null : _saveChanges,
+                      onPressed: _isSaving || _isApplyingLookup
+                          ? null
+                          : _saveChanges,
                       child: _isSaving
                           ? const CupertinoActivityIndicator()
                           : Text(context.localization.saveChangesButton),
@@ -162,15 +381,156 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
   }
 }
 
+class _ArtworkEditor extends StatelessWidget {
+  final String? thumbnailPath;
+  final bool isApplyingLookup;
+  final VoidCallback onPickArtwork;
+
+  const _ArtworkEditor({
+    required this.thumbnailPath,
+    required this.isApplyingLookup,
+    required this.onPickArtwork,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemGrey6.resolveFrom(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: CupertinoColors.separator.resolveFrom(context)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 260),
+                child: _ArtworkPreview(
+                  key: ValueKey(thumbnailPath),
+                  thumbnailPath: thumbnailPath,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Artwork',
+                    style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Use matched art or pick a local cover image.',
+                    style: TextStyle(
+                      color: context.appSecondaryTextColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: isApplyingLookup ? null : onPickArtwork,
+                    child: const Text('Pick Artwork'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ArtworkPreview extends StatelessWidget {
+  final String? thumbnailPath;
+
+  const _ArtworkPreview({super.key, this.thumbnailPath});
+
+  @override
+  Widget build(BuildContext context) {
+    return Image(
+      image: _imageProvider(),
+      height: 86,
+      width: 86,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => Image.asset(
+        Assets.defaultAlbumCoverImage,
+        height: 86,
+        width: 86,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+
+  ImageProvider<Object> _imageProvider() {
+    final path = thumbnailPath;
+    if (path == null || path.isEmpty) {
+      return const AssetImage(Assets.defaultAlbumCoverImage);
+    }
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return NetworkImage(path);
+    }
+    return FileImage(File(path));
+  }
+}
+
+class _LookupActions extends StatelessWidget {
+  final bool isApplyingLookup;
+  final VoidCallback onSearchMetadata;
+  final VoidCallback onFindLyrics;
+
+  const _LookupActions({
+    required this.isApplyingLookup,
+    required this.onSearchMetadata,
+    required this.onFindLyrics,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: CupertinoButton.filled(
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            onPressed: isApplyingLookup ? null : onSearchMetadata,
+            child: isApplyingLookup
+                ? const CupertinoActivityIndicator()
+                : const Text('Search Metadata'),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: CupertinoButton(
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            onPressed: isApplyingLookup ? null : onFindLyrics,
+            child: const Text('Find Lyrics'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _SongEditField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final int maxLines;
+  final TextInputType? keyboardType;
 
   const _SongEditField({
     required this.label,
     required this.controller,
     this.maxLines = 1,
+    this.keyboardType,
   });
 
   @override
@@ -183,19 +543,20 @@ class _SongEditField extends StatelessWidget {
           Text(
             label,
             style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 6),
           CupertinoTextField(
             controller: controller,
+            keyboardType: keyboardType,
             maxLines: maxLines,
             minLines: maxLines,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            style: CupertinoTheme.of(
-              context,
-            ).textTheme.textStyle.copyWith(fontSize: 16),
+            style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                  fontSize: 16,
+                ),
           ),
         ],
       ),

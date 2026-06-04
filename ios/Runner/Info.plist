@@ -27,7 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppleMusicUsageDescription</key>
-	<string>mo1 needs access to your local music library and audio files.</string>
+	<string>mo1 uses Apple Music catalog search to match local song metadata and artwork.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>mo1 lets you choose local album artwork for imported songs.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>
