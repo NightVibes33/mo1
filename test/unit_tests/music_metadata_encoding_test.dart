@@ -34,4 +34,27 @@ void main() {
       expect(metadata.trackArtistNames, [expectedValue]);
     },
   );
+
+  test('MusicMetadata falls back to file names when tags are unknown', () {
+    final audioMetadata = AudioMetadata(
+      album: 'Unknown Album',
+      artist: 'Unknown Artist',
+      title: 'Unknown Song',
+      file: File('/music/Album Name/01 - Real Artist - Real Title.mp3'),
+    );
+
+    final metadata = MusicMetadata.fromAudioMetadata(
+      audioMetadata,
+      null,
+      0,
+      fallbackLyrics: '[00:01.00] lyric line',
+    );
+
+    expect(metadata.trackName, 'Real Title');
+    expect(metadata.trackArtistNames, ['Real Artist']);
+    expect(metadata.albumName, 'Album Name');
+    expect(metadata.albumArtistName, 'Real Artist');
+    expect(metadata.lyrics, '[00:01.00] lyric line');
+  });
+
 }

@@ -182,7 +182,6 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
         final wheelBorderRadius = BorderRadius.circular(wheelRadius);
         final Color labelColor = deviceColorStyle.buttonAccentColor;
         final Color iconColor = deviceColorStyle.buttonIconColor;
-        final Color glowColor = const Color(0xFF5DFFE8).withValues(alpha: 0.42);
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -227,7 +226,6 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                   blurRadius: 20,
                   offset: const Offset(0, 12),
                 ),
-                BoxShadow(color: glowColor, blurRadius: 22, spreadRadius: 1),
               ],
             ),
             clipBehavior: Clip.hardEdge,
@@ -375,11 +373,6 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                                       ),
                                       blurRadius: 16,
                                       offset: const Offset(0, 8),
-                                    ),
-                                    BoxShadow(
-                                      color: const Color(0xFF66FFE8)
-                                          .withValues(alpha: 0.22),
-                                      blurRadius: 16,
                                     ),
                                   ],
                                 ),

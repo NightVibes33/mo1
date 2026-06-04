@@ -36,16 +36,131 @@ String? normalizeMetadataString(String? value) {
   return normalizedValue.isEmpty ? value : normalizedValue;
 }
 
-List<String> _splitArtistNames(String artist) {
-  if (artist.contains(',')) {
-    return artist.split(',').map((name) => name.trim()).toList();
-  } else if (artist.contains('/')) {
-    return artist.split('/').map((name) => name.trim()).toList();
-  } else if (artist.contains(';')) {
-    return artist.split(';').map((name) => name.trim()).toList();
+String? _cleanMetadataString(String? value) {
+  final normalized = normalizeMetadataString(value)?.trim();
+  if (normalized == null || normalized.isEmpty) {
+    return null;
   }
 
-  return [artist];
+  final folded = normalized.toLowerCase();
+  if (folded == 'unknown' ||
+      folded == 'unknown song' ||
+      folded == 'unknown title' ||
+      folded == 'unknown artist' ||
+      folded == 'unknown album' ||
+      folded == '<unknown>' ||
+      folded == 'null') {
+    return null;
+  }
+
+  return normalized;
+}
+
+List<String> _splitArtistNames(String artist) {
+  final List<String> names;
+  if (artist.contains(',')) {
+    names = artist.split(',');
+  } else if (artist.contains('/')) {
+    names = artist.split('/');
+  } else if (artist.contains(';')) {
+    names = artist.split(';');
+  } else {
+    names = [artist];
+  }
+
+  return names
+      .map((name) => name.trim())
+      .where((name) => name.isNotEmpty)
+      .toList(growable: false);
+}
+
+List<String>? _artistNamesFromValue(dynamic value) {
+  if (value is List) {
+    final artists = value
+        .whereType<String>()
+        .map(_cleanMetadataString)
+        .whereType<String>()
+        .toList(growable: false);
+    return artists.isEmpty ? null : artists;
+  }
+
+  final artist = _cleanMetadataString(value?.toString());
+  if (artist == null) {
+    return null;
+  }
+  final artists = _splitArtistNames(artist);
+  return artists.isEmpty ? null : artists;
+}
+
+String _fileNameWithoutExtension(String path) {
+  final normalized = path.replaceAll('\\', '/');
+  final slash = normalized.lastIndexOf('/');
+  final fileName = slash == -1 ? normalized : normalized.substring(slash + 1);
+  final dot = fileName.lastIndexOf('.');
+  return dot > 0 ? fileName.substring(0, dot) : fileName;
+}
+
+String? _parentFolderName(String path) {
+  final normalized = path.replaceAll('\\', '/');
+  final slash = normalized.lastIndexOf('/');
+  if (slash <= 0) {
+    return null;
+  }
+  final parentPath = normalized.substring(0, slash);
+  final parentSlash = parentPath.lastIndexOf('/');
+  final folder = parentSlash == -1
+      ? parentPath
+      : parentPath.substring(parentSlash + 1);
+  final cleaned = _cleanMetadataString(folder.replaceAll('_', ' '));
+  if (cleaned == null) {
+    return null;
+  }
+
+  const ignoredParents = {
+    'classipod',
+    'documents',
+    'downloads',
+    'files',
+    'imports',
+    'music',
+  };
+  return ignoredParents.contains(cleaned.toLowerCase()) ? null : cleaned;
+}
+
+String _cleanFileStem(String value) {
+  return value
+      .replaceAll(RegExp(r'[_\.]+'), ' ')
+      .replaceFirst(RegExp(r'^\s*\d{1,3}\s*[-_. ]\s*'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+}
+
+class _MetadataFallback {
+  final String? title;
+  final String? artist;
+  final String? albumName;
+
+  const _MetadataFallback({this.title, this.artist, this.albumName});
+
+  factory _MetadataFallback.fromPath(String path) {
+    final cleanedStem = _cleanFileStem(_fileNameWithoutExtension(path));
+    String? title = _cleanMetadataString(cleanedStem);
+    String? artist;
+
+    final separatorMatch = RegExp(r'\s+-\s+').firstMatch(cleanedStem);
+    if (separatorMatch != null) {
+      final left = cleanedStem.substring(0, separatorMatch.start);
+      final right = cleanedStem.substring(separatorMatch.end);
+      artist = _cleanMetadataString(left);
+      title = _cleanMetadataString(right) ?? title;
+    }
+
+    return _MetadataFallback(
+      title: title,
+      artist: artist,
+      albumName: _parentFolderName(path),
+    );
+  }
 }
 
 class MusicMetadata extends HiveObject {
@@ -126,22 +241,31 @@ class MusicMetadata extends HiveObject {
   factory MusicMetadata.fromAudioMetadata(
     AudioMetadata audioMetadata,
     String? thumbnailPath,
-    int originalSongIndex,
-  ) {
-    final artist =
-        normalizeMetadataString(audioMetadata.artist) ?? "Unknown Artist";
-    final List<String> trackArtistNames = _splitArtistNames(artist);
+    int originalSongIndex, {
+    String? fallbackLyrics,
+  }) {
+    final fallback = _MetadataFallback.fromPath(audioMetadata.file.path);
+    final artist = _cleanMetadataString(audioMetadata.artist) ?? fallback.artist;
+    final List<String>? trackArtistNames = artist == null
+        ? null
+        : _splitArtistNames(artist);
+    final albumName =
+        _cleanMetadataString(audioMetadata.album) ?? fallback.albumName;
+    final trackName =
+        _cleanMetadataString(audioMetadata.title) ?? fallback.title;
 
     return MusicMetadata(
-      trackName: normalizeMetadataString(audioMetadata.title) ?? "Unknown Song",
+      trackName: trackName,
       trackArtistNames: trackArtistNames,
-      albumName:
-          normalizeMetadataString(audioMetadata.album) ?? "Unknown Album",
-      albumArtistName: trackArtistNames[0],
+      albumName: albumName,
+      albumArtistName: trackArtistNames?.first ?? fallback.artist,
       trackNumber: audioMetadata.trackNumber,
       albumLength: audioMetadata.trackTotal,
       year: audioMetadata.year?.year,
-      genres: audioMetadata.genres,
+      genres: audioMetadata.genres
+          .map(_cleanMetadataString)
+          .whereType<String>()
+          .toList(growable: false),
       discNumber: audioMetadata.discNumber,
       mimeType: audioMetadata.pictures.isEmpty
           ? null
@@ -151,17 +275,19 @@ class MusicMetadata extends HiveObject {
       filePath: audioMetadata.file.path,
       thumbnailPath: thumbnailPath,
       originalSongIndex: originalSongIndex,
-      lyrics: audioMetadata.lyrics,
+      lyrics:
+          _cleanMetadataString(audioMetadata.lyrics) ??
+          _cleanMetadataString(fallbackLyrics),
     );
   }
 
   factory MusicMetadata.fromMap(Map<String, dynamic> map) => MusicMetadata(
-    trackName: normalizeMetadataString(map['metadata']['trackName']),
-    trackArtistNames: normalizeMetadataString(
+    trackName: _cleanMetadataString(map['metadata']['trackName']),
+    trackArtistNames: _artistNamesFromValue(
       map['metadata']['trackArtistNames'],
-    )?.split('/'),
-    albumName: normalizeMetadataString(map['metadata']['albumName']),
-    albumArtistName: normalizeMetadataString(
+    ),
+    albumName: _cleanMetadataString(map['metadata']['albumName']),
+    albumArtistName: _cleanMetadataString(
       map['metadata']['albumArtistName'],
     ),
     trackNumber: parseInteger(map['metadata']['trackNumber']),
@@ -177,7 +303,7 @@ class MusicMetadata extends HiveObject {
     originalSongIndex: map['originalSongIndex'],
     isOnDevice: map['isOnDevice'],
     rating: map['rating'],
-    lyrics: map['lyrics'],
+    lyrics: _cleanMetadataString(map['lyrics']),
   );
 
   Map<String, dynamic> toMap() => {
@@ -313,14 +439,18 @@ class MusicMetadata extends HiveObject {
   }
 
   String get getMainArtistName {
-    return trackArtistNames?[0] ?? "Unknown Artist";
+    if (trackArtistNames == null || trackArtistNames!.isEmpty) {
+      return "Unknown Artist";
+    }
+    return trackArtistNames!.first;
   }
 
   String? get getTrackArtistNames {
-    return trackArtistNames?.toString().substring(
-      1,
-      trackArtistNames.toString().length - 1,
-    );
+    final artists = trackArtistNames
+        ?.map((artist) => artist.trim())
+        .where((artist) => artist.isNotEmpty)
+        .join(', ');
+    return artists == null || artists.isEmpty ? null : artists;
   }
 
   String get getMainGenre {

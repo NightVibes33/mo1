@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
@@ -25,17 +26,10 @@ class MetadataReaderRepository {
   MetadataReaderRepository(this.thumbnailsDirectoryPath);
 
   bool isSupportedAudioFormat(String path) {
-    if (path.endsWith('.mp3') ||
-        path.endsWith('.ogg') ||
-        path.endsWith('.opus') ||
-        path.endsWith('.wav') ||
-        path.endsWith('.flac') ||
-        path.endsWith('.m4a') ||
-        path.endsWith('.aac')) {
-      return true;
-    } else {
-      return false;
-    }
+    final lowerPath = path.toLowerCase();
+    return supportedFileExtensions.any(
+      (extension) => lowerPath.endsWith(extension.toLowerCase()),
+    );
   }
 
   String getThumbnailPath({
@@ -68,41 +62,7 @@ class MetadataReaderRepository {
     );
     final List<String> filePaths = files.map((e) => e.path).toList();
 
-    final List<MusicMetadata> metadataList = [];
-
-    AudioMetadata audioMetadata;
-
-    for (final String path in filePaths) {
-      try {
-        if (isSupportedAudioFormat(path)) {
-          audioMetadata = readMetadata(File(path), getImage: true);
-
-          final String thumbnailPath = getThumbnailPath(
-            albumName: audioMetadata.album,
-            artistName: audioMetadata.artist,
-            filePath: path,
-          );
-
-          if (audioMetadata.pictures.isNotEmpty) {
-            File(
-              thumbnailPath,
-            ).writeAsBytesSync(audioMetadata.pictures[0].bytes);
-          }
-
-          metadataList.add(
-            MusicMetadata.fromAudioMetadata(
-              audioMetadata,
-              thumbnailPath,
-              metadataList.length,
-            ),
-          );
-        }
-      } catch (e) {
-        debugPrint("Metadata Parsing Error: $e");
-      }
-    }
-
-    return UnmodifiableListView(metadataList);
+    return extractMetadataFromFiles(filePaths);
   }
 
   UnmodifiableListView<MusicMetadata> extractMetadataFromFiles(
@@ -110,38 +70,72 @@ class MetadataReaderRepository {
   ) {
     final List<MusicMetadata> metadataList = [];
 
-    AudioMetadata audioMetadata;
-
     for (final String path in filePaths) {
-      try {
-        if (isSupportedAudioFormat(path)) {
-          audioMetadata = readMetadata(File(path), getImage: true);
-
-          final String thumbnailPath = getThumbnailPath(
-            albumName: audioMetadata.album,
-            artistName: audioMetadata.artist,
-            filePath: path,
-          );
-
-          if (audioMetadata.pictures.isNotEmpty) {
-            File(
-              thumbnailPath,
-            ).writeAsBytesSync(audioMetadata.pictures[0].bytes);
-          }
-
-          metadataList.add(
-            MusicMetadata.fromAudioMetadata(
-              audioMetadata,
-              thumbnailPath,
-              metadataList.length,
-            ),
-          );
-        }
-      } catch (e) {
-        debugPrint("Metadata Parsing Error: $e");
+      final metadata = _extractMetadataFromPath(path, metadataList.length);
+      if (metadata != null) {
+        metadataList.add(metadata);
       }
     }
 
     return UnmodifiableListView(metadataList);
+  }
+
+  MusicMetadata? _extractMetadataFromPath(String path, int originalSongIndex) {
+    if (!isSupportedAudioFormat(path)) {
+      return null;
+    }
+
+    try {
+      final audioMetadata = readMetadata(File(path), getImage: true);
+      String? thumbnailPath;
+
+      if (audioMetadata.pictures.isNotEmpty) {
+        thumbnailPath = getThumbnailPath(
+          albumName: audioMetadata.album,
+          artistName: audioMetadata.artist,
+          filePath: path,
+        );
+        File(thumbnailPath).writeAsBytesSync(audioMetadata.pictures[0].bytes);
+      }
+
+      return MusicMetadata.fromAudioMetadata(
+        audioMetadata,
+        thumbnailPath,
+        originalSongIndex,
+        fallbackLyrics: _readSidecarLyrics(path),
+      );
+    } catch (e) {
+      debugPrint('Metadata Parsing Error: $e');
+      return null;
+    }
+  }
+
+  String? _readSidecarLyrics(String audioPath) {
+    final pathWithoutExtension = _pathWithoutExtension(audioPath);
+    for (final extension in const ['.lrc', '.txt']) {
+      final sidecar = File('$pathWithoutExtension$extension');
+      try {
+        if (!sidecar.existsSync()) {
+          continue;
+        }
+        final size = sidecar.lengthSync();
+        if (size == 0 || size > 512 * 1024) {
+          continue;
+        }
+        return utf8.decode(sidecar.readAsBytesSync(), allowMalformed: true);
+      } catch (e) {
+        debugPrint('Lyrics Sidecar Error: $e');
+      }
+    }
+    return null;
+  }
+
+  String _pathWithoutExtension(String path) {
+    final dot = path.lastIndexOf('.');
+    final slash = path.replaceAll('\\', '/').lastIndexOf('/');
+    if (dot <= slash) {
+      return path;
+    }
+    return path.substring(0, dot);
   }
 }

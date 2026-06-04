@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:classipod/core/constants/constants.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/navigation/routes.dart';
+import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
+import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
 import 'package:classipod/features/menu/controller/split_screen_controller.dart';
@@ -33,6 +35,7 @@ enum _SettingsDisplayItems {
   splitScreenEnabled,
   immersiveMode,
   showAppTutorial,
+  importSongs,
   rescanMusicFiles,
   excludeDirectories,
   resetSettings,
@@ -70,6 +73,8 @@ enum _SettingsDisplayItems {
         return context.localization.immersiveModeSettingTitle;
       case showAppTutorial:
         return context.localization.showAppTutorialSettingTitle;
+      case importSongs:
+        return 'Import Songs';
       case rescanMusicFiles:
         return context.localization.rescanMusicFilesSettingTitle;
       case resetSettings:
@@ -170,6 +175,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         await ref
             .read(settingsPreferencesControllerProvider.notifier)
             .showAppTutorial();
+        break;
+      case _SettingsDisplayItems.importSongs:
+        final importedCount = await ref
+            .read(audioFilesServiceProvider.notifier)
+            .importLocalAudioFiles();
+        if (importedCount > 0 && mounted) {
+          ref.invalidate(filteredAudioFilesProvider);
+          context.goNamed(Routes.splash.name);
+        }
         break;
       case _SettingsDisplayItems.rescanMusicFiles:
         await ref
@@ -305,6 +319,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
             SplitScreenType.showTutorialScreen;
         break;
+      case _SettingsDisplayItems.importSongs:
       case _SettingsDisplayItems.rescanMusicFiles:
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
             SplitScreenType.rescanMusicFiles;

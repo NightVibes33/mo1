@@ -1,21 +1,28 @@
 import 'package:classipod/core/constants/app_palette.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
+import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/core/widgets/liquid_glass.dart';
 import 'package:classipod/core/widgets/marquee_text.dart';
 import 'package:classipod/features/now_playing/models/now_playing_model.dart';
+import 'package:classipod/features/now_playing/widgets/accurate_waveform_visualizer.dart';
 import 'package:classipod/features/now_playing/widgets/album_reflective_art.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class NowPlayingWidget extends StatelessWidget {
+class NowPlayingWidget extends ConsumerWidget {
   final NowPlayingModel nowPlayingDetails;
 
   const NowPlayingWidget({super.key, required this.nowPlayingDetails});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currentMetadata = nowPlayingDetails.currentMetadata;
     final heroTag =
         '${currentMetadata?.albumName}-${currentMetadata?.albumArtistName}';
+    final audioPlayer = ref.watch(audioPlayerProvider);
+    final waveformDuration = currentMetadata?.trackDuration == null
+        ? audioPlayer.duration
+        : Duration(milliseconds: currentMetadata!.trackDuration!);
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 420),
@@ -60,7 +67,7 @@ class NowPlayingWidget extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
               gradientColors: [
                 CupertinoColors.white.withValues(alpha: 0.34),
-                const Color(0xFF6FFFF0).withValues(alpha: 0.11),
+                const Color(0xFFFF4FD8).withValues(alpha: 0.08),
                 CupertinoColors.white.withValues(alpha: 0.08),
               ],
               child: Column(
@@ -126,10 +133,10 @@ class NowPlayingWidget extends StatelessWidget {
                   SizedBox(
                     height: 42,
                     width: double.infinity,
-                    child: MusicPulseVisualizer(
-                      isPlaying: nowPlayingDetails.isPlaying,
-                      color: const Color(0xFF29F5CF),
-                      hotColor: const Color(0xFFFF4DD2),
+                    child: AccurateWaveformVisualizer(
+                      metadata: currentMetadata,
+                      positionStream: audioPlayer.positionStream,
+                      duration: waveformDuration,
                     ),
                   ),
                   const SizedBox(height: 4),

@@ -32,7 +32,7 @@ class LiquidGlass extends StatelessWidget {
         [
           CupertinoColors.white.withValues(alpha: opacity),
           CupertinoColors.white.withValues(alpha: opacity * 0.18),
-          const Color(0xFF7FFFE8).withValues(alpha: opacity * 0.16),
+          const Color(0xFFFF4FD8).withValues(alpha: opacity * 0.10),
         ];
 
     return DecoratedBox(
@@ -190,7 +190,7 @@ class _AuroraPainter extends CustomPainter {
             colors[(index + 1) % colors.length].withValues(
               alpha: 0.32 * intensity,
             ),
-            const Color(0xFF54FFE2).withValues(alpha: 0.16 * intensity),
+            CupertinoColors.white.withValues(alpha: 0.10 * intensity),
           ],
         ).createShader(rect);
       canvas.drawPath(path, paint);
@@ -236,147 +236,5 @@ class LiquidReflectionOverlay extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class MusicPulseVisualizer extends StatefulWidget {
-  final bool isPlaying;
-  final Color color;
-  final Color hotColor;
-
-  const MusicPulseVisualizer({
-    super.key,
-    required this.isPlaying,
-    required this.color,
-    required this.hotColor,
-  });
-
-  @override
-  State<MusicPulseVisualizer> createState() => _MusicPulseVisualizerState();
-}
-
-class _MusicPulseVisualizerState extends State<MusicPulseVisualizer>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1300),
-    );
-    if (widget.isPlaying) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant MusicPulseVisualizer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isPlaying && !_controller.isAnimating) {
-      _controller.repeat();
-    } else if (!widget.isPlaying && _controller.isAnimating) {
-      _controller.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return CustomPaint(
-            painter: _MusicPulsePainter(
-              progress: _controller.value,
-              isPlaying: widget.isPlaying,
-              color: widget.color,
-              hotColor: widget.hotColor,
-            ),
-            child: const SizedBox.expand(),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _MusicPulsePainter extends CustomPainter {
-  final double progress;
-  final bool isPlaying;
-  final Color color;
-  final Color hotColor;
-
-  const _MusicPulsePainter({
-    required this.progress,
-    required this.isPlaying,
-    required this.color,
-    required this.hotColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final centerY = size.height * 0.5;
-    final paint = Paint()
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 3;
-
-    const bars = 22;
-    final gap = size.width / bars;
-    for (var index = 0; index < bars; index++) {
-      final x = gap * index + gap * 0.5;
-      final wave =
-          sin(progress * pi * 2 + index * 0.72) * 0.5 +
-          sin(progress * pi * 4 + index * 0.21) * 0.25 +
-          0.7;
-      final idle = 0.18 + (index % 5) * 0.035;
-      final height = size.height *
-          (isPlaying ? wave.clamp(0.18, 0.92).toDouble() : idle);
-      paint.shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          hotColor.withValues(alpha: 0.88),
-          color.withValues(alpha: 0.58),
-        ],
-      ).createShader(Rect.fromLTWH(x - 2, centerY - height / 2, 4, height));
-      canvas.drawLine(
-        Offset(x, centerY - height / 2),
-        Offset(x, centerY + height / 2),
-        paint,
-      );
-    }
-
-    final glowPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
-      ..color = color.withValues(alpha: isPlaying ? 0.34 : 0.12);
-    final path = Path();
-    for (var index = 0; index <= bars; index++) {
-      final x = size.width * index / bars;
-      final y = centerY + sin(progress * pi * 2 + index * 0.55) * 13;
-      if (index == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    canvas.drawPath(path, glowPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _MusicPulsePainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.isPlaying != isPlaying ||
-        oldDelegate.color != color ||
-        oldDelegate.hotColor != hotColor;
   }
 }
