@@ -6,6 +6,7 @@ import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/album/providers/album_details_provider.dart';
 import 'package:classipod/features/music/playlist/providers/playlists_provider.dart';
+import 'package:classipod/features/music/songs/services/song_metadata_actions.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,9 @@ import 'package:go_router/go_router.dart';
 enum _SearchMoreOptions {
   addToOnTheGo,
   addAlbumToOnTheGo,
+  editSong,
+  matchMetadata,
+  findLyrics,
   browseAlbum,
   browseArtist,
   cancel;
@@ -23,6 +27,12 @@ enum _SearchMoreOptions {
         return context.localization.addToOnTheGoPlaylist;
       case addAlbumToOnTheGo:
         return context.localization.addAlbumToOnTheGoPlaylist;
+      case editSong:
+        return context.localization.editSongOption;
+      case matchMetadata:
+        return 'Match Metadata';
+      case findLyrics:
+        return 'Find Lyrics';
       case browseAlbum:
         return context.localization.browseAlbum;
       case browseArtist:
@@ -56,6 +66,9 @@ class _SearchMoreOptionsModalState extends ConsumerState<SearchMoreOptionsModal>
   List<_SearchMoreOptions> get displayItems => [
     if (widget.songMetadata != null) _SearchMoreOptions.addToOnTheGo,
     if (widget.albumDetail != null) _SearchMoreOptions.addAlbumToOnTheGo,
+    if (widget.songMetadata != null) _SearchMoreOptions.editSong,
+    if (widget.songMetadata != null) _SearchMoreOptions.matchMetadata,
+    if (widget.songMetadata != null) _SearchMoreOptions.findLyrics,
     if (widget.songMetadata != null) _SearchMoreOptions.browseAlbum,
     _SearchMoreOptions.browseArtist,
     _SearchMoreOptions.cancel,
@@ -80,6 +93,39 @@ class _SearchMoreOptionsModalState extends ConsumerState<SearchMoreOptionsModal>
             .addAlbumToPlaylist(widget.albumDetail);
         context.pop();
         break;
+      case _SearchMoreOptions.editSong:
+        final songMetadata = widget.songMetadata;
+        if (songMetadata == null) {
+          context.pop();
+          return;
+        }
+        final result = await editSongMetadata(context, songMetadata);
+        if (result != null && mounted) {
+          context.pop();
+        }
+        break;
+      case _SearchMoreOptions.matchMetadata:
+        final songMetadata = widget.songMetadata;
+        if (songMetadata == null) {
+          context.pop();
+          return;
+        }
+        final result = await matchSongMetadata(context, ref, songMetadata);
+        if (result != null && mounted) {
+          context.pop();
+        }
+        break;
+      case _SearchMoreOptions.findLyrics:
+        final songMetadata = widget.songMetadata;
+        if (songMetadata == null) {
+          context.pop();
+          return;
+        }
+        final result = await findLyricsForSong(context, ref, songMetadata);
+        if (result != null && mounted) {
+          context.pop();
+        }
+        break;
       case _SearchMoreOptions.browseAlbum:
         final albumDetailIndex = ref
             .read(albumDetailsProvider)
@@ -95,7 +141,7 @@ class _SearchMoreOptionsModalState extends ConsumerState<SearchMoreOptionsModal>
         context.pushReplacementNamed(
           Routes.artistAlbums.name,
           pathParameters: {
-            "artistName":
+            'artistName':
                 widget.songMetadata?.getMainArtistName ??
                 widget.albumDetail?.albumArtistName ??
                 '',

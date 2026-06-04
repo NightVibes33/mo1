@@ -108,6 +108,7 @@ class _PlaylistsSongsScreenState extends ConsumerState<PlaylistSongsScreen>
     } else {
       final result = await context.pushNamed(
         Routes.playlistSongsMoreOptions.name,
+        extra: displayItems[index - 2],
       );
       if (result == true) {
         await ref

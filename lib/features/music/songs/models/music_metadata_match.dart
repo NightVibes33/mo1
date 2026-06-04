@@ -62,7 +62,7 @@ class MusicMetadataMatch {
       trackArtistNames: artist.trim().isEmpty ? null : [artist.trim()],
       albumArtistName: artist.trim().isEmpty ? null : artist.trim(),
       albumName: album.trim().isEmpty ? null : album.trim(),
-      genres: genres,
+      genres: genres.isEmpty ? null : genres,
       thumbnailPath: thumbnailPath,
       trackNumber: trackNumber,
       albumLength: trackCount,

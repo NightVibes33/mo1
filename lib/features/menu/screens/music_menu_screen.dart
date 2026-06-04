@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/navigation/routes.dart';
+import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
+import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/widgets/display_list_tile.dart';
 import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
 import 'package:classipod/features/status_bar/widgets/status_bar.dart';
@@ -11,6 +13,7 @@ import 'package:go_router/go_router.dart';
 
 enum _MusicListDisplayItems {
   coverFlow,
+  importSongs,
   playlists,
   artists,
   albums,
@@ -22,6 +25,8 @@ enum _MusicListDisplayItems {
     switch (this) {
       case coverFlow:
         return context.localization.coverFlowScreenTitle;
+      case importSongs:
+        return '+ MP3 Import';
       case playlists:
         return context.localization.playlistsScreenTitle;
       case artists:
@@ -72,6 +77,15 @@ class _MusicMenuScreenState extends ConsumerState<MusicMenuScreen>
           extra: Routes.musicMenu.name,
         );
         unawaited(ref.read(splitScreenViewControllerProvider).openSplitView());
+        break;
+      case _MusicListDisplayItems.importSongs:
+        final importedCount = await ref
+            .read(audioFilesServiceProvider.notifier)
+            .importLocalAudioFiles();
+        if (importedCount > 0 && mounted) {
+          ref.invalidate(filteredAudioFilesProvider);
+          context.goNamed(Routes.splash.name);
+        }
         break;
       case _MusicListDisplayItems.playlists:
         context.goNamed(Routes.playlists.name);

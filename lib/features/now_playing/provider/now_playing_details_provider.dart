@@ -3,6 +3,7 @@ import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/features/music/album/providers/album_details_provider.dart';
+import 'package:classipod/features/music/playlist/models/playlist_model.dart';
 import 'package:classipod/features/music/playlist/providers/playlists_provider.dart';
 import 'package:classipod/features/now_playing/models/now_playing_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -91,6 +92,36 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
     }
   }
 
+  Future<void> _updatePersistedPlaylistMetadata(
+    MusicMetadata updatedMetadata,
+  ) async {
+    final playlistBox = Hive.box<PlaylistModel>(Constants.playlistBoxName);
+    for (var index = 0; index < playlistBox.length; index++) {
+      final playlist = playlistBox.getAt(index);
+      if (playlist == null) {
+        continue;
+      }
+
+      var changed = false;
+      final updatedSongs = <MusicMetadata>[];
+      for (final song in playlist.songs) {
+        if (song.originalSongIndex == updatedMetadata.originalSongIndex) {
+          updatedSongs.add(updatedMetadata);
+          changed = true;
+        } else {
+          updatedSongs.add(song);
+        }
+      }
+
+      if (changed) {
+        await playlistBox.putAt(
+          index,
+          playlist.copyWith(songs: updatedSongs),
+        );
+      }
+    }
+  }
+
   Future<void> updateMetadata(MusicMetadata updatedMetadata) async {
     state = state.copyWith(
       currentMetadata:
@@ -111,6 +142,7 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
       Constants.metadataBoxName,
     );
     await metadataBox.putAt(updatedMetadata.originalSongIndex, updatedMetadata);
+    await _updatePersistedPlaylistMetadata(updatedMetadata);
     ref.invalidate(filteredAudioFilesProvider);
     ref.invalidate(albumDetailsProvider);
     ref.invalidate(playlistsProvider);

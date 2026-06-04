@@ -478,7 +478,10 @@ final routerProvider = Provider(
                                       title: Routes.playlistSongsMoreOptions
                                           .title(context),
                                       builder: (context) =>
-                                          const PlaylistSongsMoreOptionsModal(),
+                                          PlaylistSongsMoreOptionsModal(
+                                            songMetadata:
+                                                state.extra as MusicMetadata?,
+                                          ),
                                     ),
                               ),
                               GoRoute(

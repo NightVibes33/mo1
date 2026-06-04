@@ -78,6 +78,13 @@ class _AlbumSongsScreenState extends ConsumerState<AlbumSongsScreen>
                       currentlyPlayingOriginalIndex ==
                       displayItems[index].originalSongIndex,
                   onTap: () async => _playSongFromAlbum(index),
+                  onLongPress: () async {
+                    setState(() => selectedDisplayItem = index);
+                    await context.pushNamed(
+                      Routes.albumSongsMoreOptions.name,
+                      extra: displayItems[index],
+                    );
+                  },
                 ),
               ),
             ),
