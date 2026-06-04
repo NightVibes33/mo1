@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/extensions/go_router_extensions.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
@@ -32,8 +34,15 @@ mixin CustomScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       final double currentScrollHeight =
           context.screenSize.height + scrollController.offset;
 
-      if (currentSelectedDisplayItemsHeight > currentScrollHeight) {
-        scrollController.jumpTo(scrollController.offset + displayTileHeight);
+      if (currentSelectedDisplayItemsHeight > currentScrollHeight &&
+          scrollController.hasClients) {
+        unawaited(
+          scrollController.animateTo(
+            scrollController.offset + displayTileHeight,
+            duration: const Duration(milliseconds: 170),
+            curve: Curves.easeOutCubic,
+          ),
+        );
       }
     }
   }
@@ -45,8 +54,15 @@ mixin CustomScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       });
     }
 
-    if (selectedDisplayItem * displayTileHeight < scrollController.offset) {
-      scrollController.jumpTo(displayTileHeight * selectedDisplayItem);
+    if (selectedDisplayItem * displayTileHeight < scrollController.offset &&
+        scrollController.hasClients) {
+      unawaited(
+        scrollController.animateTo(
+          displayTileHeight * selectedDisplayItem,
+          duration: const Duration(milliseconds: 170),
+          curve: Curves.easeOutCubic,
+        ),
+      );
     }
   }
 

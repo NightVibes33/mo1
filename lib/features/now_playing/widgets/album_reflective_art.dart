@@ -38,16 +38,48 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 360),
     );
     unawaited(_controller.forward());
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
   }
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  ImageProvider<Object> _imageProvider() {
+    if (widget.thumbnailPath == null) {
+      return const AssetImage(Assets.defaultAlbumCoverImage);
+    }
+    if (widget.isOnDevice) {
+      return FileImage(File(widget.thumbnailPath!));
+    }
+    return NetworkImage(widget.thumbnailPath!);
+  }
+
+  Widget _albumImage({
+    required double? height,
+    required double width,
+    required BoxFit fit,
+    Alignment alignment = Alignment.center,
+  }) {
+    return Image(
+      image: _imageProvider(),
+      errorBuilder: (_, _, _) => Image.asset(
+        Assets.defaultAlbumCoverImage,
+        height: height,
+        width: width,
+        alignment: alignment,
+        fit: fit,
+      ),
+      height: height,
+      width: width,
+      alignment: alignment,
+      fit: fit,
+    );
   }
 
   @override
@@ -72,6 +104,11 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
     final overlayBorderColor = isDarkTheme
         ? CupertinoColors.black
         : CupertinoColors.white;
+    final imageWidth = widget.imageWidth ?? double.infinity;
+    final reflectionWidth = widget.imageWidth != null
+        ? (widget.imageWidth! - widget.reflectedImageHeight)
+        : double.infinity;
+    final artRadius = BorderRadius.circular(14);
 
     return Hero(
       tag: widget.heroTag,
@@ -114,28 +151,56 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
           },
       child: Transform(
         transform: transform,
+        alignment: Alignment.center,
         child: Column(
           children: [
             Flexible(
-              child: Image(
-                image: (widget.thumbnailPath != null)
-                    ? widget.isOnDevice
-                          ? FileImage(File(widget.thumbnailPath!))
-                          : NetworkImage(widget.thumbnailPath!)
-                    : const AssetImage(Assets.defaultAlbumCoverImage),
-                errorBuilder: (_, _, _) => Image.asset(
-                  Assets.defaultAlbumCoverImage,
-                  height: widget.imageWidth,
-                  width: widget.imageWidth ?? double.infinity,
-                  fit: (widget.imageWidth == null)
-                      ? BoxFit.fitWidth
-                      : BoxFit.scaleDown,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: artRadius,
+                  border: Border.all(
+                    color: CupertinoColors.white.withValues(alpha: 0.52),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: CupertinoColors.black.withValues(alpha: 0.28),
+                      blurRadius: 18,
+                      offset: const Offset(0, 10),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF58FFE8).withValues(alpha: 0.2),
+                      blurRadius: 14,
+                    ),
+                  ],
                 ),
-                height: widget.imageWidth,
-                width: widget.imageWidth ?? double.infinity,
-                fit: (widget.imageWidth == null)
-                    ? BoxFit.fitWidth
-                    : BoxFit.scaleDown,
+                child: ClipRRect(
+                  borderRadius: artRadius,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _albumImage(
+                        height: widget.imageWidth,
+                        width: imageWidth,
+                        fit: (widget.imageWidth == null)
+                            ? BoxFit.fitWidth
+                            : BoxFit.scaleDown,
+                      ),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.center,
+                            colors: [
+                              CupertinoColors.white.withValues(alpha: 0.28),
+                              CupertinoColors.white.withValues(alpha: 0.02),
+                              AppPalette.transparentColor,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
             FadeTransition(
@@ -144,36 +209,23 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
                 clipBehavior: Clip.none,
                 alignment: Alignment.bottomCenter,
                 children: [
-                  Transform.flip(
-                    flipY: true,
-                    child: Image(
-                      image: (widget.thumbnailPath != null)
-                          ? widget.isOnDevice
-                                ? FileImage(File(widget.thumbnailPath!))
-                                : NetworkImage(widget.thumbnailPath!)
-                          : const AssetImage(Assets.defaultAlbumCoverImage),
-                      errorBuilder: (_, _, _) => Image.asset(
-                        Assets.defaultAlbumCoverImage,
+                  ClipRRect(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(artRadius.bottomLeft.x),
+                    ),
+                    child: Transform.flip(
+                      flipY: true,
+                      child: _albumImage(
                         height: widget.reflectedImageHeight,
-                        width: widget.imageWidth != null
-                            ? (widget.imageWidth! - widget.reflectedImageHeight)
-                            : double.infinity,
+                        width: reflectionWidth,
                         alignment: Alignment.bottomCenter,
                         fit: BoxFit.fitWidth,
                       ),
-                      height: widget.reflectedImageHeight,
-                      width: widget.imageWidth != null
-                          ? (widget.imageWidth! - widget.reflectedImageHeight)
-                          : double.infinity,
-                      alignment: Alignment.bottomCenter,
-                      fit: BoxFit.fitWidth,
                     ),
                   ),
                   SizedBox(
                     height: widget.reflectedImageHeight,
-                    width: widget.imageWidth != null
-                        ? (widget.imageWidth! - widget.reflectedImageHeight)
-                        : double.infinity,
+                    width: reflectionWidth,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         border: Border(

@@ -1,5 +1,6 @@
 import 'package:classipod/core/constants/app_palette.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
+import 'package:classipod/core/widgets/liquid_glass.dart';
 import 'package:classipod/core/widgets/marquee_text.dart';
 import 'package:classipod/features/now_playing/models/now_playing_model.dart';
 import 'package:classipod/features/now_playing/widgets/album_reflective_art.dart';
@@ -12,93 +13,138 @@ class NowPlayingWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentMetadata = nowPlayingDetails.currentMetadata;
+    final heroTag =
+        '${currentMetadata?.albumName}-${currentMetadata?.albumArtistName}';
+
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 420),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1).animate(animation),
+            child: child,
+          ),
+        );
+      },
       child: Row(
-        key: ValueKey(
-          "Now Playing-${nowPlayingDetails.currentMetadata?.originalSongIndex}",
-        ),
+        key: ValueKey('Now Playing-${currentMetadata?.originalSongIndex}'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            height: 200,
-            width: 150,
-            child: AlbumReflectiveArt(
-              imageWidth: 200,
-              tiltedImage: true,
-              thumbnailPath: nowPlayingDetails.currentMetadata?.thumbnailPath,
-              isOnDevice: nowPlayingDetails.currentMetadata?.isOnDevice ?? true,
-              heroTag:
-                  "${nowPlayingDetails.currentMetadata?.albumName}-${nowPlayingDetails.currentMetadata?.albumArtistName}",
+          AnimatedScale(
+            scale: nowPlayingDetails.isPlaying ? 1.02 : 1,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutBack,
+            child: SizedBox(
+              height: 198,
+              width: 146,
+              child: AlbumReflectiveArt(
+                imageWidth: 196,
+                tiltedImage: true,
+                thumbnailPath: currentMetadata?.thumbnailPath,
+                isOnDevice: currentMetadata?.isOnDevice ?? true,
+                heroTag: heroTag,
+              ),
             ),
           ),
+          const SizedBox(width: 2),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                MarqueeText(
-                  nowPlayingDetails.currentMetadata?.trackName ??
-                      context.localization.unknownSong,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+            child: LiquidGlass(
+              borderRadius: BorderRadius.circular(18),
+              blur: 12,
+              opacity: 0.22,
+              borderColor: CupertinoColors.white.withValues(alpha: 0.32),
+              padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
+              gradientColors: [
+                CupertinoColors.white.withValues(alpha: 0.34),
+                const Color(0xFF6FFFF0).withValues(alpha: 0.11),
+                CupertinoColors.white.withValues(alpha: 0.08),
+              ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  MarqueeText(
+                    currentMetadata?.trackName ??
+                        context.localization.unknownSong,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: context.appPrimaryTextColor,
+                    ),
+                    delayBefore: const Duration(seconds: 2),
+                    pauseBetween: const Duration(seconds: 2),
+                    pauseOnBounce: const Duration(seconds: 2),
                   ),
-                  delayBefore: const Duration(seconds: 2),
-                  pauseBetween: const Duration(seconds: 2),
-                  pauseOnBounce: const Duration(seconds: 2),
-                ),
-                const SizedBox(height: 5),
-                MarqueeText(
-                  nowPlayingDetails.currentMetadata?.getTrackArtistNames ??
-                      context.localization.unknownArtist,
-                  style: const TextStyle(
-                    color: AppPalette.hintTextColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 5),
+                  MarqueeText(
+                    currentMetadata?.getTrackArtistNames ??
+                        context.localization.unknownArtist,
+                    style: TextStyle(
+                      color: context.appSecondaryTextColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    delayBefore: const Duration(seconds: 2),
+                    pauseBetween: const Duration(seconds: 2),
+                    pauseOnBounce: const Duration(seconds: 2),
                   ),
-                  delayBefore: const Duration(seconds: 2),
-                  pauseBetween: const Duration(seconds: 2),
-                  pauseOnBounce: const Duration(seconds: 2),
-                ),
-                const SizedBox(height: 5),
-                MarqueeText(
-                  nowPlayingDetails.currentMetadata?.albumName ??
-                      context.localization.unknownAlbum,
-                  style: const TextStyle(
-                    color: AppPalette.hintTextColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 4),
+                  MarqueeText(
+                    currentMetadata?.albumName ?? context.localization.unknownAlbum,
+                    style: TextStyle(
+                      color: context.appSecondaryTextColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    delayBefore: const Duration(seconds: 2),
+                    pauseBetween: const Duration(seconds: 2),
+                    pauseOnBounce: const Duration(seconds: 2),
                   ),
-                  delayBefore: const Duration(seconds: 2),
-                  pauseBetween: const Duration(seconds: 2),
-                  pauseOnBounce: const Duration(seconds: 2),
-                ),
-                if ((nowPlayingDetails.currentMetadata?.rating ?? 0) != 0)
-                  Row(
-                    children: List.generate(
-                      nowPlayingDetails.currentMetadata?.rating ?? 0,
-                      (index) => const Padding(
-                        padding: EdgeInsets.only(right: 2, top: 4, bottom: 4),
-                        child: Icon(
-                          CupertinoIcons.star_fill,
-                          size: 14,
-                          color: AppPalette.selectedTileGradientColor2,
+                  if ((currentMetadata?.rating ?? 0) != 0)
+                    Row(
+                      children: List.generate(
+                        currentMetadata?.rating ?? 0,
+                        (index) => const Padding(
+                          padding: EdgeInsets.only(
+                            right: 2,
+                            top: 3,
+                            bottom: 2,
+                          ),
+                          child: Icon(
+                            CupertinoIcons.star_fill,
+                            size: 13,
+                            color: AppPalette.selectedTileGradientColor2,
+                          ),
                         ),
                       ),
                     ),
+                  if ((currentMetadata?.rating ?? 0) == 0)
+                    const SizedBox(height: 18),
+                  SizedBox(
+                    height: 42,
+                    width: double.infinity,
+                    child: MusicPulseVisualizer(
+                      isPlaying: nowPlayingDetails.isPlaying,
+                      color: const Color(0xFF29F5CF),
+                      hotColor: const Color(0xFFFF4DD2),
+                    ),
                   ),
-                if ((nowPlayingDetails.currentMetadata?.rating ?? 0) == 0)
-                  const SizedBox(height: 22),
-                Text(
-                  "${nowPlayingDetails.currentIndex + 1} ${context.localization.commonOfText} ${nowPlayingDetails.metadataList.length}",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  const SizedBox(height: 4),
+                  Text(
+                    '${nowPlayingDetails.currentIndex + 1} '
+                    '${context.localization.commonOfText} '
+                    '${nowPlayingDetails.metadataList.length}',
+                    style: TextStyle(
+                      color: context.appPrimaryTextColor,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const Spacer(),
-              ],
+                ],
+              ),
             ),
           ),
         ],

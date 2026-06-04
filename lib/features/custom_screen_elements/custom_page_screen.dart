@@ -22,8 +22,8 @@ mixin CustomPageScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   Future<void> scrollForward() async {
     if (selectedDisplayItem < displayItems.length - 1) {
       await pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.ease,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
       );
     }
   }
@@ -31,8 +31,8 @@ mixin CustomPageScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   Future<void> scrollBackward() async {
     if (selectedDisplayItem > 0) {
       await pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.ease,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
       );
     }
   }

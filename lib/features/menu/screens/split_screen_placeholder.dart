@@ -49,17 +49,22 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
     widget.splitScreenController._state = this;
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
-      reverseDuration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 440),
+      reverseDuration: const Duration(milliseconds: 440),
+    );
+    final curvedAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
     );
     _leftSlideAnimation = Tween<Offset>(
       begin: const Offset(-1, 0),
       end: Offset.zero,
-    ).animate(_animationController);
+    ).animate(curvedAnimation);
     _rightSlideAnimation = Tween<Offset>(
       begin: const Offset(1, 0),
       end: Offset.zero,
-    ).animate(_animationController);
+    ).animate(curvedAnimation);
     unawaited(_forwardAnimation());
     super.initState();
   }
@@ -84,6 +89,32 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
     });
   }
 
+  Widget _previewTransition(
+    Widget child,
+    Animation<double> animation,
+    SplitScreenType splitScreenType,
+  ) {
+    final curvedAnimation = CurvedAnimation(
+      parent: animation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    final scale = Tween<double>(begin: 0.97, end: 1).animate(curvedAnimation);
+    final preview = FadeTransition(
+      opacity: curvedAnimation,
+      child: ScaleTransition(scale: scale, child: child),
+    );
+
+    if (splitScreenType == SplitScreenType.albumArt) {
+      final slideAnimation = Tween<Offset>(
+        begin: const Offset(1, 0),
+        end: Offset.zero,
+      ).animate(curvedAnimation);
+      return SlideTransition(position: slideAnimation, child: preview);
+    }
+    return preview;
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentSettings = ref.watch(settingsPreferencesControllerProvider);
@@ -96,7 +127,7 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
           titleText: context.localization.shuffleSongsMenuTitle,
           icon: CupertinoIcons.shuffle,
           contentText:
-              "${ref.read(songsProvider).length} ${context.localization.songsScreenTitle}",
+              '${ref.read(songsProvider).length} ${context.localization.songsScreenTitle}',
         );
       } else if (splitScreenType == SplitScreenType.settings) {
         splitScreenWidget = const SettingsPreviewWidget();
@@ -184,25 +215,25 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
         splitScreenWidget = IconPreviewWidget(
           titleText: context.localization.showAppTutorialSettingTitle,
           icon: CupertinoIcons.play_rectangle_fill,
-          contentText: "",
+          contentText: '',
         );
       } else if (splitScreenType == SplitScreenType.rescanMusicFiles) {
         splitScreenWidget = IconPreviewWidget(
           titleText: context.localization.rescanMusicFilesSettingTitle,
           icon: CupertinoIcons.music_albums,
-          contentText: "",
+          contentText: '',
         );
       } else if (splitScreenType == SplitScreenType.excludeDirectories) {
         splitScreenWidget = IconPreviewWidget(
           titleText: context.localization.excludeDirectoriesScreenTitle,
           icon: CupertinoIcons.folder_fill_badge_minus,
-          contentText: "",
+          contentText: '',
         );
       } else if (splitScreenType == SplitScreenType.resetSettings) {
         splitScreenWidget = IconPreviewWidget(
           titleText: context.localization.resetSettingsTitle,
           icon: CupertinoIcons.refresh_circled,
-          contentText: "",
+          contentText: '',
         );
       } else if (splitScreenType == SplitScreenType.donate) {
         splitScreenWidget = IconPreviewWidget(
@@ -228,26 +259,10 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
                   child: SlideTransition(
                     position: _rightSlideAnimation,
                     child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 500),
-                      transitionBuilder: (widget, animation) {
-                        if (splitScreenType == SplitScreenType.albumArt) {
-                          final slideAnimation = Tween<Offset>(
-                            begin: const Offset(1, 0),
-                            end: Offset.zero,
-                          ).animate(animation);
-                          return FadeTransition(
-                            opacity: animation,
-                            child: SlideTransition(
-                              position: slideAnimation,
-                              child: widget,
-                            ),
-                          );
-                        }
-                        return FadeTransition(
-                          opacity: animation,
-                          child: widget,
-                        );
-                      },
+                      duration: const Duration(milliseconds: 520),
+                      reverseDuration: const Duration(milliseconds: 320),
+                      transitionBuilder: (child, animation) =>
+                          _previewTransition(child, animation, splitScreenType),
                       child: splitScreenWidget,
                     ),
                   ),

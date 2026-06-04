@@ -59,8 +59,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     if (_bottomBarPage == _NowPlayingBottomBarPage.seekBar) {
       await _bottomBarPageController.animateToPage(
         1,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.ease,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
       );
       setState(() {
         _bottomBarPage = _NowPlayingBottomBarPage.scrubberBar;
@@ -68,8 +68,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     } else if (_bottomBarPage == _NowPlayingBottomBarPage.scrubberBar) {
       await _bottomBarPageController.animateToPage(
         2,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.ease,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
       );
       setState(() {
         _bottomBarPage = _NowPlayingBottomBarPage.shuffleBar;
@@ -80,8 +80,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
           .setShuffleMode(_isShuffleEnabled);
       await _bottomBarPageController.animateToPage(
         3,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.ease,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
       );
       setState(() {
         _bottomBarPage = _NowPlayingBottomBarPage.ratingBar;
@@ -90,8 +90,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       if (hasLyrics) {
         await _bottomBarPageController.animateToPage(
           4,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.ease,
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeOutCubic,
         );
         setState(() {
           _bottomBarPage = _NowPlayingBottomBarPage.lyrics;
@@ -99,8 +99,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       } else {
         await _bottomBarPageController.animateToPage(
           0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.ease,
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeOutCubic,
         );
         setState(() {
           _bottomBarPage = _NowPlayingBottomBarPage.seekBar;
@@ -109,8 +109,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     } else if (_bottomBarPage == _NowPlayingBottomBarPage.lyrics) {
       await _bottomBarPageController.animateToPage(
         0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.ease,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
       );
       setState(() {
         _bottomBarPage = _NowPlayingBottomBarPage.seekBar;
@@ -393,7 +393,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
               child: Padding(
                 padding: const EdgeInsets.only(left: 10),
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 420),
                   child:
                       (_bottomBarPage == _NowPlayingBottomBarPage.lyrics &&
                           hasLyrics)
@@ -417,7 +417,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 420),
                 transitionBuilder: (child, animation) {
                   final begin = Offset(
                     _bottomBarPage == _NowPlayingBottomBarPage.volumeBar

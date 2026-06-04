@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/core/widgets/empty_state_widget.dart';
+import 'package:classipod/core/widgets/liquid_glass.dart';
 import 'package:classipod/features/custom_screen_elements/custom_page_screen.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/album/providers/album_details_provider.dart';
@@ -61,48 +62,67 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
       child: Column(
         children: [
           StatusBar(title: Routes.coverFlow.title(context)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Expanded(
             child: Stack(
               clipBehavior: Clip.none,
               children: [
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 38,
+                  height: 76,
+                  child: LiquidGlass(
+                    borderRadius: BorderRadius.circular(28),
+                    blur: 18,
+                    opacity: 0.22,
+                    borderColor: CupertinoColors.white.withValues(alpha: 0.22),
+                    gradientColors: [
+                      const Color(0xFF45FFE6).withValues(alpha: 0.18),
+                      CupertinoColors.white.withValues(alpha: 0.08),
+                      const Color(0xFFFF54D6).withValues(alpha: 0.08),
+                    ],
+                    child: const SizedBox.expand(),
+                  ),
+                ),
                 SizedBox(
-                  height: 230,
+                  height: 228,
                   child: PageView.builder(
                     controller: pageController,
                     itemCount: displayItems.length,
                     itemBuilder: (context, index) {
                       final double relativePosition = index - currentPage;
+                      final double depth =
+                          (1 - relativePosition.abs()).clamp(0.18, 0.7).toDouble() +
+                          0.34;
                       return GestureDetector(
                         onTap: relativePosition == 0
                             ? () => _chooseAlbum(index)
                             : () async => pageController.animateToPage(
                                 index,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.ease,
+                                duration: const Duration(milliseconds: 420),
+                                curve: Curves.easeOutCubic,
                               ),
-                        child: Transform(
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.003)
-                            ..scaleByDouble(
-                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                  0.4,
-                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                  0.4,
-                              (1 - relativePosition.abs()).clamp(0.2, 0.6) +
-                                  0.4,
-                              1,
-                            )
-                            ..rotateY(relativePosition * 0.9),
-                          alignment: relativePosition >= 0
-                              ? Alignment.centerLeft
-                              : Alignment.centerRight,
-                          child: AlbumReflectiveArt(
-                            imageWidth: 230,
-                            thumbnailPath: displayItems[index].albumArtPath,
-                            isOnDevice: displayItems[index].isOnDevice(),
-                            heroTag:
-                                "${displayItems[index].albumName}-${displayItems[index].albumArtistName}",
+                        child: AnimatedScale(
+                          scale: relativePosition.abs() < 0.04 ? 1.03 : 1,
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          child: Transform(
+                            transform: Matrix4.identity()
+                              ..setEntry(3, 2, 0.003)
+                              ..translate(0.0, relativePosition.abs() * 12)
+                              ..scaleByDouble(depth, depth, depth, 1)
+                              ..rotateY(relativePosition * 0.96),
+                            alignment: relativePosition >= 0
+                                ? Alignment.centerLeft
+                                : Alignment.centerRight,
+                            child: AlbumReflectiveArt(
+                              imageWidth: 230,
+                              thumbnailPath: displayItems[index].albumArtPath,
+                              isOnDevice: displayItems[index].isOnDevice(),
+                              heroTag:
+                                  '${displayItems[index].albumName}-${displayItems[index].albumArtistName}',
+                            ),
                           ),
                         ),
                       );
@@ -111,27 +131,37 @@ class _CoverFlowScreenState extends ConsumerState<CoverFlowScreen>
                 ),
                 Positioned(
                   bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  left: 12,
+                  right: 12,
+                  child: LiquidGlass(
+                    borderRadius: BorderRadius.circular(16),
+                    blur: 14,
+                    opacity: 0.24,
+                    borderColor: CupertinoColors.white.withValues(alpha: 0.28),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           displayItems[selectedDisplayItem].albumName,
                           maxLines: 1,
-                          style: const TextStyle(
+                          style: TextStyle(
+                            color: context.appPrimaryTextColor,
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(height: 5),
+                        const SizedBox(height: 3),
                         Text(
                           displayItems[selectedDisplayItem].albumArtistName,
                           maxLines: 1,
-                          style: const TextStyle(
-                            fontSize: 16,
+                          style: TextStyle(
+                            color: context.appSecondaryTextColor,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             overflow: TextOverflow.ellipsis,
                           ),
