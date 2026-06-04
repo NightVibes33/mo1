@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/extensions/go_router_extensions.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/features/device/models/device_action.dart';
@@ -17,6 +16,10 @@ mixin CustomScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   int topStatusBarHeight = 30;
   final double displayTileHeight = 30;
   final ScrollController scrollController = ScrollController();
+  double get listViewEdgePadding => 4;
+  EdgeInsets get listViewPadding => EdgeInsets.symmetric(
+    vertical: listViewEdgePadding,
+  );
 
   void onSelectPressed();
 
@@ -27,23 +30,7 @@ mixin CustomScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       setState(() {
         selectedDisplayItem++;
       });
-
-      final double currentSelectedDisplayItemsHeight =
-          (selectedDisplayItem + 1) * displayTileHeight + topStatusBarHeight;
-
-      final double currentScrollHeight =
-          context.screenSize.height + scrollController.offset;
-
-      if (currentSelectedDisplayItemsHeight > currentScrollHeight &&
-          scrollController.hasClients) {
-        unawaited(
-          scrollController.animateTo(
-            scrollController.offset + displayTileHeight,
-            duration: const Duration(milliseconds: 170),
-            curve: Curves.easeOutCubic,
-          ),
-        );
-      }
+      _keepSelectedItemVisible();
     }
   }
 
@@ -52,18 +39,46 @@ mixin CustomScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
       setState(() {
         selectedDisplayItem--;
       });
+      _keepSelectedItemVisible();
+    }
+  }
+
+  void _keepSelectedItemVisible() {
+    if (!scrollController.hasClients) {
+      return;
     }
 
-    if (selectedDisplayItem * displayTileHeight < scrollController.offset &&
-        scrollController.hasClients) {
-      unawaited(
-        scrollController.animateTo(
-          displayTileHeight * selectedDisplayItem,
-          duration: const Duration(milliseconds: 170),
-          curve: Curves.easeOutCubic,
-        ),
-      );
+    final position = scrollController.position;
+    final viewportStart = position.pixels;
+    final viewportEnd = viewportStart + position.viewportDimension;
+    const edgePadding = 4.0;
+    final selectedTop =
+        listViewEdgePadding + selectedDisplayItem * displayTileHeight;
+    final selectedBottom = selectedTop + displayTileHeight;
+    double targetOffset = viewportStart;
+
+    if (selectedBottom + edgePadding > viewportEnd) {
+      targetOffset = selectedBottom + edgePadding - position.viewportDimension;
+    } else if (selectedTop - edgePadding < viewportStart) {
+      targetOffset = selectedTop - edgePadding;
     }
+
+    final clampedOffset = targetOffset.clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    ).toDouble();
+
+    if ((clampedOffset - viewportStart).abs() < 0.5) {
+      return;
+    }
+
+    unawaited(
+      scrollController.animateTo(
+        clampedOffset,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutCubic,
+      ),
+    );
   }
 
   void onMenuButtonPressed() {

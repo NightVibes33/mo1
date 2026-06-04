@@ -84,6 +84,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> with CustomScreen {
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length,
                 prototypeItem: SongListTile(
                   songName: '',

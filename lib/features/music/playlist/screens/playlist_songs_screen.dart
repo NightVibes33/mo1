@@ -158,6 +158,7 @@ class _PlaylistsSongsScreenState extends ConsumerState<PlaylistSongsScreen>
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length + 2,
                 prototypeItem: PlaylistOptionListTile(
                   onTap: () {},

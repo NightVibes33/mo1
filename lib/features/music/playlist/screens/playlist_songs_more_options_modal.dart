@@ -107,6 +107,7 @@ class _PlaylistSongsMoreOptionsModalState
       child: ListView.builder(
         shrinkWrap: true,
         controller: scrollController,
+        padding: listViewPadding,
         itemCount: displayItems.length,
         prototypeItem: const OptionsListTile(text: '', isSelected: false),
         itemBuilder: (context, index) {

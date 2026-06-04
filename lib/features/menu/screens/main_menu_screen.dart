@@ -138,6 +138,7 @@ class _MainMenuScreenState extends ConsumerState<MainMenuScreen>
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length,
                 prototypeItem: const DisplayListTile(
                   text: '',

@@ -49,6 +49,7 @@ class _PlaylistsScreenState extends ConsumerState<PlaylistsScreen>
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length,
                 prototypeItem: PlaylistListTile(
                   playlistModel: PlaylistModel(name: '', songs: []),

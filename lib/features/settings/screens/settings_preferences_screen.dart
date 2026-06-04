@@ -358,6 +358,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length,
                 prototypeItem: SettingsListTile(
                   text: '',

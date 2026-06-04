@@ -60,6 +60,7 @@ class _PlaylistRenameScreenState extends ConsumerState<PlaylistRenameScreen>
                   controller: scrollController,
                   child: ListView.builder(
                     controller: scrollController,
+                    padding: listViewPadding,
                     itemCount: displayItems.length,
                     prototypeItem: PlaylistOptionListTile(
                       isSelected: false,

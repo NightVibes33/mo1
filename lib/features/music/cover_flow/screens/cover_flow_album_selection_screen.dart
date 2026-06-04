@@ -110,6 +110,7 @@ class _CoverFlowAlbumSelectionScreenState
                     controller: scrollController,
                     child: ListView.builder(
                       controller: scrollController,
+                      padding: listViewPadding,
                       itemCount: displayItems.length,
                       prototypeItem: CoverFlowAlbumSongListTile(
                         songName: '',

@@ -124,6 +124,7 @@ class _AlbumSongsScreenState extends ConsumerState<AlbumSongsScreen>
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length,
                 prototypeItem: const CondensedSongListTile(
                   songName: '',

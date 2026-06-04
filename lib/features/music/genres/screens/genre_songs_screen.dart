@@ -76,6 +76,7 @@ class _GenreSongsScreenState extends ConsumerState<GenreSongsScreen>
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length,
                 prototypeItem: AlbumArtSongListTile(
                   songMetadata: MusicMetadata(),

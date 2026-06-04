@@ -99,6 +99,7 @@ class _AlbumsSelectionScreenState extends ConsumerState<AlbumsSelectionScreen>
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length + 1,
                 prototypeItem: AlbumListTile(
                   albumDetails: AlbumModel(

@@ -42,6 +42,7 @@ class _DeviceColorSelectionScreenState extends ConsumerState with CustomScreen {
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length,
                 prototypeItem: _DeviceColorOptionTile(
                   deviceColor: displayItems.first,

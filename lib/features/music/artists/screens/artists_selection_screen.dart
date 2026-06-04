@@ -82,6 +82,7 @@ class _ArtistsSelectionScreenState extends ConsumerState<ArtistsSelectionScreen>
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length + 1,
                 prototypeItem: const DisplayListTile(
                   text: '',

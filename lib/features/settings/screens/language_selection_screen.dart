@@ -45,6 +45,7 @@ class _LanguageSelectionScreenState
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length,
                 prototypeItem: const DisplayListTile(
                   text: '',

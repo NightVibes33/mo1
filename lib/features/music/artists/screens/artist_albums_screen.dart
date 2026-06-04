@@ -97,6 +97,7 @@ class _ArtistAlbumsScreenState extends ConsumerState<ArtistAlbumsScreen>
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length + 1,
                 prototypeItem: AlbumListTile(
                   albumDetails: AlbumModel(

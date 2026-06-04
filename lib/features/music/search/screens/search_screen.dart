@@ -119,6 +119,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                   controller: scrollController,
                   child: ListView.builder(
                     controller: scrollController,
+                    padding: listViewPadding,
                     itemCount: displayItems.length + 1,
                     prototypeItem: SearchListTile(
                       searchResult: SearchResultsModel(

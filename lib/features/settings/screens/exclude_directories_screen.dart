@@ -62,6 +62,7 @@ class _ExcludeDirectoriesScreenState
               controller: scrollController,
               child: ListView.builder(
                 controller: scrollController,
+                padding: listViewPadding,
                 itemCount: displayItems.length,
                 prototypeItem: ExcludeDirectoryTile(
                   excludeDirectoryModel: ExcludeDirectoryModel(
