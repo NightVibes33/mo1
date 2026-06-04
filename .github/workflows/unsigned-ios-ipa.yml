@@ -1,0 +1,68 @@
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  unsigned-ipa:
+    name: Unsigned real-device IPA
+    runs-on: macos-26-intel
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode 26
+        run: |
+          set -euo pipefail
+          XCODE_PATH="$(ls -1d /Applications/Xcode_26*.app 2>/dev/null | tail -1)"
+          if [ -z "${XCODE_PATH}" ]; then
+            echo "No Xcode 26 app found under /Applications" >&2
+            ls -la /Applications | grep Xcode || true
+            exit 1
+          fi
+          sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
+          xcodebuild -version
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.7"
+          channel: stable
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build unsigned iOS app
+        run: flutter build ios --release --no-codesign --no-pub
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "No Runner.app found at $APP_PATH" >&2
+            find build/ios -maxdepth 4 -type d | sort
+            exit 1
+          fi
+          rm -rf build/Payload build/mo1-classic-unsigned.ipa
+          mkdir -p build/Payload
+          cp -R "$APP_PATH" build/Payload/mo1.app
+          cd build
+          /usr/bin/zip -qry mo1-classic-unsigned.ipa Payload
+          ls -lh mo1-classic-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mo1-classic-unsigned-ipa
+          path: build/mo1-classic-unsigned.ipa
+          if-no-files-found: error
