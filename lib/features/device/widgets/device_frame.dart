@@ -34,31 +34,34 @@ class DeviceFrame extends ConsumerWidget {
       builder: (context, constraints) {
         final topInset = mediaQuery.viewPadding.top;
         final bottomInset = mediaQuery.viewPadding.bottom;
-        final horizontalInset = constraints.maxWidth < 430 ? 7.0 : 18.0;
-        final islandClearance = topInset > 44 ? topInset + 2 : topInset + 8;
-        final topGap = max(islandClearance, constraints.maxHeight * 0.034);
-        final bottomGap = max(bottomInset + 2, 5.0);
+        final hasDynamicIsland = topInset >= 54;
+        final horizontalBleed = constraints.maxWidth < 430 ? 0.0 : 4.0;
+        final topContentInset = hasDynamicIsland
+            ? topInset + 28
+            : max(topInset + 14, 18.0);
+        final bottomContentInset = max(bottomInset + 12, 16.0);
         final availableWidth = max(
           0.0,
-          constraints.maxWidth - horizontalInset * 2,
+          constraints.maxWidth + horizontalBleed * 2,
         );
-        final availableHeight = max(
-          0.0,
-          constraints.maxHeight - topGap - bottomGap,
-        );
+        final availableHeight = max(0.0, constraints.maxHeight);
         const bodyAspectRatio = 1.88;
         var bodyWidth = min(availableWidth, 620.0);
         final idealBodyHeight = bodyWidth * bodyAspectRatio;
         var bodyHeight = availableHeight;
-        if (idealBodyHeight > availableHeight) {
+        if (idealBodyHeight > availableHeight && constraints.maxWidth >= 700) {
           bodyWidth = availableHeight / bodyAspectRatio;
         }
         final bodyRadius = BorderRadius.circular(
           (bodyWidth * 0.12).clamp(36.0, 58.0).toDouble(),
         );
         final innerWidth = max(0.0, bodyWidth - 20);
+        final contentHeight = max(
+          0.0,
+          bodyHeight - topContentInset - bottomContentInset,
+        );
         final screenHeight = min(
-          bodyHeight * 0.37,
+          contentHeight * 0.42,
           (innerWidth * 0.72).clamp(218.0, 316.0).toDouble(),
         );
 
@@ -87,7 +90,7 @@ class DeviceFrame extends ConsumerWidget {
               top: 0,
               left: 0,
               right: 0,
-              height: topGap + 72,
+              height: topContentInset + 56,
               child: IgnorePointer(
                 child: DecoratedBox(
                   decoration: BoxDecoration(
@@ -108,15 +111,12 @@ class DeviceFrame extends ConsumerWidget {
                 ),
               ),
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                horizontalInset,
-                topGap,
-                horizontalInset,
-                bottomGap,
-              ),
-              child: Align(
-                alignment: Alignment.topCenter,
+            Positioned(
+              top: 0,
+              bottom: 0,
+              left: -horizontalBleed,
+              right: -horizontalBleed,
+              child: Center(
                 child: SizedBox(
                   width: bodyWidth,
                   height: bodyHeight,
@@ -139,7 +139,12 @@ class DeviceFrame extends ConsumerWidget {
                       opacity: deviceColorStyle.isDark ? 0.42 : 0.58,
                       borderColor: CupertinoColors.white.withValues(alpha: 0.5),
                       gradientColors: glassColors,
-                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                      padding: EdgeInsets.fromLTRB(
+                        10,
+                        topContentInset,
+                        10,
+                        bottomContentInset,
+                      ),
                       shadows: [
                         BoxShadow(
                           color: CupertinoColors.black.withValues(alpha: 0.28),
@@ -153,6 +158,35 @@ class DeviceFrame extends ConsumerWidget {
                             child: LiquidReflectionOverlay(
                               borderRadius: bodyRadius,
                               opacity: deviceColorStyle.isDark ? 0.54 : 0.7,
+                            ),
+                          ),
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            height: topContentInset + 22,
+                            child: IgnorePointer(
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: bodyRadius.topLeft,
+                                  ),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      CupertinoColors.white.withValues(
+                                        alpha: deviceColorStyle.isDark
+                                            ? 0.08
+                                            : 0.42,
+                                      ),
+                                      deviceColorStyle.frameGradientColors.first
+                                          .withValues(alpha: 0.16),
+                                      CupertinoColors.white.withValues(alpha: 0),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                           Column(
