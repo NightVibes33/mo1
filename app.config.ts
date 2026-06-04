@@ -1,12 +1,13 @@
 import type { ExpoConfig } from "expo/config";
 
-const config: ExpoConfig = {
+const config = {
   name: "mo1",
   slug: "mo1",
   version: "0.1.0",
   orientation: "portrait",
   scheme: "mo1",
   userInterfaceStyle: "dark",
+  newArchEnabled: false,
   icon: "./assets/icon.png",
   splash: {
     image: "./assets/splash.png",
@@ -42,4 +43,4 @@ const config: ExpoConfig = {
   ]
 };
 
-export default config;
+export default config as ExpoConfig;
