@@ -40,7 +40,7 @@ class _ArtistsSelectionScreenState extends ConsumerState<ArtistsSelectionScreen>
         extra: AlbumModel(
           albumName: context.localization.allAlbums,
           albumArtistName: "",
-          albumSongs: allSongs,
+          albumSongs: ref.read(filteredAudioFilesProvider).requireValue,
         ),
       );
     } else {
