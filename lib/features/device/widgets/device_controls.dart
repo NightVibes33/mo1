@@ -29,6 +29,8 @@ class DeviceControls extends ConsumerStatefulWidget {
 class _DeviceControlsState extends ConsumerState<DeviceControls> {
   Duration durationSinceLastScroll = Duration.zero;
   bool _centerPressed = false;
+  bool _wheelActive = false;
+  Alignment _touchAlignment = const Alignment(-0.28, -0.35);
 
   Future<void> onClickWheelScroll({
     required DragUpdateDetails dragUpdateDetails,
@@ -110,6 +112,25 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
     setState(() => _centerPressed = value);
   }
 
+  void _updateWheelTouch(Offset localPosition, double wheelSize) {
+    if (wheelSize <= 0) {
+      return;
+    }
+    final x = ((localPosition.dx / wheelSize) * 2 - 1).clamp(-0.75, 0.75);
+    final y = ((localPosition.dy / wheelSize) * 2 - 1).clamp(-0.75, 0.75);
+    setState(() {
+      _wheelActive = true;
+      _touchAlignment = Alignment(x.toDouble(), y.toDouble());
+    });
+  }
+
+  void _clearWheelTouch() {
+    if (!_wheelActive) {
+      return;
+    }
+    setState(() => _wheelActive = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final DeviceColor deviceColor = ref.watch(
@@ -176,8 +197,13 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double screenWidth = constraints.maxWidth + 40;
-        final double wheelSize = screenWidth * clickWheelRadiusRatio;
+        final double screenWidth = constraints.maxWidth;
+        final adjustedWheelRatio = switch (clickWheelSize) {
+          ClickWheelSize.small => clickWheelRadiusRatio + 0.1,
+          ClickWheelSize.medium => clickWheelRadiusRatio + 0.075,
+          ClickWheelSize.large => clickWheelRadiusRatio,
+        };
+        final double wheelSize = screenWidth * adjustedWheelRatio;
         final double wheelRadius = wheelSize / 2;
         final wheelBorderRadius = BorderRadius.circular(wheelRadius);
         final Color labelColor = deviceColorStyle.buttonAccentColor;
@@ -185,13 +211,28 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onPanUpdate: (dragUpdateDetails) => onClickWheelScroll(
-            dragUpdateDetails: dragUpdateDetails,
-            radius: wheelRadius,
-            smallThresholdRotationalChange: smallThresholdRotationalChange,
-            bigThresholdRotationalChange: bigThresholdRotationalChange,
+          onPanStart: (details) => _updateWheelTouch(
+            details.localPosition,
+            wheelSize,
           ),
-          child: AnimatedContainer(
+          onPanUpdate: (dragUpdateDetails) {
+            _updateWheelTouch(dragUpdateDetails.localPosition, wheelSize);
+            unawaited(
+              onClickWheelScroll(
+                dragUpdateDetails: dragUpdateDetails,
+                radius: wheelRadius,
+                smallThresholdRotationalChange: smallThresholdRotationalChange,
+                bigThresholdRotationalChange: bigThresholdRotationalChange,
+              ),
+            );
+          },
+          onPanEnd: (_) => _clearWheelTouch(),
+          onPanCancel: _clearWheelTouch,
+          child: AnimatedScale(
+            scale: _wheelActive ? 0.992 : 1,
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
+            child: AnimatedContainer(
             duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutCubic,
             height: wheelSize,
@@ -205,26 +246,34 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                 opacity: deviceColorStyle.noiseOpacity * 0.26,
               ),
               gradient: RadialGradient(
-                center: const Alignment(-0.28, -0.35),
-                radius: 0.95,
+                center: _wheelActive ? _touchAlignment : const Alignment(-0.28, -0.35),
+                radius: 0.96,
                 colors: [
                   CupertinoColors.white.withValues(
-                    alpha: deviceColorStyle.isDark ? 0.22 : 0.74,
+                    alpha: deviceColorStyle.isDark ? 0.2 : 0.86,
                   ),
                   deviceColorStyle.controlBackgroundColor.withValues(
-                    alpha: deviceColorStyle.isDark ? 0.88 : 0.54,
+                    alpha: deviceColorStyle.isDark ? 0.84 : 0.64,
                   ),
-                  deviceColorStyle.controlBackgroundColor.withValues(alpha: 0.94),
+                  deviceColorStyle.controlBackgroundColor.withValues(alpha: 0.98),
                 ],
               ),
               border: Border.all(
-                color: CupertinoColors.white.withValues(alpha: 0.38),
+                color: deviceColorStyle.controlBorderColor.withValues(alpha: 0.72),
+                width: 1.1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: CupertinoColors.black.withValues(alpha: 0.24),
-                  blurRadius: 20,
-                  offset: const Offset(0, 12),
+                  color: CupertinoColors.black.withValues(alpha: 0.22),
+                  blurRadius: 18,
+                  offset: const Offset(0, 11),
+                ),
+                BoxShadow(
+                  color: CupertinoColors.white.withValues(
+                    alpha: deviceColorStyle.isDark ? 0.02 : 0.26,
+                  ),
+                  blurRadius: 10,
+                  offset: const Offset(-2, -2),
                 ),
               ],
             ),
@@ -235,6 +284,16 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                   child: LiquidReflectionOverlay(
                     borderRadius: wheelBorderRadius,
                     opacity: deviceColorStyle.isDark ? 0.46 : 0.72,
+                  ),
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: CupertinoColors.white.withValues(alpha: 0.18),
+                      ),
+                    ),
                   ),
                 ),
                 Column(
@@ -433,6 +492,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                 ),
               ],
             ),
+          ),
           ),
         );
       },

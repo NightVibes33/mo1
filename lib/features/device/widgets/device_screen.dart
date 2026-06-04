@@ -31,13 +31,13 @@ class DeviceScreen extends ConsumerWidget {
           builder: (context, constraints) {
             return LiquidGlass(
               borderRadius: screenRadius,
-              blur: 10,
-              opacity: 0.26,
-              borderColor: CupertinoColors.white.withValues(alpha: 0.42),
+              blur: 8,
+              opacity: 0.18,
+              borderColor: CupertinoColors.black.withValues(alpha: 0.72),
               gradientColors: [
-                CupertinoColors.white.withValues(alpha: 0.3),
-                context.appDeviceScreenBackgroundColor.withValues(alpha: 0.94),
-                const Color(0xFF081015).withValues(alpha: 0.16),
+                CupertinoColors.white.withValues(alpha: 0.24),
+                context.appDeviceScreenBackgroundColor.withValues(alpha: 0.98),
+                const Color(0xFFBEC6BE).withValues(alpha: 0.1),
               ],
               shadows: [
                 BoxShadow(
@@ -53,11 +53,21 @@ class DeviceScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       borderRadius: screenRadius,
                       color: context.appDeviceScreenBackgroundColor,
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          CupertinoColors.white.withValues(alpha: 0.92),
+                          context.appDeviceScreenBackgroundColor,
+                          const Color(0xFFF4F5EE).withValues(alpha: 0.72),
+                        ],
+                      ),
                     ),
                   ),
                   MediaQuery(
                     data: MediaQuery.of(context).copyWith(
                       size: Size(constraints.maxWidth, screenHeight - 10),
+                      textScaler: TextScaler.noScaling,
                     ),
                     child: child,
                   ),
@@ -71,7 +81,8 @@ class DeviceScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       borderRadius: screenRadius,
                       border: Border.all(
-                        color: context.appDeviceScreenBorderColor,
+                        color: context.appDeviceScreenBorderColor.withValues(alpha: 0.9),
+                        width: 1.4,
                       ),
                     ),
                   ),

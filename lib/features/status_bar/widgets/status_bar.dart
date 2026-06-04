@@ -28,12 +28,12 @@ class StatusBar extends StatelessWidget {
       child: LiquidGlass(
         borderRadius: BorderRadius.zero,
         blur: 10,
-        opacity: isDarkTheme ? 0.2 : 0.44,
-        borderColor: borderColor.withValues(alpha: 0.5),
+        opacity: isDarkTheme ? 0.16 : 0.34,
+        borderColor: borderColor.withValues(alpha: 0.62),
         gradientColors: [
-          CupertinoColors.white.withValues(alpha: isDarkTheme ? 0.16 : 0.64),
-          const Color(0xFF75FFF0).withValues(alpha: isDarkTheme ? 0.12 : 0.22),
-          CupertinoColors.black.withValues(alpha: isDarkTheme ? 0.16 : 0.04),
+          CupertinoColors.white.withValues(alpha: isDarkTheme ? 0.12 : 0.78),
+          const Color(0xFFE9ECE8).withValues(alpha: isDarkTheme ? 0.08 : 0.46),
+          CupertinoColors.black.withValues(alpha: isDarkTheme ? 0.16 : 0.05),
         ],
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -69,7 +69,7 @@ class StatusBar extends StatelessWidget {
                             ? CupertinoIcons.play_fill
                             : CupertinoIcons.pause_fill,
                         color: isPlaying
-                            ? const Color(0xFF29F5CF)
+                            ? const Color(0xFF26D98B)
                             : AppPalette.selectedTileGradientColor1,
                       ),
                     );

@@ -19,86 +19,78 @@ class SeekBar extends ConsumerWidget {
             AppPalette.darkSliderGradientColor2,
           ]
         : const [
-            AppPalette.inActiveSliderGradientColor1,
-            AppPalette.inActiveSliderGradientColor2,
+            Color(0xFFF7F7F5),
+            Color(0xFFDADDD8),
           ];
     final borderColor = isDarkTheme
         ? AppPalette.darkSliderBorderColor
-        : AppPalette.sliderBorderColor;
-    final progressShadowColor = isDarkTheme
-        ? AppPalette.darkNowProgressBarShadowColor
-        : AppPalette.nowProgressBarShadowColor;
+        : const Color(0xFF9BA0A1);
+    final fillColors = isDarkTheme
+        ? const [Color(0xFF7A8FD8), Color(0xFFB8C7FF)]
+        : const [Color(0xFF86A9F4), Color(0xFF5B82DD)];
 
-    return Expanded(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: GestureDetector(
-                  onTapDown: (tapDownDetails) async {
-                    final targetSeekValue =
-                        (tapDownDetails.localPosition.dx * max) /
-                        constraints.maxWidth;
-                    await ref
-                        .read(audioPlayerServiceProvider.notifier)
-                        .seekToDuration(targetSeekValue.floor());
-                  },
-                  child: SizedBox(
-                    height: 20,
-                    width: constraints.maxWidth,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: inactiveGradientColors,
-                        ),
-                        border: Border.all(color: borderColor),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final safeMax = max <= 0 || !max.isFinite ? 1.0 : max;
+        final progress = (value / safeMax).clamp(0.0, 1.0).toDouble();
+        final barWidth = constraints.maxWidth;
+
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (tapDownDetails) async {
+            if (barWidth <= 0) {
+              return;
+            }
+            final targetSeekValue =
+                (tapDownDetails.localPosition.dx.clamp(0.0, barWidth).toDouble() * safeMax) /
+                barWidth;
+            await ref
+                .read(audioPlayerServiceProvider.notifier)
+                .seekToDuration(targetSeekValue.floor());
+          },
+          child: SizedBox(
+            height: 20,
+            child: Center(
+              child: Container(
+                height: 12,
+                clipBehavior: Clip.hardEdge,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  border: Border.all(color: borderColor, width: 1),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: inactiveGradientColors,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: CupertinoColors.black.withValues(alpha: 0.14),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: AnimatedContainer(
+                    height: double.infinity,
+                    width: barWidth * progress,
+                    duration: const Duration(milliseconds: 90),
+                    curve: Curves.linear,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: fillColors,
                       ),
                     ),
                   ),
                 ),
               ),
-              IgnorePointer(
-                child: AnimatedContainer(
-                  height: 20,
-                  width: (value / max) * constraints.maxWidth,
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  duration: const Duration(milliseconds: 10),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        AppPalette.nowProgressBarGradientColor1,
-                        AppPalette.nowProgressBarGradientColor2,
-                        AppPalette.nowProgressBarGradientColor1,
-                        AppPalette.nowProgressBarGradientColor3,
-                        AppPalette.nowProgressBarGradientColor4,
-                        AppPalette.nowProgressBarGradientColor5,
-                        AppPalette.nowProgressBarGradientColor6,
-                        AppPalette.nowProgressBarGradientColor7,
-                        AppPalette.nowProgressBarGradientColor8,
-                      ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: progressShadowColor,
-                        spreadRadius: 1,
-                        blurRadius: 2,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

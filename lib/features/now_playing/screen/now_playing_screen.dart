@@ -378,40 +378,44 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       child: Column(
         children: [
           StatusBar(title: Routes.nowPlaying.title(context)),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (nowPlayingDetails.isShuffleEnabled)
-                Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: Icon(
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            height:
+                nowPlayingDetails.isShuffleEnabled ||
+                    nowPlayingDetails.loopMode != LoopMode.off
+                ? 18
+                : 4,
+            padding: const EdgeInsets.only(right: 8),
+            alignment: Alignment.centerRight,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (nowPlayingDetails.isShuffleEnabled)
+                  Icon(
                     CupertinoIcons.shuffle,
-                    size: 20,
+                    size: 14,
                     color: context.appPrimaryTextColor,
                   ),
-                ),
-              if (nowPlayingDetails.loopMode != LoopMode.off)
-                Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: Icon(
+                if (nowPlayingDetails.loopMode != LoopMode.off) ...[
+                  const SizedBox(width: 6),
+                  Icon(
                     (nowPlayingDetails.loopMode == LoopMode.all)
                         ? CupertinoIcons.repeat
                         : CupertinoIcons.repeat_1,
-                    size: 20,
+                    size: 14,
                     color: context.appPrimaryTextColor,
                   ),
-                ),
-              if (!nowPlayingDetails.isShuffleEnabled &&
-                  nowPlayingDetails.loopMode == LoopMode.off)
-                const SizedBox(height: 20),
-            ],
+                ],
+              ],
+            ),
           ),
           Expanded(
             child: GestureDetector(
               onTap: onSelectPressed,
               onLongPress: onSelectLongPress,
               child: Padding(
-                padding: const EdgeInsets.only(left: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 420),
                   child:
@@ -434,9 +438,9 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
             ),
           ),
           SizedBox(
-            height: 30,
+            height: 31,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 420),
                 transitionBuilder: (child, animation) {
@@ -490,7 +494,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 7),
         ],
       ),
     );

@@ -73,33 +73,45 @@ class _LyricsViewState extends State<LyricsView> {
           (snapshot.data ?? Duration.zero) + _lyricLead,
         );
         _syncScroll(currentLine);
-        return ListView.builder(
+        return CupertinoScrollbar(
           controller: widget.scrollController,
-          padding: const EdgeInsets.fromLTRB(4, 28, 12, 60),
-          itemCount: _lines.length,
-          itemBuilder: (context, index) {
-            final isCurrent = index == currentLine;
-            return Padding(
-              key: _lineKeys[index],
-              padding: const EdgeInsets.only(bottom: 10),
-              child: AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 140),
+          child: ListView.builder(
+            controller: widget.scrollController,
+            padding: const EdgeInsets.fromLTRB(0, 6, 6, 26),
+            itemCount: _lines.length,
+            itemBuilder: (context, index) {
+              final isCurrent = index == currentLine;
+              return AnimatedContainer(
+                key: _lineKeys[index],
+                duration: const Duration(milliseconds: 160),
                 curve: Curves.easeOutCubic,
-                style: TextStyle(
-                  fontSize: isCurrent ? 18 : 15,
-                  height: 1.26,
-                  fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                margin: const EdgeInsets.only(bottom: 7),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
                   color: isCurrent
-                      ? context.appPrimaryTextColor
-                      : context.appSecondaryTextColor.withValues(alpha: 0.62),
+                      ? CupertinoColors.black.withValues(alpha: 0.1)
+                      : const Color(0x00000000),
+                  borderRadius: BorderRadius.circular(7),
                 ),
-                child: Text(
-                  _lines[index].text,
-                  softWrap: true,
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 140),
+                  curve: Curves.easeOutCubic,
+                  style: TextStyle(
+                    fontSize: isCurrent ? 17 : 14,
+                    height: 1.22,
+                    fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w700,
+                    color: isCurrent
+                        ? context.appPrimaryTextColor
+                        : context.appSecondaryTextColor.withValues(alpha: 0.68),
+                  ),
+                  child: Text(
+                    _lines[index].text,
+                    softWrap: true,
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );
@@ -167,11 +179,11 @@ class _PlainLyricsView extends StatelessWidget {
         controller: scrollController,
         child: ListView.builder(
           controller: scrollController,
-          padding: const EdgeInsets.only(right: 10, bottom: 24),
+          padding: const EdgeInsets.fromLTRB(0, 6, 8, 26),
           itemCount: lines.length,
           itemBuilder: (context, index) {
             return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 lines[index].text,
                 style: TextStyle(

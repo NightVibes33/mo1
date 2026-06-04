@@ -21,35 +21,57 @@ class DeviceFrame extends ConsumerWidget {
       settingsPreferencesControllerProvider.select((e) => e.deviceColor),
     );
     final deviceColorStyle = deviceColor.style;
-    final bodyRadius = BorderRadius.circular(44);
+    final mediaQuery = MediaQuery.of(context);
     final glassColors = [
-      deviceColorStyle.frameGradientColors.first.withValues(alpha: 0.72),
+      deviceColorStyle.frameGradientColors.first.withValues(alpha: 0.86),
       CupertinoColors.white.withValues(
-        alpha: deviceColorStyle.isDark ? 0.12 : 0.46,
+        alpha: deviceColorStyle.isDark ? 0.1 : 0.5,
       ),
-      deviceColorStyle.frameGradientColors.last.withValues(alpha: 0.78),
+      deviceColorStyle.frameGradientColors.last.withValues(alpha: 0.9),
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final shortestSide = min(constraints.maxWidth, constraints.maxHeight);
-        final bodyMaxWidth = shortestSide < 520
-            ? constraints.maxWidth
-            : min(constraints.maxWidth, 620.0);
-        final safeHeight = constraints.maxHeight;
-        final screenHeight = (safeHeight * 0.34).clamp(310.0, 390.0);
+        final topInset = mediaQuery.padding.top;
+        final bottomInset = mediaQuery.padding.bottom;
+        final horizontalInset = constraints.maxWidth < 430 ? 7.0 : 18.0;
+        final topGap = max(topInset + 8, constraints.maxHeight * 0.045);
+        final bottomGap = max(bottomInset + 8, 12.0);
+        final availableWidth = max(
+          0.0,
+          constraints.maxWidth - horizontalInset * 2,
+        );
+        final availableHeight = max(
+          0.0,
+          constraints.maxHeight - topGap - bottomGap,
+        );
+        const bodyAspectRatio = 1.88;
+        var bodyWidth = min(availableWidth, 620.0);
+        var bodyHeight = bodyWidth * bodyAspectRatio;
+        if (bodyHeight > availableHeight) {
+          bodyHeight = availableHeight;
+          bodyWidth = bodyHeight / bodyAspectRatio;
+        }
+        final bodyRadius = BorderRadius.circular(
+          (bodyWidth * 0.12).clamp(36.0, 58.0).toDouble(),
+        );
+        final innerWidth = max(0.0, bodyWidth - 20);
+        final screenHeight = min(
+          bodyHeight * 0.37,
+          (innerWidth * 0.72).clamp(218.0, 316.0).toDouble(),
+        );
 
         return Stack(
           fit: StackFit.expand,
           children: [
             AnimatedAuroraBackdrop(
               colors: [
-                deviceColorStyle.frameGradientColors.first,
-                const Color(0xFFEFEAFF),
-                const Color(0xFFFF4FD8),
-                deviceColorStyle.frameGradientColors.last,
+                deviceColorStyle.frameGradientColors.first.withValues(alpha: 0.82),
+                const Color(0xFFF5F5F0),
+                const Color(0xFFC9CED7),
+                deviceColorStyle.frameGradientColors.last.withValues(alpha: 0.78),
               ],
-              intensity: deviceColorStyle.isDark ? 0.72 : 0.58,
+              intensity: deviceColorStyle.isDark ? 0.48 : 0.28,
             ),
             DecoratedBox(
               decoration: BoxDecoration(
@@ -60,12 +82,18 @@ class DeviceFrame extends ConsumerWidget {
                 ),
               ),
             ),
-            SafeArea(
-              minimum: const EdgeInsets.fromLTRB(6, 6, 6, 6),
-              child: Center(
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                horizontalInset,
+                topGap,
+                horizontalInset,
+                bottomGap,
+              ),
+              child: Align(
+                alignment: Alignment.topCenter,
                 child: SizedBox(
-                  width: bodyMaxWidth,
-                  height: double.infinity,
+                  width: bodyWidth,
+                  height: bodyHeight,
                   child: TweenAnimationBuilder<double>(
                     tween: Tween<double>(begin: 0, end: 1),
                     duration: const Duration(milliseconds: 520),
@@ -82,10 +110,10 @@ class DeviceFrame extends ConsumerWidget {
                     child: LiquidGlass(
                       borderRadius: bodyRadius,
                       blur: 22,
-                      opacity: 0.5,
-                      borderColor: CupertinoColors.white.withValues(alpha: 0.42),
+                      opacity: deviceColorStyle.isDark ? 0.42 : 0.58,
+                      borderColor: CupertinoColors.white.withValues(alpha: 0.5),
                       gradientColors: glassColors,
-                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
                       shadows: [
                         BoxShadow(
                           color: CupertinoColors.black.withValues(alpha: 0.28),
@@ -108,9 +136,9 @@ class DeviceFrame extends ConsumerWidget {
                                 height: screenHeight,
                                 child: child,
                               ),
-                              const Spacer(),
+                              const Spacer(flex: 34),
                               DeviceControls(key: deviceControlsGlobalKey),
-                              const Spacer(),
+                              const Spacer(flex: 26),
                             ],
                           ),
                         ],

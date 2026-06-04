@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:classipod/features/now_playing/widgets/scrubber_bar.dart';
@@ -16,62 +18,77 @@ class NowPlayingBottomBar extends ConsumerWidget {
       child: StreamBuilder<Duration>(
         stream: ref.read(audioPlayerProvider).positionStream,
         builder: (context, snapshot) {
-          final double totalDuration =
-              (ref
-                      .read(nowPlayingDetailsProvider)
-                      .metadataList[ref
-                              .read(audioPlayerProvider)
-                              .currentIndex ??
-                          0]
-                      .trackDuration ??
-                  1000) /
-              1000;
-          double currentDuration = snapshot.data?.inSeconds.toDouble() ?? 0;
-          if (currentDuration < 0) {
-            currentDuration = 0;
+          final playerIndex = ref.read(audioPlayerProvider).currentIndex ?? 0;
+          final metadataList = ref.read(nowPlayingDetailsProvider).metadataList;
+          if (metadataList.isEmpty) {
+            return const SizedBox.shrink();
           }
+          final safeIndex = playerIndex.clamp(0, metadataList.length - 1).toInt();
+          final totalDuration = math.max(
+            1.0,
+            (metadataList[safeIndex].trackDuration ?? 1000) / 1000,
+          );
+          final currentDuration = (snapshot.data?.inSeconds.toDouble() ?? 0)
+              .clamp(0.0, totalDuration)
+              .toDouble();
+          final remainingDuration = math.max(0.0, totalDuration - currentDuration);
 
-          final int elapsedTimeInMinutes = currentDuration ~/ 60;
-          final int elapsedTimeInSeconds = currentDuration.toInt() % 60;
-
-          final int remainingTimeInMinutes =
-              (totalDuration - currentDuration) ~/ 60;
-          int remainingTimeInSeconds =
-              (totalDuration - currentDuration).toInt() % 60;
-
-          if ((totalDuration - currentDuration) < 0) {
-            remainingTimeInSeconds = 0;
-          }
-
-          return Row(
-            children: [
-              SizedBox(
-                width: 35,
-                child: Text(
-                  "$elapsedTimeInMinutes:${elapsedTimeInSeconds < 10 ? "0$elapsedTimeInSeconds" : elapsedTimeInSeconds}",
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _TimeLabel(_formatDuration(currentDuration), alignRight: false),
+                const SizedBox(width: 6),
+                if (showScrubber)
+                  Expanded(
+                    child: ScrubberBar(max: totalDuration, value: currentDuration),
+                  )
+                else
+                  Expanded(
+                    child: SeekBar(max: totalDuration, value: currentDuration),
                   ),
-                ),
-              ),
-              if (showScrubber)
-                ScrubberBar(max: totalDuration, value: currentDuration),
-              if (!showScrubber)
-                SeekBar(max: totalDuration, value: currentDuration),
-              SizedBox(
-                width: 40,
-                child: Text(
-                  "- $remainingTimeInMinutes:${remainingTimeInSeconds < 10 ? "0$remainingTimeInSeconds" : remainingTimeInSeconds}",
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                _TimeLabel('-${_formatDuration(remainingDuration)}', alignRight: true),
+              ],
+            ),
           );
         },
+      ),
+    );
+  }
+
+  String _formatDuration(double seconds) {
+    final safeSeconds = seconds.isFinite ? seconds.round() : 0;
+    final minutes = safeSeconds ~/ 60;
+    final remainder = safeSeconds % 60;
+    return '$minutes:${remainder.toString().padLeft(2, '0')}';
+  }
+}
+
+class _TimeLabel extends StatelessWidget {
+  final String text;
+  final bool alignRight;
+
+  const _TimeLabel(this.text, {required this.alignRight});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 43,
+      child: FittedBox(
+        alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+        fit: BoxFit.scaleDown,
+        child: Text(
+          text,
+          maxLines: 1,
+          softWrap: false,
+          style: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+            height: 1,
+          ),
+        ),
       ),
     );
   }

@@ -168,8 +168,9 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
                       offset: const Offset(0, 10),
                     ),
                     BoxShadow(
-                      color: const Color(0xFF58FFE8).withValues(alpha: 0.2),
-                      blurRadius: 14,
+                      color: CupertinoColors.white.withValues(alpha: 0.18),
+                      blurRadius: 8,
+                      offset: const Offset(-1, -1),
                     ),
                   ],
                 ),
