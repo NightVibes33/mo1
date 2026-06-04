@@ -32,11 +32,12 @@ class DeviceFrame extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final topInset = mediaQuery.padding.top;
-        final bottomInset = mediaQuery.padding.bottom;
+        final topInset = mediaQuery.viewPadding.top;
+        final bottomInset = mediaQuery.viewPadding.bottom;
         final horizontalInset = constraints.maxWidth < 430 ? 7.0 : 18.0;
-        final topGap = max(topInset + 8, constraints.maxHeight * 0.045);
-        final bottomGap = max(bottomInset + 8, 12.0);
+        final islandClearance = topInset > 44 ? topInset + 2 : topInset + 8;
+        final topGap = max(islandClearance, constraints.maxHeight * 0.034);
+        final bottomGap = max(bottomInset + 2, 5.0);
         final availableWidth = max(
           0.0,
           constraints.maxWidth - horizontalInset * 2,
@@ -47,10 +48,10 @@ class DeviceFrame extends ConsumerWidget {
         );
         const bodyAspectRatio = 1.88;
         var bodyWidth = min(availableWidth, 620.0);
-        var bodyHeight = bodyWidth * bodyAspectRatio;
-        if (bodyHeight > availableHeight) {
-          bodyHeight = availableHeight;
-          bodyWidth = bodyHeight / bodyAspectRatio;
+        final idealBodyHeight = bodyWidth * bodyAspectRatio;
+        var bodyHeight = availableHeight;
+        if (idealBodyHeight > availableHeight) {
+          bodyWidth = availableHeight / bodyAspectRatio;
         }
         final bodyRadius = BorderRadius.circular(
           (bodyWidth * 0.12).clamp(36.0, 58.0).toDouble(),
@@ -79,6 +80,31 @@ class DeviceFrame extends ConsumerWidget {
                   image: const AssetImage(Assets.noiseImage),
                   fit: BoxFit.cover,
                   opacity: deviceColorStyle.noiseOpacity * 0.3,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: topGap + 72,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        deviceColorStyle.frameGradientColors.first.withValues(
+                          alpha: deviceColorStyle.isDark ? 0.32 : 0.18,
+                        ),
+                        CupertinoColors.white.withValues(
+                          alpha: deviceColorStyle.isDark ? 0.08 : 0.42,
+                        ),
+                        CupertinoColors.white.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
