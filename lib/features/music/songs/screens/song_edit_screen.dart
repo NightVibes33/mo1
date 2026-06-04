@@ -101,33 +101,27 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
     final trackNumberInput = _trackNumberController.text.trim();
     final discNumberInput = _discNumberController.text.trim();
 
-    final titleChanged = titleInput != _initialTitle.trim();
-    final albumChanged = albumInput != _initialAlbum.trim();
-    final genreChanged = genreInput != _initialGenre.trim();
-    final lyricsChanged = lyricsInput != _initialLyrics.trim();
-    final artistChanged = artistInput != _initialArtists.trim();
-    final yearChanged = yearInput != _initialYear.trim();
-    final trackNumberChanged = trackNumberInput != _initialTrackNumber.trim();
-    final discNumberChanged = discNumberInput != _initialDiscNumber.trim();
     final artistNames = _splitInput(artistInput);
 
-    final updatedMetadata = widget.songMetadata.copyWith(
-      trackName: titleChanged ? titleInput : null,
-      albumName: albumChanged ? albumInput : null,
-      genres: genreChanged ? _splitInput(genreInput) : null,
-      lyrics: lyricsChanged ? lyricsInput : null,
-      trackArtistNames: artistChanged ? artistNames : null,
-      albumArtistName: artistChanged && artistNames.isNotEmpty
-          ? artistNames.first
-          : null,
-      year: yearChanged ? _parseInteger(yearInput) : null,
-      trackNumber: trackNumberChanged
-          ? _parseInteger(trackNumberInput)
-          : null,
-      discNumber: discNumberChanged ? _parseInteger(discNumberInput) : null,
-      albumLength: _pendingAlbumLength,
-      trackDuration: _pendingTrackDuration,
-      thumbnailPath: _pendingThumbnailPath,
+    final updatedMetadata = MusicMetadata(
+      trackName: _nonEmpty(titleInput),
+      trackArtistNames: artistNames.isEmpty ? null : artistNames,
+      albumName: _nonEmpty(albumInput),
+      albumArtistName: artistNames.isEmpty ? null : artistNames.first,
+      trackNumber: _parseInteger(trackNumberInput),
+      albumLength: _pendingAlbumLength ?? widget.songMetadata.albumLength,
+      year: _parseInteger(yearInput),
+      genres: _splitInput(genreInput),
+      discNumber: _parseInteger(discNumberInput),
+      mimeType: widget.songMetadata.mimeType,
+      trackDuration: _pendingTrackDuration ?? widget.songMetadata.trackDuration,
+      bitrate: widget.songMetadata.bitrate,
+      filePath: widget.songMetadata.filePath,
+      thumbnailPath: _pendingThumbnailPath ?? widget.songMetadata.thumbnailPath,
+      originalSongIndex: widget.songMetadata.originalSongIndex,
+      isOnDevice: widget.songMetadata.isOnDevice,
+      rating: widget.songMetadata.rating,
+      lyrics: _nonEmpty(lyricsInput),
     );
 
     await ref

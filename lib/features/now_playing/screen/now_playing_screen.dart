@@ -46,6 +46,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   bool _isShuffleEnabled = false;
   _NowPlayingBottomBarPage _bottomBarPage = _NowPlayingBottomBarPage.seekBar;
   int? _lastLyricsSongIndex;
+  bool _lastHadLyrics = false;
 
   String get routeName => Routes.nowPlaying.name;
 
@@ -315,11 +316,30 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
 
     if (_lastLyricsSongIndex != currentLyricsSongIndex) {
       _lastLyricsSongIndex = currentLyricsSongIndex;
+      _lastHadLyrics = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!_lyricsScrollController.hasClients) {
           return;
         }
         _lyricsScrollController.jumpTo(0);
+      });
+    }
+
+    final shouldOpenLyrics = hasLyrics &&
+        !_lastHadLyrics &&
+        _bottomBarPage != _NowPlayingBottomBarPage.lyrics;
+    _lastHadLyrics = hasLyrics;
+    if (shouldOpenLyrics) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        if (_bottomBarPageController.hasClients) {
+          _bottomBarPageController.jumpToPage(4);
+        }
+        setState(() {
+          _bottomBarPage = _NowPlayingBottomBarPage.lyrics;
+        });
       });
     }
 

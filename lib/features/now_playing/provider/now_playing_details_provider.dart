@@ -1,6 +1,7 @@
 import 'package:classipod/core/constants/constants.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
+import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/features/music/album/providers/album_details_provider.dart';
 import 'package:classipod/features/music/playlist/models/playlist_model.dart';
@@ -123,28 +124,75 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
   }
 
   Future<void> updateMetadata(MusicMetadata updatedMetadata) async {
+    final Box<MusicMetadata> metadataBox = Hive.box<MusicMetadata>(
+      Constants.metadataBoxName,
+    );
+    final storageIndex = _metadataStorageIndex(metadataBox, updatedMetadata);
+    final existingMetadata = storageIndex == -1
+        ? null
+        : metadataBox.getAt(storageIndex);
+    final storedMetadata = updatedMetadata.copyWith(
+      originalSongIndex:
+          existingMetadata?.originalSongIndex ?? updatedMetadata.originalSongIndex,
+    );
+
+    if (storageIndex == -1) {
+      await metadataBox.add(storedMetadata);
+    } else {
+      await metadataBox.putAt(storageIndex, storedMetadata);
+    }
+
     state = state.copyWith(
       currentMetadata:
           state.currentMetadata?.originalSongIndex ==
-              updatedMetadata.originalSongIndex
-          ? updatedMetadata
+              storedMetadata.originalSongIndex
+          ? storedMetadata
           : state.currentMetadata,
       metadataList: [
         for (final metadata in state.metadataList)
-          if (metadata.originalSongIndex == updatedMetadata.originalSongIndex)
-            updatedMetadata
+          if (metadata.originalSongIndex == storedMetadata.originalSongIndex)
+            storedMetadata
           else
             metadata,
       ],
     );
 
-    final Box<MusicMetadata> metadataBox = Hive.box<MusicMetadata>(
-      Constants.metadataBoxName,
-    );
-    await metadataBox.putAt(updatedMetadata.originalSongIndex, updatedMetadata);
-    await _updatePersistedPlaylistMetadata(updatedMetadata);
+    await _updatePersistedPlaylistMetadata(storedMetadata);
+    ref.invalidate(audioFilesServiceProvider);
     ref.invalidate(filteredAudioFilesProvider);
     ref.invalidate(albumDetailsProvider);
     ref.invalidate(playlistsProvider);
+  }
+
+  int _metadataStorageIndex(
+    Box<MusicMetadata> metadataBox,
+    MusicMetadata updatedMetadata,
+  ) {
+    for (var index = 0; index < metadataBox.length; index++) {
+      final metadata = metadataBox.getAt(index);
+      if (metadata == null) {
+        continue;
+      }
+      if (metadata.originalSongIndex == updatedMetadata.originalSongIndex) {
+        return index;
+      }
+    }
+
+    final updatedPath = updatedMetadata.filePath;
+    if (updatedPath != null) {
+      for (var index = 0; index < metadataBox.length; index++) {
+        final metadata = metadataBox.getAt(index);
+        if (metadata?.filePath == updatedPath) {
+          return index;
+        }
+      }
+    }
+
+    if (updatedMetadata.originalSongIndex >= 0 &&
+        updatedMetadata.originalSongIndex < metadataBox.length) {
+      return updatedMetadata.originalSongIndex;
+    }
+
+    return -1;
   }
 }

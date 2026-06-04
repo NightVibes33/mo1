@@ -3,7 +3,7 @@ description: "A ipod Classic Emulator"
 
 publish_to: 'none'
 
-version: 1.15.3+31
+version: 1.15.4+32
 
 environment:
   sdk: ^3.9.2
@@ -30,7 +30,6 @@ dependencies:
   hive_ce_flutter: ^2.3.3
   intl: any
   just_audio: ^0.10.5
-  just_waveform: ^0.0.7
   just_audio_background: ^0.0.1-beta.17
   just_audio_media_kit: ^2.1.0
   media_kit_libs_linux: ^1.2.1
