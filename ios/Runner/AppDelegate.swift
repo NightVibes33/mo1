@@ -1,3 +1,4 @@
+import AVFoundation
 import Flutter
 import MusicKit
 import UIKit
@@ -8,6 +9,17 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    do {
+      try AVAudioSession.sharedInstance().setCategory(
+        .playback,
+        mode: .default,
+        options: [.allowAirPlay, .allowBluetoothA2DP]
+      )
+      try AVAudioSession.sharedInstance().setActive(true)
+    } catch {
+      NSLog("mo1 audio session setup failed: \(error.localizedDescription)")
+    }
+
     GeneratedPluginRegistrant.register(with: self)
     if let controller = window?.rootViewController as? FlutterViewController {
       AppleMusicLookupChannel.register(with: controller.binaryMessenger)

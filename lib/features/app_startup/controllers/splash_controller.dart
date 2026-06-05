@@ -2,12 +2,12 @@ import 'dart:io';
 
 import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
-import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/features/music/album/providers/album_details_provider.dart';
 import 'package:classipod/features/music/artists/providers/artist_names_provider.dart';
 import 'package:classipod/features/music/genres/providers/genres_provider.dart';
 import 'package:classipod/features/music/playlist/providers/playlists_provider.dart';
 import 'package:classipod/features/music/songs/provider/songs_provider.dart';
+import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
 import 'package:classipod/features/tutorial/controller/tutorial_controller.dart';
 import 'package:flutter/foundation.dart';
@@ -53,10 +53,12 @@ class SplashControllerNotifier extends AsyncNotifier<void> {
         .read(filteredAudioFilesProvider.future)
         .then((value) => value.toList());
 
-    // Set the audio source
-    await ref
-        .read(audioPlayerServiceProvider.notifier)
-        .setAudioSource(musicMetadataList: filteredAudioFilesMetadata);
+    // Keep startup lightweight: only hydrate metadata here. The audio engine
+    // prepares the queue when playback starts so a bad imported MP3 cannot
+    // brick app launch.
+    ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
+          newMetadataList: filteredAudioFilesMetadata,
+        );
 
     // Set the initial loop mode
     await ref

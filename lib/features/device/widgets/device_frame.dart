@@ -37,14 +37,15 @@ class DeviceFrame extends ConsumerWidget {
         final hasDynamicIsland = topInset >= 54;
         final horizontalBleed = constraints.maxWidth < 430 ? 0.0 : 4.0;
         final topContentInset = hasDynamicIsland
-            ? topInset + 28
-            : max(topInset + 14, 18.0);
-        final bottomContentInset = max(bottomInset + 12, 16.0);
+            ? topInset + 18
+            : max(topInset + 12, 16.0);
+        final bottomBleed = max(bottomInset + 72, 86.0);
+        final bottomContentInset = max(bottomInset + 8, 12.0);
         final availableWidth = max(
           0.0,
           constraints.maxWidth + horizontalBleed * 2,
         );
-        final availableHeight = max(0.0, constraints.maxHeight);
+        final availableHeight = max(0.0, constraints.maxHeight + bottomBleed);
         const bodyAspectRatio = 1.88;
         var bodyWidth = min(availableWidth, 620.0);
         final idealBodyHeight = bodyWidth * bodyAspectRatio;
@@ -113,10 +114,11 @@ class DeviceFrame extends ConsumerWidget {
             ),
             Positioned(
               top: 0,
-              bottom: 0,
+              bottom: -bottomBleed,
               left: -horizontalBleed,
               right: -horizontalBleed,
-              child: Center(
+              child: Align(
+                alignment: Alignment.topCenter,
                 child: SizedBox(
                   width: bodyWidth,
                   height: bodyHeight,
@@ -196,9 +198,13 @@ class DeviceFrame extends ConsumerWidget {
                                 height: screenHeight,
                                 child: child,
                               ),
-                              const Spacer(flex: 34),
-                              DeviceControls(key: deviceControlsGlobalKey),
-                              const Spacer(flex: 26),
+                              Expanded(
+                                child: Center(
+                                  child: DeviceControls(
+                                    key: deviceControlsGlobalKey,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ],

@@ -47,6 +47,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   _NowPlayingBottomBarPage _bottomBarPage = _NowPlayingBottomBarPage.seekBar;
   int? _lastLyricsSongIndex;
   bool _lastHadLyrics = false;
+  Duration _lyricsTimingOffset = Duration.zero;
 
   String get routeName => Routes.nowPlaying.name;
 
@@ -317,6 +318,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     if (_lastLyricsSongIndex != currentLyricsSongIndex) {
       _lastLyricsSongIndex = currentLyricsSongIndex;
       _lastHadLyrics = false;
+      _lyricsTimingOffset = Duration.zero;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!_lyricsScrollController.hasClients) {
           return;
@@ -428,6 +430,10 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                           lyrics: lyrics,
                           positionStream: ref.read(audioPlayerProvider).positionStream,
                           scrollController: _lyricsScrollController,
+                          timingOffset: _lyricsTimingOffset,
+                          onTimingOffsetChanged: (offset) {
+                            setState(() => _lyricsTimingOffset = offset);
+                          },
                         )
                       : NowPlayingWidget(
                           key: const ValueKey('now-playing-view'),

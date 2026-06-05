@@ -265,7 +265,7 @@ Future<List<int>?> _readBytes(
     request.headers.set(HttpHeaders.acceptHeader, acceptHeader);
     request.headers.set(
       HttpHeaders.userAgentHeader,
-      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) mo1/1.0',
+      'mo1/1.17 local-music-metadata',
     );
     final response = await request.close();
     if (response.statusCode < 200 || response.statusCode >= 300) {

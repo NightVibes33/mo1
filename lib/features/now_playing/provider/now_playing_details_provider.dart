@@ -63,11 +63,17 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
   void setNewMetadataList({
     NowPlayingType? nowPlayingType,
     required List<MusicMetadata> newMetadataList,
+    int currentIndex = 0,
   }) {
+    final safeIndex = newMetadataList.isEmpty
+        ? 0
+        : currentIndex.clamp(0, newMetadataList.length - 1).toInt();
     state = state.copyWith(
-      currentIndex: 0,
+      currentIndex: safeIndex,
       nowPlayingType: nowPlayingType,
-      currentMetadata: newMetadataList.isNotEmpty ? newMetadataList[0] : null,
+      currentMetadata: newMetadataList.isNotEmpty
+          ? newMetadataList[safeIndex]
+          : null,
       metadataList: newMetadataList,
     );
   }

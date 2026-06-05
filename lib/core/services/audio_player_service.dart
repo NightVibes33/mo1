@@ -27,10 +27,18 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   Future<void> build() async {}
 
   Future<void> play() async {
-    if (ref.read(audioPlayerProvider).playing) {
+    final player = ref.read(audioPlayerProvider);
+    if (player.playing) {
       return;
     }
-    await ref.read(audioPlayerProvider).play();
+    if (player.currentIndex == null) {
+      final metadata = ref.read(nowPlayingDetailsProvider).currentMetadata;
+      if (metadata != null) {
+        await playSongFromOriginalList(metadata.originalSongIndex);
+        return;
+      }
+    }
+    await player.play();
   }
 
   Future<void> pause() async {
@@ -91,32 +99,41 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   Future<void> setAudioSource({
     NowPlayingType nowPlayingType = NowPlayingType.songs,
     required List<MusicMetadata> musicMetadataList,
+    int initialIndex = 0,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final List<AudioSource> songSourcePlaylist = [];
-      int i = 0;
       try {
         for (final musicMetadata in musicMetadataList) {
           songSourcePlaylist.add(musicMetadata.toAudioSource());
-          i = i + 1;
         }
       } catch (_) {}
 
-      await ref
-          .read(audioPlayerProvider)
-          .setAudioSources(
+      if (songSourcePlaylist.isEmpty) {
+        await ref.read(audioPlayerProvider).stop();
+        ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
+              nowPlayingType: nowPlayingType,
+              newMetadataList: const [],
+            );
+        return;
+      }
+
+      final safeInitialIndex = initialIndex
+          .clamp(0, songSourcePlaylist.length - 1)
+          .toInt();
+
+      await ref.read(audioPlayerProvider).setAudioSources(
             songSourcePlaylist,
-            initialIndex: 0,
+            initialIndex: safeInitialIndex,
             initialPosition: Duration.zero,
             shuffleOrder: DefaultShuffleOrder(),
           );
 
-      ref
-          .read(nowPlayingDetailsProvider.notifier)
-          .setNewMetadataList(
+      ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
             nowPlayingType: nowPlayingType,
             newMetadataList: musicMetadataList,
+            currentIndex: safeInitialIndex,
           );
     });
   }
@@ -158,6 +175,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         await setAudioSource(
           nowPlayingType: NowPlayingType.album,
           musicMetadataList: albumDetail.albumSongs,
+          initialIndex: songIndex,
         );
         await playSongAtIndex(songIndex);
         await setShuffleMode(false);
@@ -188,6 +206,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         await setAudioSource(
           nowPlayingType: NowPlayingType.playlist,
           musicMetadataList: playlistDetail.songs,
+          initialIndex: songIndex,
         );
         await playSongAtIndex(songIndex);
         await setShuffleMode(false);
@@ -212,28 +231,46 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   Future<void> playSongFromOriginalList(int originalIndex) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      //If Album or Playlist is being played then Switch to original List of Songs
-      if (ref.read(nowPlayingDetailsProvider).nowPlayingType !=
-          NowPlayingType.songs) {
-        await setAudioSource(
-          musicMetadataList: ref.read(filteredAudioFilesProvider).requireValue,
+      final player = ref.read(audioPlayerProvider);
+      var nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+      final hasLoadedSources = player.currentIndex != null;
+      final shouldUseOriginalList = !hasLoadedSources ||
+          nowPlayingDetails.nowPlayingType !=
+              NowPlayingType.songs ||
+          nowPlayingDetails.metadataList.isEmpty ||
+          !nowPlayingDetails.metadataList.any(
+            (element) => element.originalSongIndex == originalIndex,
+          );
+
+      if (shouldUseOriginalList) {
+        final originalList = ref.read(filteredAudioFilesProvider).requireValue;
+        final initialIndex = originalList.indexWhere(
+          (element) => element.originalSongIndex == originalIndex,
         );
+        if (initialIndex == -1) {
+          return;
+        }
+        await setAudioSource(
+          musicMetadataList: originalList,
+          initialIndex: initialIndex,
+        );
+        nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
       }
 
-      //In case the same song is already playing
       if (originalIndex ==
-          ref
-              .read(nowPlayingDetailsProvider)
-              .currentMetadata
-              ?.originalSongIndex) {
+          nowPlayingDetails.currentMetadata?.originalSongIndex) {
+        await player.play();
         return;
       }
 
-      final int index = ref
-          .read(nowPlayingDetailsProvider)
-          .metadataList
-          .indexWhere((element) => element.originalSongIndex == originalIndex);
-      await ref.read(audioPlayerProvider).seek(Duration.zero, index: index);
+      final int index = nowPlayingDetails.metadataList.indexWhere(
+        (element) => element.originalSongIndex == originalIndex,
+      );
+      if (index == -1) {
+        return;
+      }
+
+      await player.seek(Duration.zero, index: index);
       Future.delayed(const Duration(milliseconds: 200), play);
     });
   }
@@ -273,13 +310,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   Future<void> seekBackward() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref
-          .read(audioPlayerProvider)
-          .seek(
-            Duration(
-              seconds: ref.read(audioPlayerProvider).position.inSeconds - 1,
-            ),
-          );
+      final currentSeconds = ref.read(audioPlayerProvider).position.inSeconds;
+      final targetSeconds = (currentSeconds - 1).clamp(0, currentSeconds).toInt();
+      await ref.read(audioPlayerProvider).seek(Duration(seconds: targetSeconds));
     });
   }
 
@@ -288,15 +321,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       final int maxDurationInSeconds =
           ref.read(audioPlayerProvider).duration?.inSeconds ?? 0;
-      if (targetDurationInSeconds > 0 &&
-          targetDurationInSeconds <= maxDurationInSeconds) {
-        await ref
-            .read(audioPlayerProvider)
-            .seek(Duration(seconds: targetDurationInSeconds));
-      }
-      await ref
-          .read(audioPlayerProvider)
-          .seek(Duration(seconds: targetDurationInSeconds));
+      final clampedTarget = targetDurationInSeconds
+          .clamp(0, maxDurationInSeconds)
+          .toInt();
+      await ref.read(audioPlayerProvider).seek(Duration(seconds: clampedTarget));
     });
   }
 }

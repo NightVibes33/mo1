@@ -261,4 +261,34 @@ void main() {
       ),
     );
   });
+
+  test('Falls back to filename metadata when parsing converted MP3 fails', () {
+    final tempDir = Directory.systemTemp.createTempSync(
+      'classipod-converter-import-',
+    );
+    try {
+      final thumbnailsDir = Directory('${tempDir.path}/thumbnails')
+        ..createSync(recursive: true);
+      final audioFile =
+          File('${tempDir.path}/Chris Grey - LET THE WORLD BURN.mp3')
+            ..writeAsBytesSync([0, 1, 2, 3, 4]);
+      File('${tempDir.path}/Chris Grey - LET THE WORLD BURN.lrc')
+          .writeAsStringSync('[00:01.00] Let the world burn');
+
+      final metadataReaderRepository = MetadataReaderRepository(
+        thumbnailsDir.path,
+      );
+      final metadataList = metadataReaderRepository.extractMetadataFromFiles([
+        audioFile.path,
+      ]);
+
+      expect(metadataList, hasLength(1));
+      expect(metadataList.first.trackName, 'LET THE WORLD BURN');
+      expect(metadataList.first.trackArtistNames, ['Chris Grey']);
+      expect(metadataList.first.filePath, audioFile.path);
+      expect(metadataList.first.lyrics, '[00:01.00] Let the world burn');
+    } finally {
+      tempDir.deleteSync(recursive: true);
+    }
+  });
 }

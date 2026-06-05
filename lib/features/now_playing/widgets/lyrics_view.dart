@@ -8,12 +8,16 @@ class LyricsView extends StatefulWidget {
   final String lyrics;
   final Stream<Duration> positionStream;
   final ScrollController scrollController;
+  final Duration timingOffset;
+  final ValueChanged<Duration>? onTimingOffsetChanged;
 
   const LyricsView({
     super.key,
     required this.lyrics,
     required this.positionStream,
     required this.scrollController,
+    this.timingOffset = Duration.zero,
+    this.onTimingOffsetChanged,
   });
 
   @override
@@ -70,23 +74,31 @@ class _LyricsViewState extends State<LyricsView> {
       initialData: Duration.zero,
       builder: (context, snapshot) {
         final currentLine = _currentLineIndex(
-          (snapshot.data ?? Duration.zero) + _lyricLead,
+          (snapshot.data ?? Duration.zero) + _lyricLead + widget.timingOffset,
         );
         _syncScroll(currentLine);
         return CupertinoScrollbar(
           controller: widget.scrollController,
           child: ListView.builder(
             controller: widget.scrollController,
-            padding: const EdgeInsets.fromLTRB(0, 6, 6, 26),
-            itemCount: _lines.length,
+            padding: const EdgeInsets.fromLTRB(0, 4, 6, 38),
+            itemCount: _lines.length + 1,
             itemBuilder: (context, index) {
-              final isCurrent = index == currentLine;
+              if (index == 0) {
+                return _LyricOffsetBar(
+                  offset: widget.timingOffset,
+                  onChanged: widget.onTimingOffsetChanged,
+                );
+              }
+
+              final lineIndex = index - 1;
+              final isCurrent = lineIndex == currentLine;
               return AnimatedContainer(
-                key: _lineKeys[index],
+                key: _lineKeys[lineIndex],
                 duration: const Duration(milliseconds: 160),
                 curve: Curves.easeOutCubic,
                 margin: const EdgeInsets.only(bottom: 7),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 decoration: BoxDecoration(
                   color: isCurrent
                       ? CupertinoColors.black.withValues(alpha: 0.1)
@@ -98,14 +110,14 @@ class _LyricsViewState extends State<LyricsView> {
                   curve: Curves.easeOutCubic,
                   style: TextStyle(
                     fontSize: isCurrent ? 17 : 14,
-                    height: 1.22,
+                    height: 1.28,
                     fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w700,
                     color: isCurrent
                         ? context.appPrimaryTextColor
                         : context.appSecondaryTextColor.withValues(alpha: 0.68),
                   ),
                   child: Text(
-                    _lines[index].text,
+                    _lines[lineIndex].text,
                     softWrap: true,
                   ),
                 ),
@@ -158,6 +170,92 @@ class _LyricsViewState extends State<LyricsView> {
   }
 }
 
+class _LyricOffsetBar extends StatelessWidget {
+  final Duration offset;
+  final ValueChanged<Duration>? onChanged;
+
+  const _LyricOffsetBar({required this.offset, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final canChange = onChanged != null;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: CupertinoColors.systemGrey5.resolveFrom(context),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            _OffsetButton(
+              label: '-0.5s',
+              enabled: canChange,
+              onPressed: () => _changeBy(-500),
+            ),
+            Expanded(
+              child: Text(
+                'Sync ${_formatOffset(offset)}',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.appPrimaryTextColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            _OffsetButton(
+              label: '+0.5s',
+              enabled: canChange,
+              onPressed: () => _changeBy(500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _changeBy(int milliseconds) {
+    final next = offset + Duration(milliseconds: milliseconds);
+    final clamped = next.inMilliseconds.clamp(-5000, 5000).toInt();
+    onChanged?.call(Duration(milliseconds: clamped));
+  }
+}
+
+class _OffsetButton extends StatelessWidget {
+  final String label;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  const _OffsetButton({
+    required this.label,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      minSize: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      onPressed: enabled ? onPressed : null,
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+}
+
+String _formatOffset(Duration offset) {
+  final milliseconds = offset.inMilliseconds;
+  final sign = milliseconds >= 0 ? '+' : '-';
+  final seconds = milliseconds.abs() / 1000;
+  return '$sign${seconds.toStringAsFixed(1)}s';
+}
+
 List<GlobalKey> _keysForLines(List<_LyricLine> lines) {
   return List<GlobalKey>.generate(lines.length, (_) => GlobalKey());
 }
@@ -179,7 +277,7 @@ class _PlainLyricsView extends StatelessWidget {
         controller: scrollController,
         child: ListView.builder(
           controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(0, 6, 8, 26),
+          padding: const EdgeInsets.fromLTRB(0, 6, 8, 42),
           itemCount: lines.length,
           itemBuilder: (context, index) {
             return Padding(

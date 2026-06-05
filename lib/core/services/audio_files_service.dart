@@ -7,6 +7,7 @@ import 'package:classipod/core/constants/online_audio_files_metadata.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/providers/device_directory_provider.dart';
 import 'package:classipod/core/repositories/metadata_reader_repository.dart';
+import 'package:classipod/core/services/debug_log_service.dart';
 import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -19,6 +20,51 @@ final audioFilesServiceProvider =
       AudioFilesServiceNotifier,
       UnmodifiableListView<MusicMetadata>
     >(AudioFilesServiceNotifier.new);
+
+class ImportLocalAudioResult {
+  final int importedCount;
+  final int duplicateCount;
+  final int skippedCount;
+
+  const ImportLocalAudioResult({
+    required this.importedCount,
+    required this.duplicateCount,
+    required this.skippedCount,
+  });
+
+  const ImportLocalAudioResult.empty()
+    : importedCount = 0,
+      duplicateCount = 0,
+      skippedCount = 0;
+
+  bool get hasImportedSongs => importedCount > 0;
+  bool get hasActivity =>
+      importedCount > 0 || duplicateCount > 0 || skippedCount > 0;
+
+  String get title {
+    if (importedCount > 0) {
+      return 'Import Complete';
+    }
+    if (duplicateCount > 0) {
+      return 'Already Imported';
+    }
+    return 'No Songs Imported';
+  }
+
+  String get message {
+    final parts = <String>[];
+    if (importedCount > 0) {
+      parts.add('$importedCount song${importedCount == 1 ? '' : 's'} imported');
+    }
+    if (duplicateCount > 0) {
+      parts.add('$duplicateCount duplicate${duplicateCount == 1 ? '' : 's'} skipped');
+    }
+    if (skippedCount > 0) {
+      parts.add('$skippedCount unsupported file${skippedCount == 1 ? '' : 's'} skipped');
+    }
+    return parts.isEmpty ? 'Pick MP3, M4A, FLAC, WAV, OGG, OPUS, LRC, or TXT files.' : parts.join('\n');
+  }
+}
 
 class AudioFilesServiceNotifier
     extends AsyncNotifier<UnmodifiableListView<MusicMetadata>> {
@@ -78,8 +124,8 @@ class AudioFilesServiceNotifier
               return UnmodifiableListView([]);
             }
           } else if (Platform.isIOS) {
-            await importLocalAudioFiles();
-            return UnmodifiableListView(metadataBox.values);
+            await importLocalAudioFiles(updateState: false);
+            return _storedMetadata(metadataBox);
           } else {
             final OnAudioQuery audioQuery = OnAudioQuery();
             final queriedSongs = await audioQuery.querySongs();
@@ -94,7 +140,7 @@ class AudioFilesServiceNotifier
             return UnmodifiableListView(result);
           }
         } else {
-          return UnmodifiableListView(metadataBox.values);
+          return _storedMetadata(metadataBox);
         }
       }
     } catch (e) {
@@ -103,11 +149,69 @@ class AudioFilesServiceNotifier
     }
   }
 
-  Future<int> importLocalAudioFiles() async {
+  UnmodifiableListView<MusicMetadata> _storedMetadata(
+    Box<MusicMetadata> metadataBox,
+  ) {
+    final playableMetadata = <MusicMetadata>[];
+    for (final metadata in metadataBox.values) {
+      final repairedMetadata = metadata.withFilenameFallbacks();
+      if (_isPlayableMetadata(repairedMetadata)) {
+        playableMetadata.add(repairedMetadata);
+      }
+    }
+    return UnmodifiableListView(playableMetadata);
+  }
+
+  bool _isPlayableMetadata(MusicMetadata metadata) {
+    final path = metadata.filePath;
+    if (path == null || path.isEmpty) {
+      return false;
+    }
+    if (!metadata.isOnDevice) {
+      return true;
+    }
+    try {
+      return File(path).existsSync();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<ImportLocalAudioResult> importLocalAudioFiles({
+    bool updateState = true,
+  }) async {
     if (!Platform.isIOS) {
-      return 0;
+      return const ImportLocalAudioResult.empty();
     }
 
+    try {
+      return await _importLocalAudioFiles(updateState: updateState);
+    } catch (error, stackTrace) {
+      ref.read(debugLogServiceProvider).error(
+        'import',
+        'Fatal import error',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      debugPrint('Audio Import Fatal Error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (updateState && Hive.isBoxOpen(Constants.metadataBoxName)) {
+        final metadataBox = Hive.box<MusicMetadata>(Constants.metadataBoxName);
+        state = AsyncData(_storedMetadata(metadataBox));
+      }
+      return const ImportLocalAudioResult(
+        importedCount: 0,
+        duplicateCount: 0,
+        skippedCount: 1,
+      );
+    }
+  }
+
+  Future<ImportLocalAudioResult> _importLocalAudioFiles({
+    required bool updateState,
+  }) async {
+    final debugLogService = ref.read(debugLogServiceProvider);
+    debugLogService.info('import', 'Opening file picker');
     final pickedFiles = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       dialogTitle: 'Pick Song Files',
@@ -118,8 +222,15 @@ class AudioFilesServiceNotifier
     );
 
     if (pickedFiles == null || pickedFiles.files.isEmpty) {
-      return 0;
+      debugLogService.info('import', 'File picker cancelled');
+      return const ImportLocalAudioResult.empty();
     }
+
+    debugLogService.info(
+      'import',
+      'Files selected',
+      data: {'count': pickedFiles.files.length},
+    );
 
     final documentsDirectory = ref
         .read(deviceDirectoryProvider)
@@ -129,6 +240,15 @@ class AudioFilesServiceNotifier
       '${documentsDirectory.path}/ClassiPod/imports',
     );
     importsDirectory.createSync(recursive: true);
+
+    final metadataBox = Hive.box<MusicMetadata>(Constants.metadataBoxName);
+    final existingFingerprints = <String>{};
+    for (final metadata in metadataBox.values) {
+      final fingerprint = _fingerprintForExistingFile(metadata.filePath);
+      if (fingerprint != null) {
+        existingFingerprints.add(fingerprint);
+      }
+    }
 
     final selectedSidecarsByStem = <String, List<String>>{};
     for (final file in pickedFiles.files) {
@@ -144,39 +264,136 @@ class AudioFilesServiceNotifier
     }
 
     final metadataReaderRepository = ref.read(metadataReaderRepositoryProvider);
+    final importedDisplayNamesByPath = <String, String>{};
     final List<String> importedAudioPaths = [];
+    final selectedFingerprints = <String>{};
+    var duplicateCount = 0;
+    var skippedCount = 0;
+
     for (final file in pickedFiles.files) {
       final sourcePath = file.path;
       if (sourcePath == null || sourcePath.isEmpty) {
+        skippedCount++;
+        debugLogService.warning('import', 'Skipped file with empty source path');
+        continue;
+      }
+      if (_isLyricsSidecar(sourcePath)) {
         continue;
       }
       if (!metadataReaderRepository.isSupportedAudioFormat(sourcePath)) {
+        skippedCount++;
+        debugLogService.warning(
+          'import',
+          'Skipped unsupported file',
+          data: {'path': sourcePath},
+        );
         continue;
       }
-      final displayName = file.name.isEmpty ? sourcePath.split('/').last : file.name;
+
+      final displayName = file.name.isEmpty
+          ? sourcePath.replaceAll('\\', '/').split('/').last
+          : file.name;
+      final sourceFile = File(sourcePath);
+      final int byteLength;
+      try {
+        if (!sourceFile.existsSync()) {
+          skippedCount++;
+          debugLogService.warning(
+            'import',
+            'Skipped missing source file',
+            data: {'path': sourcePath, 'name': displayName},
+          );
+          continue;
+        }
+        byteLength = sourceFile.lengthSync();
+      } catch (error) {
+        skippedCount++;
+        debugLogService.error(
+          'import',
+          'Skipped unreadable source file',
+          error: error,
+          data: {'path': sourcePath, 'name': displayName},
+        );
+        continue;
+      }
+
+      final fingerprint = _fileFingerprint(displayName, byteLength);
+      if (existingFingerprints.contains(fingerprint) ||
+          !selectedFingerprints.add(fingerprint)) {
+        duplicateCount++;
+        debugLogService.info(
+          'import',
+          'Skipped duplicate file',
+          data: {'name': displayName, 'bytes': byteLength},
+        );
+        continue;
+      }
+
       final destinationPath = _uniqueImportedPath(
         importsDirectory.path,
         displayName,
       );
-      final copied = await File(sourcePath).copy(destinationPath);
-      await _copyLyricsSidecarsForAudio(
-        sourceAudioPath: sourcePath,
-        sourceDisplayName: displayName,
-        destinationAudioPath: copied.path,
-        selectedSidecarsByStem: selectedSidecarsByStem,
-      );
-      importedAudioPaths.add(copied.path);
+      try {
+        final copied = await sourceFile.copy(destinationPath);
+        await _copyLyricsSidecarsForAudio(
+          sourceAudioPath: sourcePath,
+          sourceDisplayName: displayName,
+          destinationAudioPath: copied.path,
+          selectedSidecarsByStem: selectedSidecarsByStem,
+        );
+        importedAudioPaths.add(copied.path);
+        importedDisplayNamesByPath[copied.path] = displayName;
+        existingFingerprints.add(fingerprint);
+        debugLogService.info(
+          'import',
+          'Copied import file',
+          data: {
+            'source': sourcePath,
+            'destination': copied.path,
+            'displayName': displayName,
+            'bytes': byteLength,
+          },
+        );
+      } catch (error, stackTrace) {
+        skippedCount++;
+        debugLogService.error(
+          'import',
+          'Audio import copy failed',
+          error: error,
+          stackTrace: stackTrace,
+          data: {'source': sourcePath, 'displayName': displayName},
+        );
+        debugPrint('Audio Import Copy Error: $error');
+      }
     }
 
     if (importedAudioPaths.isEmpty) {
-      return 0;
+      if (updateState) {
+        state = AsyncData(_storedMetadata(metadataBox));
+      }
+      debugLogService.info(
+        'import',
+        'Import finished with no copied audio files',
+        data: {'duplicates': duplicateCount, 'skipped': skippedCount},
+      );
+      return ImportLocalAudioResult(
+        importedCount: 0,
+        duplicateCount: duplicateCount,
+        skippedCount: skippedCount,
+      );
     }
 
-    final rawResult = await compute(
-      ref.read(metadataReaderRepositoryProvider).extractMetadataFromFiles,
-      importedAudioPaths,
+    debugLogService.info(
+      'import',
+      'Extracting imported metadata',
+      data: {'count': importedAudioPaths.length},
     );
-    final metadataBox = Hive.box<MusicMetadata>(Constants.metadataBoxName);
+    final rawResult = await compute(
+      metadataReaderRepository.extractMetadataFromFilesWithDisplayNames,
+      importedDisplayNamesByPath,
+    );
+    skippedCount += importedAudioPaths.length - rawResult.length;
+
     final existingPaths = metadataBox.values
         .map((metadata) => metadata.filePath)
         .whereType<String>()
@@ -184,19 +401,47 @@ class AudioFilesServiceNotifier
     final startIndex = metadataBox.length;
     final List<MusicMetadata> importedMetadata = [];
     for (final metadata in rawResult) {
-      if (metadata.filePath == null || existingPaths.contains(metadata.filePath)) {
+      if (metadata.filePath == null ||
+          existingPaths.contains(metadata.filePath) ||
+          !_isPlayableMetadata(metadata)) {
+        duplicateCount++;
         continue;
       }
-      importedMetadata.add(
-        metadata.copyWith(
-          originalSongIndex: startIndex + importedMetadata.length,
-        ),
+      final repairedMetadata = metadata.copyWith(
+        originalSongIndex: startIndex + importedMetadata.length,
+      );
+      importedMetadata.add(repairedMetadata);
+      debugLogService.info(
+        'import',
+        'Imported metadata ready',
+        data: {
+          'title': repairedMetadata.trackName,
+          'artist': repairedMetadata.getTrackArtistNames,
+          'album': repairedMetadata.albumName,
+          'path': repairedMetadata.filePath,
+          'originalSongIndex': repairedMetadata.originalSongIndex,
+        },
       );
     }
 
     await metadataBox.addAll(importedMetadata);
-    state = AsyncData(UnmodifiableListView(metadataBox.values));
-    return importedMetadata.length;
+    if (updateState) {
+      state = AsyncData(_storedMetadata(metadataBox));
+    }
+    debugLogService.info(
+      'import',
+      'Import finished',
+      data: {
+        'imported': importedMetadata.length,
+        'duplicates': duplicateCount,
+        'skipped': skippedCount,
+      },
+    );
+    return ImportLocalAudioResult(
+      importedCount: importedMetadata.length,
+      duplicateCount: duplicateCount,
+      skippedCount: skippedCount,
+    );
   }
 
   Future<void> _copyLyricsSidecarsForAudio({
@@ -226,6 +471,12 @@ class AudioFilesServiceNotifier
         final extension = _extensionOf(sidecarPath);
         await source.copy('$destinationStem.$extension');
       } catch (e) {
+        ref.read(debugLogServiceProvider).error(
+          'import',
+          'Lyrics sidecar copy failed',
+          error: e,
+          data: {'sidecarPath': sidecarPath, 'destinationStem': destinationStem},
+        );
         debugPrint('Lyrics Import Error: $e');
       }
     }
@@ -258,7 +509,29 @@ class AudioFilesServiceNotifier
     final fileName = pathOrName.replaceAll('\\', '/').split('/').last;
     final dot = fileName.lastIndexOf('.');
     final stem = dot > 0 ? fileName.substring(0, dot) : fileName;
-    return stem.trim().toLowerCase();
+    return stem
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim()
+        .toLowerCase();
+  }
+
+  String _fileFingerprint(String pathOrName, int byteLength) {
+    return '${_normalizedStem(pathOrName)}:$byteLength';
+  }
+
+  String? _fingerprintForExistingFile(String? path) {
+    if (path == null || path.isEmpty) {
+      return null;
+    }
+    try {
+      final file = File(path);
+      if (!file.existsSync()) {
+        return null;
+      }
+      return _fileFingerprint(path, file.lengthSync());
+    } catch (_) {
+      return null;
+    }
   }
 
   String _extensionOf(String path) {

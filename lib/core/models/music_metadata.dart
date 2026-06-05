@@ -56,6 +56,46 @@ String? _cleanMetadataString(String? value) {
   return normalized;
 }
 
+String? _cleanEmbeddedMetadataString(String? value) {
+  final cleaned = _cleanMetadataString(value);
+  if (cleaned == null) {
+    return null;
+  }
+
+  if (_isGeneratedContainerJunk(cleaned)) {
+    return null;
+  }
+
+  return cleaned;
+}
+
+bool _isGeneratedContainerJunk(String value) {
+  final folded = value.toLowerCase().trim();
+  final compact = folded.replaceAll(RegExp(r'[\s_\-]+'), '');
+  const exactJunk = {
+    'dash',
+    'mp4',
+    'mp41',
+    'mp42',
+    'isom',
+    'iso6',
+    'iso6mp41',
+    'isommp42',
+    'majorbrand',
+    'minorversion',
+    'compatiblebrands',
+  };
+
+  if (exactJunk.contains(compact)) {
+    return true;
+  }
+
+  return compact.startsWith('lavf') ||
+      compact.startsWith('lavc') ||
+      compact.startsWith('lame') ||
+      compact.contains('youtube');
+}
+
 List<String> _splitArtistNames(String artist) {
   final List<String> names;
   if (artist.contains(',')) {
@@ -135,6 +175,10 @@ String _cleanFileStem(String value) {
       .trim();
 }
 
+String _stripImportCollisionSuffix(String value) {
+  return value.replaceFirst(RegExp(r'\s+\d{1,3}$'), '').trim();
+}
+
 class _MetadataFallback {
   final String? title;
   final String? artist;
@@ -142,22 +186,51 @@ class _MetadataFallback {
 
   const _MetadataFallback({this.title, this.artist, this.albumName});
 
-  factory _MetadataFallback.fromPath(String path) {
-    final cleanedStem = _cleanFileStem(_fileNameWithoutExtension(path));
-    String? title = _cleanMetadataString(cleanedStem);
+  factory _MetadataFallback.fromArtistTitleText(
+    String value, {
+    bool stripImportCollisionSuffix = false,
+  }) {
+    final rawCleanedValue = _cleanFileStem(value);
+    final cleanedValue = _cleanMetadataString(
+      stripImportCollisionSuffix
+          ? _stripImportCollisionSuffix(rawCleanedValue)
+          : rawCleanedValue,
+    );
+    if (cleanedValue == null) {
+      return const _MetadataFallback();
+    }
+
+    String? title = cleanedValue;
     String? artist;
 
-    final separatorMatch = RegExp(r'\s+-\s+').firstMatch(cleanedStem);
+    final separatorMatch = RegExp(r'\s+-\s+').firstMatch(cleanedValue);
     if (separatorMatch != null) {
-      final left = cleanedStem.substring(0, separatorMatch.start);
-      final right = cleanedStem.substring(separatorMatch.end);
+      final left = cleanedValue.substring(0, separatorMatch.start);
+      final right = cleanedValue.substring(separatorMatch.end);
       artist = _cleanMetadataString(left);
       title = _cleanMetadataString(right) ?? title;
     }
 
+    return _MetadataFallback(title: title, artist: artist);
+  }
+
+  factory _MetadataFallback.fromPath(
+    String path, {
+    String? fallbackFileName,
+  }) {
+    final sourceName = fallbackFileName ?? path;
+    final shouldStripImportCollisionSuffix =
+        fallbackFileName == null &&
+        path.replaceAll('\\', '/').contains('/ClassiPod/imports/');
+    final cleanedStem = _cleanFileStem(_fileNameWithoutExtension(sourceName));
+    final artistTitle = _MetadataFallback.fromArtistTitleText(
+      cleanedStem,
+      stripImportCollisionSuffix: shouldStripImportCollisionSuffix,
+    );
+
     return _MetadataFallback(
-      title: title,
-      artist: artist,
+      title: artistTitle.title,
+      artist: artistTitle.artist,
       albumName: _parentFolderName(path),
     );
   }
@@ -243,16 +316,24 @@ class MusicMetadata extends HiveObject {
     String? thumbnailPath,
     int originalSongIndex, {
     String? fallbackLyrics,
+    String? fallbackFileName,
   }) {
-    final fallback = _MetadataFallback.fromPath(audioMetadata.file.path);
-    final artist = _cleanMetadataString(audioMetadata.artist) ?? fallback.artist;
+    final fallback = _MetadataFallback.fromPath(
+      audioMetadata.file.path,
+      fallbackFileName: fallbackFileName,
+    );
+    final embeddedArtist = _cleanEmbeddedMetadataString(audioMetadata.artist);
+    final embeddedTitle = _cleanEmbeddedMetadataString(audioMetadata.title);
+    final titleFallback = embeddedArtist == null && embeddedTitle != null
+        ? _MetadataFallback.fromArtistTitleText(embeddedTitle)
+        : null;
+    final artist = embeddedArtist ?? titleFallback?.artist ?? fallback.artist;
     final List<String>? trackArtistNames = artist == null
         ? null
         : _splitArtistNames(artist);
     final albumName =
-        _cleanMetadataString(audioMetadata.album) ?? fallback.albumName;
-    final trackName =
-        _cleanMetadataString(audioMetadata.title) ?? fallback.title;
+        _cleanEmbeddedMetadataString(audioMetadata.album) ?? fallback.albumName;
+    final trackName = titleFallback?.title ?? embeddedTitle ?? fallback.title;
 
     return MusicMetadata(
       trackName: trackName,
@@ -278,6 +359,31 @@ class MusicMetadata extends HiveObject {
       lyrics:
           _cleanMetadataString(audioMetadata.lyrics) ??
           _cleanMetadataString(fallbackLyrics),
+    );
+  }
+
+  factory MusicMetadata.fromFilePathFallback(
+    String path,
+    int originalSongIndex, {
+    String? fallbackLyrics,
+    String? fallbackFileName,
+  }) {
+    final fallback = _MetadataFallback.fromPath(
+      path,
+      fallbackFileName: fallbackFileName,
+    );
+    final trackArtistNames = fallback.artist == null
+        ? null
+        : _splitArtistNames(fallback.artist!);
+
+    return MusicMetadata(
+      trackName: fallback.title,
+      trackArtistNames: trackArtistNames,
+      albumName: fallback.albumName,
+      albumArtistName: trackArtistNames?.first ?? fallback.artist,
+      filePath: path,
+      originalSongIndex: originalSongIndex,
+      lyrics: _cleanMetadataString(fallbackLyrics),
     );
   }
 
@@ -374,6 +480,49 @@ class MusicMetadata extends HiveObject {
     );
   }
 
+  MusicMetadata withFilenameFallbacks() {
+    final path = filePath;
+    if (path == null || path.isEmpty) {
+      return this;
+    }
+
+    final fallback = _MetadataFallback.fromPath(path);
+    final cleanedArtists = trackArtistNames
+        ?.map(_cleanEmbeddedMetadataString)
+        .whereType<String>()
+        .toList(growable: false);
+    final fallbackArtists = fallback.artist == null
+        ? null
+        : _splitArtistNames(fallback.artist!);
+    final safeArtists = cleanedArtists == null || cleanedArtists.isEmpty
+        ? fallbackArtists
+        : cleanedArtists;
+
+    return MusicMetadata(
+      trackName: _cleanEmbeddedMetadataString(trackName) ?? fallback.title,
+      trackArtistNames: safeArtists,
+      albumName: _cleanEmbeddedMetadataString(albumName) ?? fallback.albumName,
+      albumArtistName:
+          _cleanEmbeddedMetadataString(albumArtistName) ??
+          safeArtists?.first ??
+          fallback.artist,
+      trackNumber: trackNumber,
+      albumLength: albumLength,
+      year: year,
+      genres: genres,
+      discNumber: discNumber,
+      mimeType: mimeType,
+      trackDuration: trackDuration,
+      bitrate: bitrate,
+      filePath: filePath,
+      thumbnailPath: thumbnailPath,
+      originalSongIndex: originalSongIndex,
+      isOnDevice: isOnDevice,
+      rating: rating,
+      lyrics: lyrics,
+    );
+  }
+
   AudioSource toAudioSource() {
     if (isOnDevice) {
       return AudioSource.file(
@@ -387,9 +536,7 @@ class MusicMetadata extends HiveObject {
           duration: trackDuration != null
               ? Duration(milliseconds: trackDuration!)
               : null,
-          artUri: thumbnailPath == null
-              ? Uri.file(filePath!)
-              : Uri.file(thumbnailPath!),
+          artUri: thumbnailPath == null ? null : Uri.file(thumbnailPath!),
           rating: Rating.newStarRating(RatingStyle.range5stars, rating),
           extras: {"loadThumbnailUri": true},
         ),
