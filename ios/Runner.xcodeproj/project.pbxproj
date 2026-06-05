@@ -18,8 +18,6 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		F00200000000000000000001 /* MO1LiveActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000001 /* MO1LiveActivityAttributes.swift */; };
 		F00200000000000000000002 /* MO1LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000002 /* MO1LiveActivityController.swift */; };
-		F00200000000000000000003 /* MO1CarPlaySceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000003 /* MO1CarPlaySceneDelegate.swift */; };
-		F00200000000000000000007 /* MO1CarPlayBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000009 /* MO1CarPlayBridge.swift */; };
 		F00200000000000000000004 /* MO1LiveActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000001 /* MO1LiveActivityAttributes.swift */; };
 		F00200000000000000000005 /* MO1LiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000007 /* MO1LiveActivityWidget.swift */; };
 		F00200000000000000000006 /* LiveActivityExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = F00100000000000000000008 /* LiveActivityExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
@@ -95,9 +93,6 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F00100000000000000000001 /* MO1LiveActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MO1LiveActivityAttributes.swift; sourceTree = "<group>"; };
 		F00100000000000000000002 /* MO1LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MO1LiveActivityController.swift; sourceTree = "<group>"; };
-		F00100000000000000000003 /* MO1CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MO1CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
-		F00100000000000000000009 /* MO1CarPlayBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MO1CarPlayBridge.swift; sourceTree = "<group>"; };
-		F00100000000000000000004 /* CarPlay.entitlements.template */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CarPlay.entitlements.template; sourceTree = "<group>"; };
 		F00100000000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F00100000000000000000007 /* MO1LiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MO1LiveActivityWidget.swift; sourceTree = "<group>"; };
 		F00100000000000000000008 /* LiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -193,9 +188,6 @@
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				F00100000000000000000001 /* MO1LiveActivityAttributes.swift */,
 				F00100000000000000000002 /* MO1LiveActivityController.swift */,
-				F00100000000000000000003 /* MO1CarPlaySceneDelegate.swift */,
-				F00100000000000000000009 /* MO1CarPlayBridge.swift */,
-				F00100000000000000000004 /* CarPlay.entitlements.template */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -507,8 +499,6 @@
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				F00200000000000000000001 /* MO1LiveActivityAttributes.swift in Sources */,
 				F00200000000000000000002 /* MO1LiveActivityController.swift in Sources */,
-				F00200000000000000000003 /* MO1CarPlaySceneDelegate.swift in Sources */,
-				F00200000000000000000007 /* MO1CarPlayBridge.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
