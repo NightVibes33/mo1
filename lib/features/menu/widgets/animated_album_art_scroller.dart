@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'dart:math';
-
 import 'package:classipod/core/constants/assets.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/widgets/empty_state_widget.dart';
@@ -24,7 +22,7 @@ class _AnimatedAlbumArtScrollerState
   );
   bool _isEmptyState = false;
 
-  void _getRandomAlbumArt() {
+  void _setPreviewAlbumArt() {
     final albumDetails = ref
         .read(albumDetailsProvider)
         .where((album) => album.albumArtPath != null)
@@ -36,21 +34,19 @@ class _AnimatedAlbumArtScrollerState
       return;
     }
 
-    final randomAlbum = albumDetails.elementAt(
-      Random().nextInt(albumDetails.length),
-    );
+    final previewAlbum = albumDetails.first;
     setState(() {
       _isEmptyState = false;
-      _albumArtImage = randomAlbum.isOnDevice()
-          ? FileImage(File(randomAlbum.albumArtPath!))
-          : NetworkImage(randomAlbum.albumArtPath!);
+      _albumArtImage = previewAlbum.isOnDevice()
+          ? FileImage(File(previewAlbum.albumArtPath!))
+          : NetworkImage(previewAlbum.albumArtPath!);
     });
   }
 
   @override
   void initState() {
     super.initState();
-    _getRandomAlbumArt();
+    _setPreviewAlbumArt();
   }
 
   @override

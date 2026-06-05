@@ -79,10 +79,13 @@ class _MusicMenuScreenState extends ConsumerState<MusicMenuScreen>
         unawaited(ref.read(splitScreenViewControllerProvider).openSplitView());
         break;
       case _MusicListDisplayItems.importSongs:
-        final importedCount = await ref
+        final importResult = await ref
             .read(audioFilesServiceProvider.notifier)
             .importLocalAudioFiles();
-        if (importedCount > 0 && mounted) {
+        if (mounted) {
+          await _showImportResult(importResult);
+        }
+        if (importResult.hasImportedSongs && mounted) {
           ref.invalidate(filteredAudioFilesProvider);
           context.goNamed(Routes.splash.name);
         }
@@ -106,6 +109,25 @@ class _MusicMenuScreenState extends ConsumerState<MusicMenuScreen>
         context.goNamed(Routes.search.name);
         break;
     }
+  }
+
+  Future<void> _showImportResult(ImportLocalAudioResult result) async {
+    if (!mounted || !result.hasActivity) {
+      return;
+    }
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(result.title),
+        content: Text(result.message),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

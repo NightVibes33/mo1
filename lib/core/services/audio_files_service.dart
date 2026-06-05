@@ -20,6 +20,51 @@ final audioFilesServiceProvider =
       UnmodifiableListView<MusicMetadata>
     >(AudioFilesServiceNotifier.new);
 
+class ImportLocalAudioResult {
+  final int importedCount;
+  final int duplicateCount;
+  final int skippedCount;
+
+  const ImportLocalAudioResult({
+    required this.importedCount,
+    required this.duplicateCount,
+    required this.skippedCount,
+  });
+
+  const ImportLocalAudioResult.empty()
+    : importedCount = 0,
+      duplicateCount = 0,
+      skippedCount = 0;
+
+  bool get hasImportedSongs => importedCount > 0;
+  bool get hasActivity =>
+      importedCount > 0 || duplicateCount > 0 || skippedCount > 0;
+
+  String get title {
+    if (importedCount > 0) {
+      return 'Import Complete';
+    }
+    if (duplicateCount > 0) {
+      return 'Already Imported';
+    }
+    return 'No Songs Imported';
+  }
+
+  String get message {
+    final parts = <String>[];
+    if (importedCount > 0) {
+      parts.add('$importedCount song${importedCount == 1 ? '' : 's'} imported');
+    }
+    if (duplicateCount > 0) {
+      parts.add('$duplicateCount duplicate${duplicateCount == 1 ? '' : 's'} skipped');
+    }
+    if (skippedCount > 0) {
+      parts.add('$skippedCount unsupported file${skippedCount == 1 ? '' : 's'} skipped');
+    }
+    return parts.isEmpty ? 'Pick MP3, M4A, FLAC, WAV, OGG, OPUS, LRC, or TXT files.' : parts.join('\n');
+  }
+}
+
 class AudioFilesServiceNotifier
     extends AsyncNotifier<UnmodifiableListView<MusicMetadata>> {
   static const List<String> _importableExtensions = [
@@ -103,9 +148,9 @@ class AudioFilesServiceNotifier
     }
   }
 
-  Future<int> importLocalAudioFiles() async {
+  Future<ImportLocalAudioResult> importLocalAudioFiles() async {
     if (!Platform.isIOS) {
-      return 0;
+      return const ImportLocalAudioResult.empty();
     }
 
     final pickedFiles = await FilePicker.platform.pickFiles(
@@ -118,7 +163,7 @@ class AudioFilesServiceNotifier
     );
 
     if (pickedFiles == null || pickedFiles.files.isEmpty) {
-      return 0;
+      return const ImportLocalAudioResult.empty();
     }
 
     final documentsDirectory = ref
@@ -129,6 +174,15 @@ class AudioFilesServiceNotifier
       '${documentsDirectory.path}/ClassiPod/imports',
     );
     importsDirectory.createSync(recursive: true);
+
+    final metadataBox = Hive.box<MusicMetadata>(Constants.metadataBoxName);
+    final existingFingerprints = <String>{};
+    for (final metadata in metadataBox.values) {
+      final fingerprint = _fingerprintForExistingFile(metadata.filePath);
+      if (fingerprint != null) {
+        existingFingerprints.add(fingerprint);
+      }
+    }
 
     final selectedSidecarsByStem = <String, List<String>>{};
     for (final file in pickedFiles.files) {
@@ -145,20 +199,52 @@ class AudioFilesServiceNotifier
 
     final metadataReaderRepository = ref.read(metadataReaderRepositoryProvider);
     final List<String> importedAudioPaths = [];
+    final selectedFingerprints = <String>{};
+    var duplicateCount = 0;
+    var skippedCount = 0;
+
     for (final file in pickedFiles.files) {
       final sourcePath = file.path;
       if (sourcePath == null || sourcePath.isEmpty) {
+        skippedCount++;
+        continue;
+      }
+      if (_isLyricsSidecar(sourcePath)) {
         continue;
       }
       if (!metadataReaderRepository.isSupportedAudioFormat(sourcePath)) {
+        skippedCount++;
         continue;
       }
-      final displayName = file.name.isEmpty ? sourcePath.split('/').last : file.name;
+
+      final displayName = file.name.isEmpty
+          ? sourcePath.replaceAll('\\', '/').split('/').last
+          : file.name;
+      final sourceFile = File(sourcePath);
+      final int byteLength;
+      try {
+        if (!sourceFile.existsSync()) {
+          skippedCount++;
+          continue;
+        }
+        byteLength = sourceFile.lengthSync();
+      } catch (_) {
+        skippedCount++;
+        continue;
+      }
+
+      final fingerprint = _fileFingerprint(displayName, byteLength);
+      if (existingFingerprints.contains(fingerprint) ||
+          !selectedFingerprints.add(fingerprint)) {
+        duplicateCount++;
+        continue;
+      }
+
       final destinationPath = _uniqueImportedPath(
         importsDirectory.path,
         displayName,
       );
-      final copied = await File(sourcePath).copy(destinationPath);
+      final copied = await sourceFile.copy(destinationPath);
       await _copyLyricsSidecarsForAudio(
         sourceAudioPath: sourcePath,
         sourceDisplayName: displayName,
@@ -166,17 +252,24 @@ class AudioFilesServiceNotifier
         selectedSidecarsByStem: selectedSidecarsByStem,
       );
       importedAudioPaths.add(copied.path);
+      existingFingerprints.add(fingerprint);
     }
 
     if (importedAudioPaths.isEmpty) {
-      return 0;
+      state = AsyncData(UnmodifiableListView(metadataBox.values));
+      return ImportLocalAudioResult(
+        importedCount: 0,
+        duplicateCount: duplicateCount,
+        skippedCount: skippedCount,
+      );
     }
 
     final rawResult = await compute(
       ref.read(metadataReaderRepositoryProvider).extractMetadataFromFiles,
       importedAudioPaths,
     );
-    final metadataBox = Hive.box<MusicMetadata>(Constants.metadataBoxName);
+    skippedCount += importedAudioPaths.length - rawResult.length;
+
     final existingPaths = metadataBox.values
         .map((metadata) => metadata.filePath)
         .whereType<String>()
@@ -185,6 +278,7 @@ class AudioFilesServiceNotifier
     final List<MusicMetadata> importedMetadata = [];
     for (final metadata in rawResult) {
       if (metadata.filePath == null || existingPaths.contains(metadata.filePath)) {
+        duplicateCount++;
         continue;
       }
       importedMetadata.add(
@@ -196,7 +290,11 @@ class AudioFilesServiceNotifier
 
     await metadataBox.addAll(importedMetadata);
     state = AsyncData(UnmodifiableListView(metadataBox.values));
-    return importedMetadata.length;
+    return ImportLocalAudioResult(
+      importedCount: importedMetadata.length,
+      duplicateCount: duplicateCount,
+      skippedCount: skippedCount,
+    );
   }
 
   Future<void> _copyLyricsSidecarsForAudio({
@@ -258,7 +356,29 @@ class AudioFilesServiceNotifier
     final fileName = pathOrName.replaceAll('\\', '/').split('/').last;
     final dot = fileName.lastIndexOf('.');
     final stem = dot > 0 ? fileName.substring(0, dot) : fileName;
-    return stem.trim().toLowerCase();
+    return stem
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim()
+        .toLowerCase();
+  }
+
+  String _fileFingerprint(String pathOrName, int byteLength) {
+    return '${_normalizedStem(pathOrName)}:$byteLength';
+  }
+
+  String? _fingerprintForExistingFile(String? path) {
+    if (path == null || path.isEmpty) {
+      return null;
+    }
+    try {
+      final file = File(path);
+      if (!file.existsSync()) {
+        return null;
+      }
+      return _fileFingerprint(path, file.lengthSync());
+    } catch (_) {
+      return null;
+    }
   }
 
   String _extensionOf(String path) {

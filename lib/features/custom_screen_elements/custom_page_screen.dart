@@ -104,9 +104,13 @@ mixin CustomPageScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
   }
 
   void _updatePage() {
+    final page = pageController.page ?? currentPage;
+    final itemCount = displayItems.length;
     setState(() {
-      currentPage = pageController.page ?? currentPage;
-      selectedDisplayItem = currentPage.toInt();
+      currentPage = page;
+      selectedDisplayItem = itemCount == 0
+          ? 0
+          : page.round().clamp(0, itemCount - 1).toInt();
     });
   }
 

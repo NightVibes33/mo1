@@ -31,6 +31,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
   bool _centerPressed = false;
   bool _wheelActive = false;
   Alignment _touchAlignment = Alignment.center;
+  Offset? _lastWheelTouch;
 
   void onClickWheelScroll({
     required DragUpdateDetails dragUpdateDetails,
@@ -111,6 +112,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
     }
     final x = ((localPosition.dx / wheelSize) * 2 - 1).clamp(-0.75, 0.75);
     final y = ((localPosition.dy / wheelSize) * 2 - 1).clamp(-0.75, 0.75);
+    _lastWheelTouch = localPosition;
     setState(() {
       _wheelActive = true;
       _touchAlignment = Alignment(x.toDouble(), y.toDouble());
@@ -122,6 +124,46 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
       return;
     }
     setState(() => _wheelActive = false);
+  }
+
+  void _handleWheelPanEnd(DragEndDetails details, double wheelSize) {
+    final lastTouch = _lastWheelTouch;
+    _clearWheelTouch();
+    if (lastTouch == null || wheelSize <= 0) {
+      return;
+    }
+
+    final velocity = details.velocity.pixelsPerSecond;
+    final speed = velocity.distance;
+    if (speed < 900) {
+      return;
+    }
+
+    final center = Offset(wheelSize / 2, wheelSize / 2);
+    final radiusVector = lastTouch - center;
+    if (radiusVector.distance < wheelSize * 0.2) {
+      return;
+    }
+
+    final cross = radiusVector.dx * velocity.dy - radiusVector.dy * velocity.dx;
+    if (cross.abs() < 40000) {
+      return;
+    }
+
+    final action = cross > 0
+        ? DeviceAction.rotateForward
+        : DeviceAction.rotateBackward;
+    final steps = (speed / 950).clamp(1, 4).toInt();
+    for (var i = 0; i < steps; i++) {
+      Future.delayed(Duration(milliseconds: i * 58), () {
+        if (!mounted) {
+          return;
+        }
+        unawaited(
+          ref.read(deviceButtonsServiceProvider.notifier).setDeviceAction(action),
+        );
+      });
+    }
   }
 
   @override
@@ -217,7 +259,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
               bigThresholdRotationalChange: bigThresholdRotationalChange,
             );
           },
-          onPanEnd: (_) => _clearWheelTouch(),
+          onPanEnd: (details) => _handleWheelPanEnd(details, wheelSize),
           onPanCancel: _clearWheelTouch,
           child: AnimatedScale(
             scale: _wheelActive ? 0.992 : 1,
