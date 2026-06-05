@@ -56,6 +56,46 @@ String? _cleanMetadataString(String? value) {
   return normalized;
 }
 
+String? _cleanEmbeddedMetadataString(String? value) {
+  final cleaned = _cleanMetadataString(value);
+  if (cleaned == null) {
+    return null;
+  }
+
+  if (_isGeneratedContainerJunk(cleaned)) {
+    return null;
+  }
+
+  return cleaned;
+}
+
+bool _isGeneratedContainerJunk(String value) {
+  final folded = value.toLowerCase().trim();
+  final compact = folded.replaceAll(RegExp(r'[\s_\-]+'), '');
+  const exactJunk = {
+    'dash',
+    'mp4',
+    'mp41',
+    'mp42',
+    'isom',
+    'iso6',
+    'iso6mp41',
+    'isommp42',
+    'majorbrand',
+    'minorversion',
+    'compatiblebrands',
+  };
+
+  if (exactJunk.contains(compact)) {
+    return true;
+  }
+
+  return compact.startsWith('lavf') ||
+      compact.startsWith('lavc') ||
+      compact.startsWith('lame') ||
+      compact.contains('youtube');
+}
+
 List<String> _splitArtistNames(String artist) {
   final List<String> names;
   if (artist.contains(',')) {
@@ -256,8 +296,8 @@ class MusicMetadata extends HiveObject {
     String? fallbackLyrics,
   }) {
     final fallback = _MetadataFallback.fromPath(audioMetadata.file.path);
-    final embeddedArtist = _cleanMetadataString(audioMetadata.artist);
-    final embeddedTitle = _cleanMetadataString(audioMetadata.title);
+    final embeddedArtist = _cleanEmbeddedMetadataString(audioMetadata.artist);
+    final embeddedTitle = _cleanEmbeddedMetadataString(audioMetadata.title);
     final titleFallback = embeddedArtist == null && embeddedTitle != null
         ? _MetadataFallback.fromArtistTitleText(embeddedTitle)
         : null;
@@ -266,7 +306,7 @@ class MusicMetadata extends HiveObject {
         ? null
         : _splitArtistNames(artist);
     final albumName =
-        _cleanMetadataString(audioMetadata.album) ?? fallback.albumName;
+        _cleanEmbeddedMetadataString(audioMetadata.album) ?? fallback.albumName;
     final trackName = titleFallback?.title ?? embeddedTitle ?? fallback.title;
 
     return MusicMetadata(
@@ -293,6 +333,27 @@ class MusicMetadata extends HiveObject {
       lyrics:
           _cleanMetadataString(audioMetadata.lyrics) ??
           _cleanMetadataString(fallbackLyrics),
+    );
+  }
+
+  factory MusicMetadata.fromFilePathFallback(
+    String path,
+    int originalSongIndex, {
+    String? fallbackLyrics,
+  }) {
+    final fallback = _MetadataFallback.fromPath(path);
+    final trackArtistNames = fallback.artist == null
+        ? null
+        : _splitArtistNames(fallback.artist!);
+
+    return MusicMetadata(
+      trackName: fallback.title,
+      trackArtistNames: trackArtistNames,
+      albumName: fallback.albumName,
+      albumArtistName: trackArtistNames?.first ?? fallback.artist,
+      filePath: path,
+      originalSongIndex: originalSongIndex,
+      lyrics: _cleanMetadataString(fallbackLyrics),
     );
   }
 
@@ -386,6 +447,49 @@ class MusicMetadata extends HiveObject {
       isOnDevice: isOnDevice ?? this.isOnDevice,
       rating: rating ?? this.rating,
       lyrics: lyrics ?? this.lyrics,
+    );
+  }
+
+  MusicMetadata withFilenameFallbacks() {
+    final path = filePath;
+    if (path == null || path.isEmpty) {
+      return this;
+    }
+
+    final fallback = _MetadataFallback.fromPath(path);
+    final cleanedArtists = trackArtistNames
+        ?.map(_cleanEmbeddedMetadataString)
+        .whereType<String>()
+        .toList(growable: false);
+    final fallbackArtists = fallback.artist == null
+        ? null
+        : _splitArtistNames(fallback.artist!);
+    final safeArtists = cleanedArtists == null || cleanedArtists.isEmpty
+        ? fallbackArtists
+        : cleanedArtists;
+
+    return MusicMetadata(
+      trackName: _cleanEmbeddedMetadataString(trackName) ?? fallback.title,
+      trackArtistNames: safeArtists,
+      albumName: _cleanEmbeddedMetadataString(albumName) ?? fallback.albumName,
+      albumArtistName:
+          _cleanEmbeddedMetadataString(albumArtistName) ??
+          safeArtists?.first ??
+          fallback.artist,
+      trackNumber: trackNumber,
+      albumLength: albumLength,
+      year: year,
+      genres: genres,
+      discNumber: discNumber,
+      mimeType: mimeType,
+      trackDuration: trackDuration,
+      bitrate: bitrate,
+      filePath: filePath,
+      thumbnailPath: thumbnailPath,
+      originalSongIndex: originalSongIndex,
+      isOnDevice: isOnDevice,
+      rating: rating,
+      lyrics: lyrics,
     );
   }
 

@@ -153,8 +153,9 @@ class AudioFilesServiceNotifier
   ) {
     final playableMetadata = <MusicMetadata>[];
     for (final metadata in metadataBox.values) {
-      if (_isPlayableMetadata(metadata)) {
-        playableMetadata.add(metadata);
+      final repairedMetadata = metadata.withFilenameFallbacks();
+      if (_isPlayableMetadata(repairedMetadata)) {
+        playableMetadata.add(repairedMetadata);
       }
     }
     return UnmodifiableListView(playableMetadata);

@@ -74,4 +74,35 @@ void main() {
       expect(metadata.albumArtistName, 'D4vd');
     },
   );
+
+  test('MusicMetadata ignores converter container junk tags', () {
+    final audioMetadata = AudioMetadata(
+      album: 'dash',
+      artist: 'Lavf61.7.100',
+      title: 'mp42',
+      file: File('/music/Rihanna - Diamonds.mp3'),
+    );
+
+    final metadata = MusicMetadata.fromAudioMetadata(audioMetadata, null, 0);
+
+    expect(metadata.trackName, 'Diamonds');
+    expect(metadata.trackArtistNames, ['Rihanna']);
+    expect(metadata.albumName, isNull);
+    expect(metadata.albumArtistName, 'Rihanna');
+  });
+
+  test('MusicMetadata repairs stored converter metadata from filename', () {
+    final metadata = MusicMetadata(
+      trackName: 'Unknown Song',
+      trackArtistNames: ['Lavf61.7.100'],
+      albumName: 'dash',
+      albumArtistName: 'mp42',
+      filePath: '/music/Joji - SLOW DANCING IN THE DARK.mp3',
+    ).withFilenameFallbacks();
+
+    expect(metadata.trackName, 'SLOW DANCING IN THE DARK');
+    expect(metadata.trackArtistNames, ['Joji']);
+    expect(metadata.albumName, isNull);
+    expect(metadata.albumArtistName, 'Joji');
+  });
 }

@@ -85,6 +85,8 @@ class MetadataReaderRepository {
       return null;
     }
 
+    final fallbackLyrics = _readSidecarLyrics(path);
+
     try {
       final audioMetadata = readMetadata(File(path), getImage: true);
       String? thumbnailPath;
@@ -95,18 +97,27 @@ class MetadataReaderRepository {
           artistName: audioMetadata.artist,
           filePath: path,
         );
-        File(thumbnailPath).writeAsBytesSync(audioMetadata.pictures[0].bytes);
+        try {
+          File(thumbnailPath).writeAsBytesSync(audioMetadata.pictures[0].bytes);
+        } catch (e) {
+          debugPrint('Album Art Write Error: $e');
+          thumbnailPath = null;
+        }
       }
 
       return MusicMetadata.fromAudioMetadata(
         audioMetadata,
         thumbnailPath,
         originalSongIndex,
-        fallbackLyrics: _readSidecarLyrics(path),
+        fallbackLyrics: fallbackLyrics,
       );
     } catch (e) {
       debugPrint('Metadata Parsing Error: $e');
-      return null;
+      return MusicMetadata.fromFilePathFallback(
+        path,
+        originalSongIndex,
+        fallbackLyrics: fallbackLyrics,
+      );
     }
   }
 
