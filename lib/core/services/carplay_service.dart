@@ -204,7 +204,7 @@ class _CarPlaySyncState extends ConsumerState<CarPlaySync> {
   }
 
   Future<List<MusicMetadata>> _songs() async {
-    final cached = ref.read(filteredAudioFilesProvider).valueOrNull;
+    final cached = ref.read(filteredAudioFilesProvider).asData?.value;
     if (cached != null) {
       return cached.toList(growable: false);
     }
