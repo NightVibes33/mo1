@@ -30,7 +30,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
   Duration? _lastScrollTimestamp;
   bool _centerPressed = false;
   bool _wheelActive = false;
-  Alignment _touchAlignment = const Alignment(-0.28, -0.35);
+  Alignment _touchAlignment = Alignment.center;
 
   void onClickWheelScroll({
     required DragUpdateDetails dragUpdateDetails,
@@ -237,9 +237,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                 opacity: deviceColorStyle.noiseOpacity * 0.34,
               ),
               gradient: RadialGradient(
-                center: _wheelActive
-                    ? _touchAlignment
-                    : const Alignment(-0.34, -0.42),
+                center: _touchAlignment,
                 radius: 1.05,
                 stops: const [0, 0.34, 0.72, 1],
                 colors: [

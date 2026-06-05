@@ -57,4 +57,21 @@ void main() {
     expect(metadata.lyrics, '[00:01.00] lyric line');
   });
 
+  test(
+    'MusicMetadata splits artist-title values when artist tags are missing',
+    () {
+      final audioMetadata = AudioMetadata(
+        album: 'Unknown Album',
+        artist: 'Unknown Artist',
+        title: 'D4vd - Sleep Well',
+        file: File('/music/imports/D4vd - Sleep Well.mp3'),
+      );
+
+      final metadata = MusicMetadata.fromAudioMetadata(audioMetadata, null, 0);
+
+      expect(metadata.trackName, 'Sleep Well');
+      expect(metadata.trackArtistNames, ['D4vd']);
+      expect(metadata.albumArtistName, 'D4vd');
+    },
+  );
 }
