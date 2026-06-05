@@ -3,7 +3,7 @@ description: "A ipod Classic Emulator"
 
 publish_to: 'none'
 
-version: 1.17.0+43
+version: 1.18.0+44
 
 environment:
   sdk: ^3.9.2

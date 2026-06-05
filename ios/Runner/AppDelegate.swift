@@ -1,4 +1,5 @@
 import AVFoundation
+import CarPlay
 import Flutter
 import MusicKit
 import UIKit
@@ -23,9 +24,33 @@ import UIKit
     GeneratedPluginRegistrant.register(with: self)
     if let controller = window?.rootViewController as? FlutterViewController {
       AppleMusicLookupChannel.register(with: controller.binaryMessenger)
+      MO1LiveActivityController.register(with: controller.binaryMessenger)
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
+
+  override func application(
+    _ application: UIApplication,
+    configurationForConnecting connectingSceneSession: UISceneSession,
+    options: UIScene.ConnectionOptions
+  ) -> UISceneConfiguration {
+    if connectingSceneSession.role.rawValue == "CPTemplateApplicationSceneSessionRoleApplication" {
+      let configuration = UISceneConfiguration(
+        name: "mo1 CarPlay",
+        sessionRole: connectingSceneSession.role
+      )
+      configuration.sceneClass = CPTemplateApplicationScene.self
+      configuration.delegateClass = MO1CarPlaySceneDelegate.self
+      return configuration
+    }
+
+    return super.application(
+      application,
+      configurationForConnecting: connectingSceneSession,
+      options: options
+    )
+  }
+
 }
 
 private enum AppleMusicLookupChannel {

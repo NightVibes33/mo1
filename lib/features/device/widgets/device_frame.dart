@@ -198,9 +198,13 @@ class DeviceFrame extends ConsumerWidget {
                                 height: screenHeight,
                                 child: child,
                               ),
-                              const Spacer(flex: 46),
-                              DeviceControls(key: deviceControlsGlobalKey),
-                              const Spacer(flex: 8),
+                              Expanded(
+                                child: Center(
+                                  child: DeviceControls(
+                                    key: deviceControlsGlobalKey,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ],

@@ -37,9 +37,9 @@ final appStartupControllerProvider = FutureProvider<void>((ref) async {
     Hive.initFlutter("ClassiPod"),
   ]);
   Hive.registerAdapters();
-  await Hive.openBox<MusicMetadata>(Constants.metadataBoxName);
-  await Hive.openBox<PlaylistModel>(Constants.playlistBoxName);
-  await Hive.openBox<ExcludeDirectoryModel>(
+  await _openBoxWithRecovery<MusicMetadata>(Constants.metadataBoxName);
+  await _openBoxWithRecovery<PlaylistModel>(Constants.playlistBoxName);
+  await _openBoxWithRecovery<ExcludeDirectoryModel>(
     Constants.excludedDirectoriesBoxName,
   );
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
@@ -53,3 +53,14 @@ final appStartupControllerProvider = FutureProvider<void>((ref) async {
     ref.read(settingsPreferencesControllerProvider.notifier).setSystemUiMode(),
   );
 });
+
+Future<Box<T>> _openBoxWithRecovery<T>(String boxName) async {
+  try {
+    return await Hive.openBox<T>(boxName);
+  } catch (error, stackTrace) {
+    debugPrint('Hive box recovery for $boxName after open failure: $error');
+    debugPrintStack(stackTrace: stackTrace);
+    await Hive.deleteBoxFromDisk(boxName);
+    return Hive.openBox<T>(boxName);
+  }
+}
