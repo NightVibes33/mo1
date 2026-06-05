@@ -95,26 +95,29 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final List<AudioSource> songSourcePlaylist = [];
-      int i = 0;
       try {
         for (final musicMetadata in musicMetadataList) {
           songSourcePlaylist.add(musicMetadata.toAudioSource());
-          i = i + 1;
         }
       } catch (_) {}
 
-      await ref
-          .read(audioPlayerProvider)
-          .setAudioSources(
+      if (songSourcePlaylist.isEmpty) {
+        await ref.read(audioPlayerProvider).stop();
+        ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
+              nowPlayingType: nowPlayingType,
+              newMetadataList: const [],
+            );
+        return;
+      }
+
+      await ref.read(audioPlayerProvider).setAudioSources(
             songSourcePlaylist,
             initialIndex: 0,
             initialPosition: Duration.zero,
             shuffleOrder: DefaultShuffleOrder(),
           );
 
-      ref
-          .read(nowPlayingDetailsProvider.notifier)
-          .setNewMetadataList(
+      ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
             nowPlayingType: nowPlayingType,
             newMetadataList: musicMetadataList,
           );

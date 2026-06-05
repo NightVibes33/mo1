@@ -123,7 +123,8 @@ class AudioFilesServiceNotifier
               return UnmodifiableListView([]);
             }
           } else if (Platform.isIOS) {
-            return UnmodifiableListView([]);
+            await importLocalAudioFiles(updateState: false);
+            return _storedMetadata(metadataBox);
           } else {
             final OnAudioQuery audioQuery = OnAudioQuery();
             final queriedSongs = await audioQuery.querySongs();
@@ -174,17 +175,19 @@ class AudioFilesServiceNotifier
     }
   }
 
-  Future<ImportLocalAudioResult> importLocalAudioFiles() async {
+  Future<ImportLocalAudioResult> importLocalAudioFiles({
+    bool updateState = true,
+  }) async {
     if (!Platform.isIOS) {
       return const ImportLocalAudioResult.empty();
     }
 
     try {
-      return await _importLocalAudioFiles();
+      return await _importLocalAudioFiles(updateState: updateState);
     } catch (error, stackTrace) {
       debugPrint('Audio Import Fatal Error: $error');
       debugPrintStack(stackTrace: stackTrace);
-      if (Hive.isBoxOpen(Constants.metadataBoxName)) {
+      if (updateState && Hive.isBoxOpen(Constants.metadataBoxName)) {
         final metadataBox = Hive.box<MusicMetadata>(Constants.metadataBoxName);
         state = AsyncData(_storedMetadata(metadataBox));
       }
@@ -196,7 +199,9 @@ class AudioFilesServiceNotifier
     }
   }
 
-  Future<ImportLocalAudioResult> _importLocalAudioFiles() async {
+  Future<ImportLocalAudioResult> _importLocalAudioFiles({
+    required bool updateState,
+  }) async {
     final pickedFiles = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       dialogTitle: 'Pick Song Files',
@@ -305,7 +310,9 @@ class AudioFilesServiceNotifier
     }
 
     if (importedAudioPaths.isEmpty) {
-      state = AsyncData(_storedMetadata(metadataBox));
+      if (updateState) {
+        state = AsyncData(_storedMetadata(metadataBox));
+      }
       return ImportLocalAudioResult(
         importedCount: 0,
         duplicateCount: duplicateCount,
@@ -339,7 +346,9 @@ class AudioFilesServiceNotifier
     }
 
     await metadataBox.addAll(importedMetadata);
-    state = AsyncData(_storedMetadata(metadataBox));
+    if (updateState) {
+      state = AsyncData(_storedMetadata(metadataBox));
+    }
     return ImportLocalAudioResult(
       importedCount: importedMetadata.length,
       duplicateCount: duplicateCount,
