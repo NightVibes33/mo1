@@ -212,27 +212,34 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   Future<void> playSongFromOriginalList(int originalIndex) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      //If Album or Playlist is being played then Switch to original List of Songs
-      if (ref.read(nowPlayingDetailsProvider).nowPlayingType !=
-          NowPlayingType.songs) {
+      var nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+      final shouldUseOriginalList = nowPlayingDetails.nowPlayingType !=
+              NowPlayingType.songs ||
+          nowPlayingDetails.metadataList.isEmpty ||
+          !nowPlayingDetails.metadataList.any(
+            (element) => element.originalSongIndex == originalIndex,
+          );
+
+      if (shouldUseOriginalList) {
         await setAudioSource(
           musicMetadataList: ref.read(filteredAudioFilesProvider).requireValue,
         );
+        nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
       }
 
-      //In case the same song is already playing
       if (originalIndex ==
-          ref
-              .read(nowPlayingDetailsProvider)
-              .currentMetadata
-              ?.originalSongIndex) {
+          nowPlayingDetails.currentMetadata?.originalSongIndex) {
+        await play();
         return;
       }
 
-      final int index = ref
-          .read(nowPlayingDetailsProvider)
-          .metadataList
-          .indexWhere((element) => element.originalSongIndex == originalIndex);
+      final int index = nowPlayingDetails.metadataList.indexWhere(
+        (element) => element.originalSongIndex == originalIndex,
+      );
+      if (index == -1) {
+        return;
+      }
+
       await ref.read(audioPlayerProvider).seek(Duration.zero, index: index);
       Future.delayed(const Duration(milliseconds: 200), play);
     });

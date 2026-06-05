@@ -25,6 +25,7 @@ import UIKit
     if let controller = window?.rootViewController as? FlutterViewController {
       AppleMusicLookupChannel.register(with: controller.binaryMessenger)
       MO1LiveActivityController.register(with: controller.binaryMessenger)
+      MO1CarPlayBridge.shared.register(with: controller.binaryMessenger)
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
