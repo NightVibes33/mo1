@@ -16,6 +16,8 @@ import 'package:classipod/features/settings/models/click_wheel_sensitivity.dart'
 import 'package:classipod/features/settings/models/click_wheel_size.dart';
 import 'package:classipod/features/settings/models/device_color.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -243,6 +245,19 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
         final wheelBorderRadius = BorderRadius.circular(wheelRadius);
         final Color labelColor = deviceColorStyle.buttonAccentColor;
         final Color iconColor = deviceColorStyle.buttonIconColor;
+        final bool useNativeWheelVisual =
+            !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+        final double centerSize = screenWidth * selectButtonRadiusRatio;
+        final double centerSizeRatio = centerSize / wheelSize;
+        final Color transparentControlColor = CupertinoColors.white.withValues(
+          alpha: 0,
+        );
+        final Color renderedLabelColor = useNativeWheelVisual
+            ? transparentControlColor
+            : labelColor;
+        final Color renderedIconColor = useNativeWheelVisual
+            ? transparentControlColor
+            : iconColor;
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -270,60 +285,82 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
             curve: Curves.easeOutCubic,
             height: wheelSize,
             width: wheelSize,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              image: DecorationImage(
-                image: const AssetImage(Assets.noiseImage),
-                fit: BoxFit.cover,
-                opacity: deviceColorStyle.noiseOpacity * 0.34,
-              ),
-              gradient: RadialGradient(
-                center: _touchAlignment,
-                radius: 1.05,
-                stops: const [0, 0.34, 0.72, 1],
-                colors: [
-                  CupertinoColors.white.withValues(
-                    alpha: deviceColorStyle.isDark ? 0.26 : 0.94,
+            padding: useNativeWheelVisual
+                ? EdgeInsets.zero
+                : const EdgeInsets.all(12),
+            decoration: useNativeWheelVisual
+                ? const BoxDecoration(shape: BoxShape.circle)
+                : BoxDecoration(
+                    shape: BoxShape.circle,
+                    image: DecorationImage(
+                      image: const AssetImage(Assets.noiseImage),
+                      fit: BoxFit.cover,
+                      opacity: deviceColorStyle.noiseOpacity * 0.34,
+                    ),
+                    gradient: RadialGradient(
+                      center: _touchAlignment,
+                      radius: 1.05,
+                      stops: const [0, 0.34, 0.72, 1],
+                      colors: [
+                        CupertinoColors.white.withValues(
+                          alpha: deviceColorStyle.isDark ? 0.26 : 0.94,
+                        ),
+                        CupertinoColors.white.withValues(
+                          alpha: deviceColorStyle.isDark ? 0.14 : 0.62,
+                        ),
+                        deviceColorStyle.controlBackgroundColor.withValues(
+                          alpha: deviceColorStyle.isDark ? 0.82 : 0.58,
+                        ),
+                        deviceColorStyle.controlBackgroundColor.withValues(
+                          alpha: 0.98,
+                        ),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: CupertinoColors.white.withValues(alpha: 0.76),
+                      width: 1.35,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: CupertinoColors.black.withValues(alpha: 0.28),
+                        blurRadius: 24,
+                        offset: const Offset(0, 14),
+                      ),
+                      BoxShadow(
+                        color: CupertinoColors.white.withValues(
+                          alpha: deviceColorStyle.isDark ? 0.04 : 0.42,
+                        ),
+                        blurRadius: 12,
+                        offset: const Offset(-3, -3),
+                      ),
+                    ],
                   ),
-                  CupertinoColors.white.withValues(
-                    alpha: deviceColorStyle.isDark ? 0.14 : 0.62,
-                  ),
-                  deviceColorStyle.controlBackgroundColor.withValues(
-                    alpha: deviceColorStyle.isDark ? 0.82 : 0.58,
-                  ),
-                  deviceColorStyle.controlBackgroundColor.withValues(alpha: 0.98),
-                ],
-              ),
-              border: Border.all(
-                color: CupertinoColors.white.withValues(alpha: 0.76),
-                width: 1.35,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: CupertinoColors.black.withValues(alpha: 0.28),
-                  blurRadius: 24,
-                  offset: const Offset(0, 14),
-                ),
-                BoxShadow(
-                  color: CupertinoColors.white.withValues(
-                    alpha: deviceColorStyle.isDark ? 0.04 : 0.42,
-                  ),
-                  blurRadius: 12,
-                  offset: const Offset(-3, -3),
-                ),
-              ],
-            ),
             clipBehavior: Clip.hardEdge,
             child: Stack(
               children: [
-                Positioned.fill(
+                if (useNativeWheelVisual)
+                  Positioned.fill(
+                    child: _NativeClickWheelVisual(
+                      viewKey: ValueKey(
+                        '${deviceColor.name}-${centerSizeRatio.toStringAsFixed(4)}',
+                      ),
+                      labelColor: labelColor,
+                      iconColor: iconColor,
+                      centerGradientColors:
+                          deviceColorStyle.innerButtonGradientColors,
+                      isDark: deviceColorStyle.isDark,
+                      centerSizeRatio: centerSizeRatio,
+                    ),
+                  ),
+                if (!useNativeWheelVisual)
+                  Positioned.fill(
                   child: LiquidReflectionOverlay(
                     borderRadius: wheelBorderRadius,
                     opacity: deviceColorStyle.isDark ? 0.62 : 0.92,
                   ),
                 ),
-                Positioned.fill(
+                if (!useNativeWheelVisual)
+                  Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
@@ -341,7 +378,8 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                     ),
                   ),
                 ),
-                Positioned.fill(
+                if (!useNativeWheelVisual)
+                  Positioned.fill(
                   child: Padding(
                     padding: const EdgeInsets.all(10),
                     child: DecoratedBox(
@@ -354,7 +392,8 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                     ),
                   ),
                 ),
-                Positioned.fill(
+                if (!useNativeWheelVisual)
+                  Positioned.fill(
                   child: Padding(
                     padding: const EdgeInsets.all(30),
                     child: DecoratedBox(
@@ -400,17 +439,19 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                             context.localization.menuButtonText,
                             key: menuButtonGlobalKey,
                             style: TextStyle(
-                              color: labelColor,
+                              color: renderedLabelColor,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(
-                                  color: CupertinoColors.white.withValues(
-                                    alpha: 0.32,
-                                  ),
-                                  blurRadius: 8,
-                                ),
-                              ],
+                              shadows: useNativeWheelVisual
+                                  ? null
+                                  : [
+                                      Shadow(
+                                        color: CupertinoColors.white.withValues(
+                                          alpha: 0.32,
+                                        ),
+                                        blurRadius: 8,
+                                      ),
+                                    ],
                             ),
                           ),
                         ),
@@ -440,7 +481,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                                 child: CustomPaint(
                                   size: const Size(20, 10),
                                   painter: PreviousButtonCustomPainter(
-                                    color: iconColor,
+                                    color: renderedIconColor,
                                   ),
                                 ),
                               ),
@@ -472,36 +513,36 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                             child: SizedBox(
                               height: screenWidth * selectButtonRadiusRatio,
                               width: screenWidth * selectButtonRadiusRatio,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: CupertinoColors.white.withValues(
-                                      alpha: 0.5,
-                                    ),
-                                  ),
-                                  image: const DecorationImage(
-                                    image: AssetImage(Assets.noiseImage),
-                                    fit: BoxFit.cover,
-                                    opacity: 0.38,
-                                  ),
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors:
-                                        deviceColorStyle.innerButtonGradientColors,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: CupertinoColors.black.withValues(
-                                        alpha: 0.24,
+                              child: useNativeWheelVisual
+                                  ? const SizedBox.expand()
+                                  : DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: CupertinoColors.white
+                                              .withValues(alpha: 0.5),
+                                        ),
+                                        image: const DecorationImage(
+                                          image: AssetImage(Assets.noiseImage),
+                                          fit: BoxFit.cover,
+                                          opacity: 0.38,
+                                        ),
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: deviceColorStyle
+                                              .innerButtonGradientColors,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: CupertinoColors.black
+                                                .withValues(alpha: 0.24),
+                                            blurRadius: 16,
+                                            offset: const Offset(0, 8),
+                                          ),
+                                        ],
                                       ),
-                                      blurRadius: 16,
-                                      offset: const Offset(0, 8),
                                     ),
-                                  ],
-                                ),
-                              ),
                             ),
                           ),
                         ),
@@ -527,7 +568,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                                 child: CustomPaint(
                                   size: const Size(20, 10),
                                   painter: NextButtonCustomPainter(
-                                    color: iconColor,
+                                    color: renderedIconColor,
                                   ),
                                 ),
                               ),
@@ -548,7 +589,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                             key: playPauseButtonGlobalKey,
                             size: const Size(26, 12),
                             painter: PlayPauseButtonCustomPainter(
-                              color: iconColor,
+                              color: renderedIconColor,
                             ),
                           ),
                         ),
@@ -565,3 +606,43 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
     );
   }
 }
+
+
+class _NativeClickWheelVisual extends StatelessWidget {
+  final Key viewKey;
+  final Color labelColor;
+  final Color iconColor;
+  final List<Color> centerGradientColors;
+  final bool isDark;
+  final double centerSizeRatio;
+
+  const _NativeClickWheelVisual({
+    required this.viewKey,
+    required this.labelColor,
+    required this.iconColor,
+    required this.centerGradientColors,
+    required this.isDark,
+    required this.centerSizeRatio,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return UiKitView(
+      key: viewKey,
+      viewType: 'classipod/native_click_wheel',
+      hitTestBehavior: PlatformViewHitTestBehavior.transparent,
+      creationParams: {
+        'labelColor': _colorToArgb(labelColor),
+        'iconColor': _colorToArgb(iconColor),
+        'centerStartColor': _colorToArgb(centerGradientColors.first),
+        'centerEndColor': _colorToArgb(centerGradientColors.last),
+        'isDark': isDark,
+        'centerSizeRatio': centerSizeRatio,
+        'menuText': 'MENU',
+      },
+      creationParamsCodec: const StandardMessageCodec(),
+    );
+  }
+}
+
+int _colorToArgb(Color color) => color.toARGB32();
