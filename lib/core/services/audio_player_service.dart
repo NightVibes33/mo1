@@ -46,13 +46,26 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
     if (details.loopMode == LoopMode.one) {
       await player.seek(Duration.zero);
-      await player.play();
+      _startPlayback();
       return;
     }
     await nextSong();
   }
 
   DebugLogService get _logger => ref.read(debugLogServiceProvider);
+
+  void _startPlayback() {
+    unawaited(
+      ref.read(audioPlayerProvider).play().catchError((Object error, StackTrace stackTrace) {
+        _logger.error(
+          'playback',
+          'Audio playback start failed',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }),
+    );
+  }
 
   bool get _isSingleSourceMode {
     final player = ref.read(audioPlayerProvider);
@@ -73,7 +86,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         return;
       }
     }
-    await player.play();
+    _startPlayback();
   }
 
   Future<void> pause() async {
@@ -209,6 +222,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
             initialIndex: playlistIndex,
             initialPosition: Duration.zero,
             shuffleOrder: DefaultShuffleOrder(),
+            preload: false,
           );
 
       ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
@@ -250,9 +264,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     await ref.read(audioPlayerProvider).setAudioSource(
           metadata.toAudioSource(),
           initialPosition: Duration.zero,
+          preload: false,
         );
     if (autoPlay) {
-      await ref.read(audioPlayerProvider).play();
+      _startPlayback();
     }
   }
 
@@ -433,7 +448,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       }
 
       if (originalIndex == nowPlayingDetails.currentMetadata?.originalSongIndex) {
-        await player.play();
+        _startPlayback();
         return;
       }
 

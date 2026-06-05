@@ -85,14 +85,16 @@ class _AlbumSongsScreenState extends ConsumerState<AlbumSongsScreen>
   Future<void> _playSongFromAlbum(int index) async {
     setState(() => selectedDisplayItem = index);
     final liveSongs = displayItems;
-    await ref.read(audioPlayerServiceProvider.notifier).playAlbum(
-          albumDetail: AlbumModel(
-            albumName: _screenTitle(liveSongs),
-            albumArtistName: _screenAlbumArtist(liveSongs),
-            albumSongs: liveSongs,
+    unawaited(
+      ref.read(audioPlayerServiceProvider.notifier).playAlbum(
+            albumDetail: AlbumModel(
+              albumName: _screenTitle(liveSongs),
+              albumArtistName: _screenAlbumArtist(liveSongs),
+              albumSongs: liveSongs,
+            ),
+            songIndex: index,
           ),
-          songIndex: index,
-        );
+    );
 
     if (mounted) {
       await context.pushNamed(Routes.nowPlaying.name);

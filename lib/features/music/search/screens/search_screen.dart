@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
@@ -46,9 +48,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
       final searchResult = displayItems[selectedDisplayItem - 1];
       if (searchResult.searchResultType == SearchResultType.track) {
         final metadata = searchResult.result as MusicMetadata;
-        await ref
-            .read(audioPlayerServiceProvider.notifier)
-            .playSongFromOriginalList(metadata.originalSongIndex);
+        unawaited(
+          ref
+              .read(audioPlayerServiceProvider.notifier)
+              .playSongFromOriginalList(metadata.originalSongIndex),
+        );
         if (mounted) {
           await context.pushNamed(Routes.nowPlaying.name);
         }
