@@ -1420,7 +1420,7 @@
 				);
 				MARKETING_VERSION = 1.18.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1450,7 +1450,7 @@
 				);
 				MARKETING_VERSION = 1.18.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1480,7 +1480,7 @@
 				);
 				MARKETING_VERSION = 1.18.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1510,7 +1510,7 @@
 				);
 				MARKETING_VERSION = 1.18.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1540,7 +1540,7 @@
 				);
 				MARKETING_VERSION = 1.18.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1570,7 +1570,7 @@
 				);
 				MARKETING_VERSION = 1.18.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1600,7 +1600,7 @@
 				);
 				MARKETING_VERSION = 1.18.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1628,7 +1628,7 @@
 				);
 				MARKETING_VERSION = 1.18.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1656,7 +1656,7 @@
 				);
 				MARKETING_VERSION = 1.18.0;
 				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = XPC!;
+				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
