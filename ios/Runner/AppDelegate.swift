@@ -195,7 +195,7 @@ private struct NativeClickWheelConfig {
     centerStartColor = Color(argb: arguments?.argbValue("centerStartColor") ?? 0xFFFFFFFF)
     centerEndColor = Color(argb: arguments?.argbValue("centerEndColor") ?? 0xFFFFFFFF)
     isDark = arguments?["isDark"] as? Bool ?? false
-    centerSizeRatio = arguments?.doubleValue("centerSizeRatio").map(CGFloat.init) ?? 0.36
+    centerSizeRatio = arguments?.doubleValue("centerSizeRatio").map { CGFloat($0) } ?? 0.36
     menuText = arguments?["menuText"] as? String ?? "MENU"
   }
 }
@@ -229,60 +229,65 @@ private struct NativeClickWheelGlassView: View {
 
     GlassEffectContainer(spacing: edge * 0.045) {
       ZStack {
-        Circle()
-          .fill(Color.white.opacity(config.isDark ? 0.045 : 0.08))
-          .overlay(
-            Circle()
-              .stroke(Color.white.opacity(config.isDark ? 0.78 : 0.9), lineWidth: 1.25)
-          )
-          .overlay(
-            Circle()
-              .stroke(
-                LinearGradient(
-                  colors: [
-                    Color.white.opacity(0.95),
-                    Color.white.opacity(0.15),
-                    Color.black.opacity(config.isDark ? 0.16 : 0.05)
-                  ],
-                  startPoint: .topLeading,
-                  endPoint: .bottomTrailing
-                ),
-                lineWidth: 1
-              )
-              .padding(edge * 0.025)
-          )
-          .overlay(
-            Circle()
-              .stroke(Color.white.opacity(config.isDark ? 0.12 : 0.2), lineWidth: 0.7)
-              .padding(edge * 0.14)
-          )
-          .overlay(
-            Circle()
-              .stroke(Color.white.opacity(config.isDark ? 0.08 : 0.14), lineWidth: 0.7)
-              .padding(edge * 0.25)
-          )
-          .overlay(
-            RadialGradient(
-              colors: [
-                Color.white.opacity(config.isDark ? 0.16 : 0.32),
-                Color.white.opacity(0.04),
-                Color.black.opacity(config.isDark ? 0.12 : 0.045)
-              ],
-              center: .topLeading,
-              startRadius: edge * 0.02,
-              endRadius: edge * 0.76
-            )
-            .clipShape(Circle())
-          )
-          .glassEffect(.regular.tint(Color.white.opacity(config.isDark ? 0.05 : 0.12)), in: .circle)
-          .shadow(color: Color.black.opacity(config.isDark ? 0.28 : 0.16), radius: edge * 0.055, y: edge * 0.032)
-
+        NativeGlassWheelSurface(isDark: config.isDark, edge: edge)
         NativeWheelLabels(config: config, size: edge)
-
         NativeCenterButton(config: config, centerSize: centerSize)
       }
       .frame(width: edge, height: edge)
     }
+  }
+}
+
+@available(iOS 26.0, *)
+private struct NativeGlassWheelSurface: View {
+  let isDark: Bool
+  let edge: CGFloat
+
+  var body: some View {
+    ZStack {
+      Circle()
+        .fill(Color.white.opacity(isDark ? 0.045 : 0.08))
+        .glassEffect(.regular.tint(Color.white.opacity(isDark ? 0.05 : 0.12)), in: .circle)
+
+      Circle()
+        .stroke(Color.white.opacity(isDark ? 0.78 : 0.9), lineWidth: 1.25)
+
+      Circle()
+        .stroke(
+          LinearGradient(
+            colors: [
+              Color.white.opacity(0.95),
+              Color.white.opacity(0.15),
+              Color.black.opacity(isDark ? 0.16 : 0.05)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+          ),
+          lineWidth: 1
+        )
+        .padding(edge * 0.025)
+
+      Circle()
+        .stroke(Color.white.opacity(isDark ? 0.12 : 0.2), lineWidth: 0.7)
+        .padding(edge * 0.14)
+
+      Circle()
+        .stroke(Color.white.opacity(isDark ? 0.08 : 0.14), lineWidth: 0.7)
+        .padding(edge * 0.25)
+
+      RadialGradient(
+        colors: [
+          Color.white.opacity(isDark ? 0.16 : 0.32),
+          Color.white.opacity(0.04),
+          Color.black.opacity(isDark ? 0.12 : 0.045)
+        ],
+        center: .topLeading,
+        startRadius: edge * 0.02,
+        endRadius: edge * 0.76
+      )
+      .clipShape(Circle())
+    }
+    .shadow(color: Color.black.opacity(isDark ? 0.28 : 0.16), radius: edge * 0.055, y: edge * 0.032)
   }
 }
 
