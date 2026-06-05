@@ -177,13 +177,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             .showAppTutorial();
         break;
       case _SettingsDisplayItems.importSongs:
-        final importResult = await ref
+        final importedCount = await ref
             .read(audioFilesServiceProvider.notifier)
             .importLocalAudioFiles();
-        if (mounted) {
-          await _showImportResult(importResult);
-        }
-        if (importResult.hasImportedSongs && mounted) {
+        if (importedCount > 0 && mounted) {
           ref.invalidate(filteredAudioFilesProvider);
           context.goNamed(Routes.splash.name);
         }
@@ -208,25 +205,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         );
         break;
     }
-  }
-
-  Future<void> _showImportResult(ImportLocalAudioResult result) async {
-    if (!mounted || !result.hasActivity) {
-      return;
-    }
-    await showCupertinoDialog<void>(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text(result.title),
-        content: Text(result.message),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
   }
 
   bool? _isOn(

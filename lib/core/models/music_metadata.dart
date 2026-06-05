@@ -142,33 +142,22 @@ class _MetadataFallback {
 
   const _MetadataFallback({this.title, this.artist, this.albumName});
 
-  factory _MetadataFallback.fromArtistTitleText(String value) {
-    final cleanedValue = _cleanMetadataString(_cleanFileStem(value));
-    if (cleanedValue == null) {
-      return const _MetadataFallback();
-    }
-
-    String? title = cleanedValue;
+  factory _MetadataFallback.fromPath(String path) {
+    final cleanedStem = _cleanFileStem(_fileNameWithoutExtension(path));
+    String? title = _cleanMetadataString(cleanedStem);
     String? artist;
 
-    final separatorMatch = RegExp(r'\s+-\s+').firstMatch(cleanedValue);
+    final separatorMatch = RegExp(r'\s+-\s+').firstMatch(cleanedStem);
     if (separatorMatch != null) {
-      final left = cleanedValue.substring(0, separatorMatch.start);
-      final right = cleanedValue.substring(separatorMatch.end);
+      final left = cleanedStem.substring(0, separatorMatch.start);
+      final right = cleanedStem.substring(separatorMatch.end);
       artist = _cleanMetadataString(left);
       title = _cleanMetadataString(right) ?? title;
     }
 
-    return _MetadataFallback(title: title, artist: artist);
-  }
-
-  factory _MetadataFallback.fromPath(String path) {
-    final cleanedStem = _cleanFileStem(_fileNameWithoutExtension(path));
-    final artistTitle = _MetadataFallback.fromArtistTitleText(cleanedStem);
-
     return _MetadataFallback(
-      title: artistTitle.title,
-      artist: artistTitle.artist,
+      title: title,
+      artist: artist,
       albumName: _parentFolderName(path),
     );
   }
@@ -256,18 +245,14 @@ class MusicMetadata extends HiveObject {
     String? fallbackLyrics,
   }) {
     final fallback = _MetadataFallback.fromPath(audioMetadata.file.path);
-    final embeddedArtist = _cleanMetadataString(audioMetadata.artist);
-    final embeddedTitle = _cleanMetadataString(audioMetadata.title);
-    final titleFallback = embeddedArtist == null && embeddedTitle != null
-        ? _MetadataFallback.fromArtistTitleText(embeddedTitle)
-        : null;
-    final artist = embeddedArtist ?? titleFallback?.artist ?? fallback.artist;
+    final artist = _cleanMetadataString(audioMetadata.artist) ?? fallback.artist;
     final List<String>? trackArtistNames = artist == null
         ? null
         : _splitArtistNames(artist);
     final albumName =
         _cleanMetadataString(audioMetadata.album) ?? fallback.albumName;
-    final trackName = titleFallback?.title ?? embeddedTitle ?? fallback.title;
+    final trackName =
+        _cleanMetadataString(audioMetadata.title) ?? fallback.title;
 
     return MusicMetadata(
       trackName: trackName,
