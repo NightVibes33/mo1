@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
@@ -53,11 +51,9 @@ class _GenreSongsScreenState extends ConsumerState<GenreSongsScreen>
 
   Future<void> _playSong(int index) async {
     setState(() => selectedDisplayItem = index);
-    unawaited(
-      ref
-          .read(audioPlayerServiceProvider.notifier)
-          .playSongFromOriginalList(displayItems[index].originalSongIndex),
-    );
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .playSongFromOriginalList(displayItems[index].originalSongIndex);
     if (mounted) {
       await context.pushNamed(Routes.nowPlaying.name);
     }

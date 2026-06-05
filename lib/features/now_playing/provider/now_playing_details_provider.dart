@@ -20,14 +20,9 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
   @override
   NowPlayingModel build() {
     ref.read(audioPlayerProvider).currentIndexStream.listen((newIndex) {
-      if (newIndex == null || state.metadataList.isEmpty) {
-        return;
-      }
-      final sequenceLength = ref.read(audioPlayerProvider).sequence?.length ?? 0;
-      if (sequenceLength <= 1 && state.metadataList.length > 1) {
-        return;
-      }
-      if (newIndex != state.currentIndex && newIndex < state.metadataList.length) {
+      if (newIndex != null &&
+          newIndex != state.currentIndex &&
+          state.metadataList.isNotEmpty) {
         state = state.copyWith(
           currentIndex: newIndex,
           currentMetadata: state.metadataList[newIndex],

@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:classipod/core/constants/app_palette.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
@@ -38,11 +36,9 @@ class _CoverFlowAlbumSelectionScreenState
 
   Future<void> _playSongFromAlbum(int index) async {
     setState(() => selectedDisplayItem = index);
-    unawaited(
-      ref
-          .read(audioPlayerServiceProvider.notifier)
-          .playAlbum(albumDetail: widget.albumDetail, songIndex: index),
-    );
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .playAlbum(albumDetail: widget.albumDetail, songIndex: index);
 
     if (mounted) {
       await context.pushNamed(Routes.nowPlaying.name);

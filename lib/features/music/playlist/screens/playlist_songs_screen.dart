@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
@@ -93,11 +91,9 @@ class _PlaylistsSongsScreenState extends ConsumerState<PlaylistSongsScreen>
         context.pop();
       }
     } else {
-      unawaited(
-        ref
-            .read(audioPlayerServiceProvider.notifier)
-            .playPlaylist(playlistDetail: playlist, songIndex: index - 2),
-      );
+      await ref
+          .read(audioPlayerServiceProvider.notifier)
+          .playPlaylist(playlistDetail: playlist, songIndex: index - 2);
       if (mounted) {
         await context.pushNamed(Routes.nowPlaying.name);
       }
