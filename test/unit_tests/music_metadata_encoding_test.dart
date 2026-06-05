@@ -105,4 +105,35 @@ void main() {
     expect(metadata.albumName, isNull);
     expect(metadata.albumArtistName, 'Joji');
   });
+
+  test('MusicMetadata uses original import display name before copied suffix', () {
+    final audioMetadata = AudioMetadata(
+      album: 'dash',
+      artist: 'Lavf61.7.100',
+      title: 'mp42',
+      file: File('/documents/ClassiPod/imports/Rihanna - Diamonds 2.mp3'),
+    );
+
+    final metadata = MusicMetadata.fromAudioMetadata(
+      audioMetadata,
+      null,
+      0,
+      fallbackFileName: 'Rihanna - Diamonds.mp3',
+    );
+
+    expect(metadata.trackName, 'Diamonds');
+    expect(metadata.trackArtistNames, ['Rihanna']);
+  });
+
+  test('MusicMetadata strips old import collision suffixes as fallback', () {
+    final metadata = MusicMetadata(
+      trackName: 'Unknown Song',
+      trackArtistNames: ['Lavf61.7.100'],
+      filePath: '/documents/ClassiPod/imports/Tate McRae - TIT FOR TAT 2.mp3',
+    ).withFilenameFallbacks();
+
+    expect(metadata.trackName, 'TIT FOR TAT');
+    expect(metadata.trackArtistNames, ['Tate McRae']);
+  });
+
 }

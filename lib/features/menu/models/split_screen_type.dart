@@ -18,6 +18,6 @@ enum SplitScreenType {
   showTutorialScreen,
   rescanMusicFiles,
   excludeDirectories,
+  debugLogs,
   resetSettings,
-  donate,
 }

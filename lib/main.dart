@@ -21,8 +21,8 @@ Future<void> main() async {
   );
 
   await JustAudioBackground.init(
-    androidNotificationChannelId: 'mo1.audio.playback',
-    androidNotificationChannelName: 'mo1 Playback',
+    androidNotificationChannelId: 'classipod.audio.playback',
+    androidNotificationChannelName: 'ClassiPod Playback',
     androidNotificationOngoing: true,
   );
 

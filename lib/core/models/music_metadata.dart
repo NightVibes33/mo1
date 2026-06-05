@@ -175,6 +175,10 @@ String _cleanFileStem(String value) {
       .trim();
 }
 
+String _stripImportCollisionSuffix(String value) {
+  return value.replaceFirst(RegExp(r'\s+\d{1,3}$'), '').trim();
+}
+
 class _MetadataFallback {
   final String? title;
   final String? artist;
@@ -182,8 +186,16 @@ class _MetadataFallback {
 
   const _MetadataFallback({this.title, this.artist, this.albumName});
 
-  factory _MetadataFallback.fromArtistTitleText(String value) {
-    final cleanedValue = _cleanMetadataString(_cleanFileStem(value));
+  factory _MetadataFallback.fromArtistTitleText(
+    String value, {
+    bool stripImportCollisionSuffix = false,
+  }) {
+    final rawCleanedValue = _cleanFileStem(value);
+    final cleanedValue = _cleanMetadataString(
+      stripImportCollisionSuffix
+          ? _stripImportCollisionSuffix(rawCleanedValue)
+          : rawCleanedValue,
+    );
     if (cleanedValue == null) {
       return const _MetadataFallback();
     }
@@ -202,9 +214,19 @@ class _MetadataFallback {
     return _MetadataFallback(title: title, artist: artist);
   }
 
-  factory _MetadataFallback.fromPath(String path) {
-    final cleanedStem = _cleanFileStem(_fileNameWithoutExtension(path));
-    final artistTitle = _MetadataFallback.fromArtistTitleText(cleanedStem);
+  factory _MetadataFallback.fromPath(
+    String path, {
+    String? fallbackFileName,
+  }) {
+    final sourceName = fallbackFileName ?? path;
+    final shouldStripImportCollisionSuffix =
+        fallbackFileName == null &&
+        path.replaceAll('\\', '/').contains('/ClassiPod/imports/');
+    final cleanedStem = _cleanFileStem(_fileNameWithoutExtension(sourceName));
+    final artistTitle = _MetadataFallback.fromArtistTitleText(
+      cleanedStem,
+      stripImportCollisionSuffix: shouldStripImportCollisionSuffix,
+    );
 
     return _MetadataFallback(
       title: artistTitle.title,
@@ -294,8 +316,12 @@ class MusicMetadata extends HiveObject {
     String? thumbnailPath,
     int originalSongIndex, {
     String? fallbackLyrics,
+    String? fallbackFileName,
   }) {
-    final fallback = _MetadataFallback.fromPath(audioMetadata.file.path);
+    final fallback = _MetadataFallback.fromPath(
+      audioMetadata.file.path,
+      fallbackFileName: fallbackFileName,
+    );
     final embeddedArtist = _cleanEmbeddedMetadataString(audioMetadata.artist);
     final embeddedTitle = _cleanEmbeddedMetadataString(audioMetadata.title);
     final titleFallback = embeddedArtist == null && embeddedTitle != null
@@ -340,8 +366,12 @@ class MusicMetadata extends HiveObject {
     String path,
     int originalSongIndex, {
     String? fallbackLyrics,
+    String? fallbackFileName,
   }) {
-    final fallback = _MetadataFallback.fromPath(path);
+    final fallback = _MetadataFallback.fromPath(
+      path,
+      fallbackFileName: fallbackFileName,
+    );
     final trackArtistNames = fallback.artist == null
         ? null
         : _splitArtistNames(fallback.artist!);
@@ -506,9 +536,7 @@ class MusicMetadata extends HiveObject {
           duration: trackDuration != null
               ? Duration(milliseconds: trackDuration!)
               : null,
-          artUri: thumbnailPath == null
-              ? Uri.file(filePath!)
-              : Uri.file(thumbnailPath!),
+          artUri: thumbnailPath == null ? null : Uri.file(thumbnailPath!),
           rating: Rating.newStarRating(RatingStyle.range5stars, rating),
           extras: {"loadThumbnailUri": true},
         ),

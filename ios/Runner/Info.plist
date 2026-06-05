@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>mo1</string>
+	<string>ClassiPod</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>mo1</string>
+	<string>ClassiPod</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -27,9 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppleMusicUsageDescription</key>
-	<string>mo1 uses Apple Music catalog search to match local song metadata and artwork.</string>
+	<string>ClassiPod uses Apple Music catalog search to match local song metadata and artwork.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>mo1 lets you choose local album artwork for imported songs.</string>
+	<string>ClassiPod lets you choose local album artwork for imported songs.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

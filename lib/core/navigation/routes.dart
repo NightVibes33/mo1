@@ -31,6 +31,7 @@ import 'package:classipod/features/now_playing/screen/now_playing_more_options_m
 import 'package:classipod/features/now_playing/screen/now_playing_screen.dart';
 import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
 import 'package:classipod/features/settings/screens/about_screen.dart';
+import 'package:classipod/features/settings/screens/debug_logs_screen.dart';
 import 'package:classipod/features/settings/screens/device_color_selection_screen.dart';
 import 'package:classipod/features/settings/screens/exclude_directories_screen.dart';
 import 'package:classipod/features/settings/screens/language_selection_screen.dart';
@@ -44,6 +45,7 @@ enum Routes {
   menu,
   settings,
   about,
+  debugLogs,
   language,
   deviceColor,
   excludeDirectories,
@@ -86,6 +88,8 @@ enum Routes {
         return context.localization.settingsScreenTitle;
       case about:
         return context.localization.aboutScreenTitle;
+      case debugLogs:
+        return 'Debug Logs';
       case language:
         return context.localization.languageScreenTitle;
       case deviceColor:
@@ -211,6 +215,13 @@ final routerProvider = Provider(
                         parentNavigatorKey: rootNavigatorKey,
                         pageBuilder: (context, state) =>
                             const CupertinoPage(child: AboutScreen()),
+                      ),
+                      GoRoute(
+                        path: Routes.debugLogs.name,
+                        name: Routes.debugLogs.name,
+                        parentNavigatorKey: rootNavigatorKey,
+                        pageBuilder: (context, state) =>
+                            const CupertinoPage(child: DebugLogsScreen()),
                       ),
                       GoRoute(
                         path: Routes.language.name,

@@ -24,7 +24,7 @@ final appStartupControllerProvider = FutureProvider<void>((ref) async {
         DeviceOrientation.portraitDown,
       ]),
       JustAudioBackground.init(
-        androidNotificationChannelId: 'com.ryanheise.bg_demo.channel.audio',
+        androidNotificationChannelId: 'classipod.audio.playback',
         androidNotificationChannelName: 'ClassiPod Audio playback',
         androidNotificationChannelDescription:
             'Notification to control the currently playing music files',
