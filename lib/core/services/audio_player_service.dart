@@ -27,18 +27,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   Future<void> build() async {}
 
   Future<void> play() async {
-    final player = ref.read(audioPlayerProvider);
-    if (player.playing) {
+    if (ref.read(audioPlayerProvider).playing) {
       return;
     }
-    if (player.currentIndex == null) {
-      final metadata = ref.read(nowPlayingDetailsProvider).currentMetadata;
-      if (metadata != null) {
-        await playSongFromOriginalList(metadata.originalSongIndex);
-        return;
-      }
-    }
-    await player.play();
+    await ref.read(audioPlayerProvider).play();
   }
 
   Future<void> pause() async {
@@ -99,41 +91,32 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   Future<void> setAudioSource({
     NowPlayingType nowPlayingType = NowPlayingType.songs,
     required List<MusicMetadata> musicMetadataList,
-    int initialIndex = 0,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final List<AudioSource> songSourcePlaylist = [];
+      int i = 0;
       try {
         for (final musicMetadata in musicMetadataList) {
           songSourcePlaylist.add(musicMetadata.toAudioSource());
+          i = i + 1;
         }
       } catch (_) {}
 
-      if (songSourcePlaylist.isEmpty) {
-        await ref.read(audioPlayerProvider).stop();
-        ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
-              nowPlayingType: nowPlayingType,
-              newMetadataList: const [],
-            );
-        return;
-      }
-
-      final safeInitialIndex = initialIndex
-          .clamp(0, songSourcePlaylist.length - 1)
-          .toInt();
-
-      await ref.read(audioPlayerProvider).setAudioSources(
+      await ref
+          .read(audioPlayerProvider)
+          .setAudioSources(
             songSourcePlaylist,
-            initialIndex: safeInitialIndex,
+            initialIndex: 0,
             initialPosition: Duration.zero,
             shuffleOrder: DefaultShuffleOrder(),
           );
 
-      ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
+      ref
+          .read(nowPlayingDetailsProvider.notifier)
+          .setNewMetadataList(
             nowPlayingType: nowPlayingType,
             newMetadataList: musicMetadataList,
-            currentIndex: safeInitialIndex,
           );
     });
   }
@@ -175,7 +158,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         await setAudioSource(
           nowPlayingType: NowPlayingType.album,
           musicMetadataList: albumDetail.albumSongs,
-          initialIndex: songIndex,
         );
         await playSongAtIndex(songIndex);
         await setShuffleMode(false);
@@ -206,7 +188,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         await setAudioSource(
           nowPlayingType: NowPlayingType.playlist,
           musicMetadataList: playlistDetail.songs,
-          initialIndex: songIndex,
         );
         await playSongAtIndex(songIndex);
         await setShuffleMode(false);
@@ -231,46 +212,28 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   Future<void> playSongFromOriginalList(int originalIndex) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final player = ref.read(audioPlayerProvider);
-      var nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
-      final hasLoadedSources = player.currentIndex != null;
-      final shouldUseOriginalList = !hasLoadedSources ||
-          nowPlayingDetails.nowPlayingType !=
-              NowPlayingType.songs ||
-          nowPlayingDetails.metadataList.isEmpty ||
-          !nowPlayingDetails.metadataList.any(
-            (element) => element.originalSongIndex == originalIndex,
-          );
-
-      if (shouldUseOriginalList) {
-        final originalList = ref.read(filteredAudioFilesProvider).requireValue;
-        final initialIndex = originalList.indexWhere(
-          (element) => element.originalSongIndex == originalIndex,
-        );
-        if (initialIndex == -1) {
-          return;
-        }
+      //If Album or Playlist is being played then Switch to original List of Songs
+      if (ref.read(nowPlayingDetailsProvider).nowPlayingType !=
+          NowPlayingType.songs) {
         await setAudioSource(
-          musicMetadataList: originalList,
-          initialIndex: initialIndex,
+          musicMetadataList: ref.read(filteredAudioFilesProvider).requireValue,
         );
-        nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
       }
 
+      //In case the same song is already playing
       if (originalIndex ==
-          nowPlayingDetails.currentMetadata?.originalSongIndex) {
-        await player.play();
+          ref
+              .read(nowPlayingDetailsProvider)
+              .currentMetadata
+              ?.originalSongIndex) {
         return;
       }
 
-      final int index = nowPlayingDetails.metadataList.indexWhere(
-        (element) => element.originalSongIndex == originalIndex,
-      );
-      if (index == -1) {
-        return;
-      }
-
-      await player.seek(Duration.zero, index: index);
+      final int index = ref
+          .read(nowPlayingDetailsProvider)
+          .metadataList
+          .indexWhere((element) => element.originalSongIndex == originalIndex);
+      await ref.read(audioPlayerProvider).seek(Duration.zero, index: index);
       Future.delayed(const Duration(milliseconds: 200), play);
     });
   }

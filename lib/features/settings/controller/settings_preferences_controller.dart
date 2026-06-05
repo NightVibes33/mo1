@@ -6,8 +6,6 @@ import 'package:classipod/core/constants/constants.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
-import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
-import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/features/music/playlist/models/playlist_model.dart';
 import 'package:classipod/features/settings/models/app_theme.dart';
@@ -315,8 +313,6 @@ class SettingsPreferencesControllerNotifier
     if (clearPlaylists) {
       await Hive.box<PlaylistModel>(Constants.playlistBoxName).clear();
     }
-    ref.invalidate(audioFilesServiceProvider);
-    ref.invalidate(filteredAudioFilesProvider);
     ref.read(routerProvider).goNamed(Routes.splash.name);
   }
 

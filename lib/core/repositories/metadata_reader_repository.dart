@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/providers/device_directory_provider.dart';
-import 'package:classipod/core/services/debug_log_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,17 +17,13 @@ final metadataReaderRepositoryProvider =
       final thumbnailsDirectoryPath =
           '${documentsDirectory.path}/ClassiPod/thumbnails';
       Directory(thumbnailsDirectoryPath).createSync(recursive: true);
-      return MetadataReaderRepository(
-        thumbnailsDirectoryPath,
-        ref.read(debugLogServiceProvider),
-      );
+      return MetadataReaderRepository(thumbnailsDirectoryPath);
     });
 
 class MetadataReaderRepository {
   final String thumbnailsDirectoryPath;
-  final DebugLogService? debugLogService;
 
-  MetadataReaderRepository(this.thumbnailsDirectoryPath, [this.debugLogService]);
+  MetadataReaderRepository(this.thumbnailsDirectoryPath);
 
   bool isSupportedAudioFormat(String path) {
     final lowerPath = path.toLowerCase();
@@ -73,21 +68,10 @@ class MetadataReaderRepository {
   UnmodifiableListView<MusicMetadata> extractMetadataFromFiles(
     List<String> filePaths,
   ) {
-    final displayNamesByPath = {for (final path in filePaths) path: null};
-    return extractMetadataFromFilesWithDisplayNames(displayNamesByPath);
-  }
-
-  UnmodifiableListView<MusicMetadata> extractMetadataFromFilesWithDisplayNames(
-    Map<String, String?> displayNamesByPath,
-  ) {
     final List<MusicMetadata> metadataList = [];
 
-    for (final entry in displayNamesByPath.entries) {
-      final metadata = _extractMetadataFromPath(
-        entry.key,
-        metadataList.length,
-        fallbackFileName: entry.value,
-      );
+    for (final String path in filePaths) {
+      final metadata = _extractMetadataFromPath(path, metadataList.length);
       if (metadata != null) {
         metadataList.add(metadata);
       }
@@ -96,16 +80,10 @@ class MetadataReaderRepository {
     return UnmodifiableListView(metadataList);
   }
 
-  MusicMetadata? _extractMetadataFromPath(
-    String path,
-    int originalSongIndex, {
-    String? fallbackFileName,
-  }) {
+  MusicMetadata? _extractMetadataFromPath(String path, int originalSongIndex) {
     if (!isSupportedAudioFormat(path)) {
       return null;
     }
-
-    final fallbackLyrics = _readSidecarLyrics(path);
 
     try {
       final audioMetadata = readMetadata(File(path), getImage: true);
@@ -117,41 +95,18 @@ class MetadataReaderRepository {
           artistName: audioMetadata.artist,
           filePath: path,
         );
-        try {
-          File(thumbnailPath).writeAsBytesSync(audioMetadata.pictures[0].bytes);
-        } catch (e) {
-          debugPrint('Album Art Write Error: $e');
-          debugLogService?.error(
-            'metadata',
-            'Album art write failed',
-            error: e,
-            data: {'path': path, 'thumbnailPath': thumbnailPath},
-          );
-          thumbnailPath = null;
-        }
+        File(thumbnailPath).writeAsBytesSync(audioMetadata.pictures[0].bytes);
       }
 
       return MusicMetadata.fromAudioMetadata(
         audioMetadata,
         thumbnailPath,
         originalSongIndex,
-        fallbackLyrics: fallbackLyrics,
-        fallbackFileName: fallbackFileName,
+        fallbackLyrics: _readSidecarLyrics(path),
       );
     } catch (e) {
       debugPrint('Metadata Parsing Error: $e');
-      debugLogService?.error(
-        'metadata',
-        'Metadata parser failed; using filename fallback',
-        error: e,
-        data: {'path': path, 'fallbackFileName': fallbackFileName},
-      );
-      return MusicMetadata.fromFilePathFallback(
-        path,
-        originalSongIndex,
-        fallbackLyrics: fallbackLyrics,
-        fallbackFileName: fallbackFileName,
-      );
+      return null;
     }
   }
 
@@ -170,12 +125,6 @@ class MetadataReaderRepository {
         return utf8.decode(sidecar.readAsBytesSync(), allowMalformed: true);
       } catch (e) {
         debugPrint('Lyrics Sidecar Error: $e');
-        debugLogService?.error(
-          'metadata',
-          'Lyrics sidecar read failed',
-          error: e,
-          data: {'path': audioPath},
-        );
       }
     }
     return null;

@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final filteredAudioFilesProvider =
     FutureProvider<UnmodifiableListView<MusicMetadata>>((ref) async {
       // Load the audio files metadata
-      final audioFilesMetadata = await ref.watch(
+      final audioFilesMetadata = await ref.refresh(
         audioFilesServiceProvider.future,
       );
 

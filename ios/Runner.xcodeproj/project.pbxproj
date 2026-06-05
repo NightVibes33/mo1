@@ -16,11 +16,6 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
-		F00200000000000000000001 /* MO1LiveActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000001 /* MO1LiveActivityAttributes.swift */; };
-		F00200000000000000000002 /* MO1LiveActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000002 /* MO1LiveActivityController.swift */; };
-		F00200000000000000000004 /* MO1LiveActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000001 /* MO1LiveActivityAttributes.swift */; };
-		F00200000000000000000005 /* MO1LiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00100000000000000000007 /* MO1LiveActivityWidget.swift */; };
-		F00200000000000000000006 /* LiveActivityExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = F00100000000000000000008 /* LiveActivityExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,13 +25,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
 			remoteInfo = Runner;
-		};
-		F00500000000000000000001 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = F00400000000000000000001;
-			remoteInfo = LiveActivityExtension;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -49,17 +37,6 @@
 			files = (
 			);
 			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		F00300000000000000000001 /* Embed App Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				F00200000000000000000006 /* LiveActivityExtension.appex in Embed App Extensions */,
-			);
-			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -91,11 +68,6 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		F00100000000000000000001 /* MO1LiveActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MO1LiveActivityAttributes.swift; sourceTree = "<group>"; };
-		F00100000000000000000002 /* MO1LiveActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MO1LiveActivityController.swift; sourceTree = "<group>"; };
-		F00100000000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		F00100000000000000000007 /* MO1LiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MO1LiveActivityWidget.swift; sourceTree = "<group>"; };
-		F00100000000000000000008 /* LiveActivityExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LiveActivityExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		981B08853A94DFBF001F338F /* Pods-Runner.release-production.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release-production.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release-production.xcconfig"; sourceTree = "<group>"; };
 		A863928B6F30DF76B069DE4D /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		A8C9EA883EFF011EC28D828B /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
@@ -121,13 +93,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				6D241C7E560E0B59E7087947 /* Pods_Runner.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		F00300000000000000000004 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -158,7 +123,6 @@
 			children = (
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
-				F00100000000000000000005 /* LiveActivityExtension */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				9F6AE6316DBE93A36C7790FA /* Pods */,
@@ -171,7 +135,6 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
-				F00100000000000000000008 /* LiveActivityExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -186,20 +149,9 @@
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
-				F00100000000000000000001 /* MO1LiveActivityAttributes.swift */,
-				F00100000000000000000002 /* MO1LiveActivityController.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
-			sourceTree = "<group>";
-		};
-		F00100000000000000000005 /* LiveActivityExtension */ = {
-			isa = PBXGroup;
-			children = (
-				F00100000000000000000006 /* Info.plist */,
-				F00100000000000000000007 /* MO1LiveActivityWidget.swift */,
-			);
-			path = LiveActivityExtension;
 			sourceTree = "<group>";
 		};
 		9F6AE6316DBE93A36C7790FA /* Pods */ = {
@@ -268,7 +220,6 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
-				F00300000000000000000001 /* Embed App Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				79FB463DBC674BDECA37CC02 /* [CP] Embed Pods Frameworks */,
 				78B4381452D940E7DFB7A8AB /* [CP] Copy Pods Resources */,
@@ -276,29 +227,11 @@
 			buildRules = (
 			);
 			dependencies = (
-				F00500000000000000000002 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
 			productType = "com.apple.product-type.application";
-		};
-		F00400000000000000000001 /* LiveActivityExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = F00600000000000000000001 /* Build configuration list for PBXNativeTarget "LiveActivityExtension" */;
-			buildPhases = (
-				F00300000000000000000002 /* Sources */,
-				F00300000000000000000003 /* Resources */,
-				F00300000000000000000004 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = LiveActivityExtension;
-			productName = LiveActivityExtension;
-			productReference = F00100000000000000000008 /* LiveActivityExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -318,9 +251,6 @@
 						CreatedOnToolsVersion = 7.3.1;
 						LastSwiftMigration = 1100;
 					};
-					F00400000000000000000001 = {
-						CreatedOnToolsVersion = 26.0;
-					};
 				};
 			};
 			buildConfigurationList = 97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */;
@@ -338,7 +268,6 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
-				F00400000000000000000001 /* LiveActivityExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -359,13 +288,6 @@
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		F00300000000000000000003 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -497,18 +419,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
-				F00200000000000000000001 /* MO1LiveActivityAttributes.swift in Sources */,
-				F00200000000000000000002 /* MO1LiveActivityController.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		F00300000000000000000002 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				F00200000000000000000004 /* MO1LiveActivityAttributes.swift in Sources */,
-				F00200000000000000000005 /* MO1LiveActivityWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -519,11 +430,6 @@
 			isa = PBXTargetDependency;
 			target = 97C146ED1CF9000F007C117D /* Runner */;
 			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
-		};
-		F00500000000000000000002 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = F00400000000000000000001 /* LiveActivityExtension */;
-			targetProxy = F00500000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1397,270 +1303,6 @@
 			};
 			name = Release;
 		};
-		F00700000000000000000001 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 44;
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = LiveActivityExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.18.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = appex;
-			};
-			name = "Debug";
-		};
-		F00700000000000000000002 /* Debug-production */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 44;
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = LiveActivityExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.18.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = appex;
-			};
-			name = "Debug-production";
-		};
-		F00700000000000000000003 /* Debug-dev */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 44;
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = LiveActivityExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.18.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = appex;
-			};
-			name = "Debug-dev";
-		};
-		F00700000000000000000004 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 44;
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = LiveActivityExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.18.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = appex;
-			};
-			name = "Release";
-		};
-		F00700000000000000000005 /* Release-production */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 44;
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = LiveActivityExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.18.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = appex;
-			};
-			name = "Release-production";
-		};
-		F00700000000000000000006 /* Release-dev */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 44;
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = LiveActivityExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.18.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = appex;
-			};
-			name = "Release-dev";
-		};
-		F00700000000000000000007 /* Profile */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 44;
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = LiveActivityExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.18.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = iphoneos;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = appex;
-			};
-			name = "Profile";
-		};
-		F00700000000000000000008 /* Profile-production */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 44;
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = LiveActivityExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.18.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = iphoneos;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = appex;
-			};
-			name = "Profile-production";
-		};
-		F00700000000000000000009 /* Profile-dev */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 44;
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = LiveActivityExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.18.0;
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.LiveActivityExtension;
-				PRODUCT_BUNDLE_PACKAGE_TYPE = "XPC!";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = iphoneos;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				WRAPPER_EXTENSION = appex;
-			};
-			name = "Profile-dev";
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1708,22 +1350,6 @@
 				249021D4217E4FDB00AE95B9 /* Profile */,
 				482032592EC203AD00396D08 /* Profile-production */,
 				482032502EC1FB4C00396D08 /* Profile-dev */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		F00600000000000000000001 /* Build configuration list for PBXNativeTarget "LiveActivityExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				F00700000000000000000001 /* Debug */,
-				F00700000000000000000002 /* Debug-production */,
-				F00700000000000000000003 /* Debug-dev */,
-				F00700000000000000000004 /* Release */,
-				F00700000000000000000005 /* Release-production */,
-				F00700000000000000000006 /* Release-dev */,
-				F00700000000000000000007 /* Profile */,
-				F00700000000000000000008 /* Profile-production */,
-				F00700000000000000000009 /* Profile-dev */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

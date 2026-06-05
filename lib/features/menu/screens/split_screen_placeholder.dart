@@ -224,17 +224,17 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
           icon: CupertinoIcons.folder_fill_badge_minus,
           contentText: '',
         );
-      } else if (splitScreenType == SplitScreenType.debugLogs) {
-        splitScreenWidget = const IconPreviewWidget(
-          titleText: 'Debug Logs',
-          icon: CupertinoIcons.doc_text,
-          contentText: 'Import and playback diagnostics',
-        );
       } else if (splitScreenType == SplitScreenType.resetSettings) {
         splitScreenWidget = IconPreviewWidget(
           titleText: context.localization.resetSettingsTitle,
           icon: CupertinoIcons.refresh_circled,
           contentText: '',
+        );
+      } else if (splitScreenType == SplitScreenType.donate) {
+        splitScreenWidget = IconPreviewWidget(
+          titleText: context.localization.donateSettingTitle,
+          icon: CupertinoIcons.money_dollar_circle,
+          contentText: context.localization.donateSettingDescription,
         );
       } else {
         splitScreenWidget = const AnimatedAlbumArtScroller();

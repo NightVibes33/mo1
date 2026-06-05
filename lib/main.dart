@@ -1,6 +1,5 @@
 import 'package:classipod/classipod_app.dart';
 import 'package:classipod/core/constants/app_palette.dart';
-import 'package:classipod/core/services/live_activity_service.dart';
 import 'package:classipod/features/app_startup/screens/app_startup_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -21,18 +20,10 @@ Future<void> main() async {
   );
 
   await JustAudioBackground.init(
-    androidNotificationChannelId: 'classipod.audio.playback',
-    androidNotificationChannelName: 'ClassiPod Playback',
+    androidNotificationChannelId: 'mo1.audio.playback',
+    androidNotificationChannelName: 'mo1 Playback',
     androidNotificationOngoing: true,
   );
 
-  runApp(
-    const ProviderScope(
-      child: LiveActivitySync(
-        child: AppStartupScreen(
-          app: ClassipodApp(),
-        ),
-      ),
-    ),
-  );
+  runApp(const ProviderScope(child: AppStartupScreen(app: ClassipodApp())));
 }
