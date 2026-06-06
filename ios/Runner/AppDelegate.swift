@@ -206,6 +206,10 @@ private enum AppleMusicLookupChannel {
       case "playbackSnapshot":
         result(playbackSnapshot())
       case "librarySongs":
+        guard #available(iOS 16.0, *) else {
+          result([])
+          return
+        }
         let arguments = call.arguments as? [String: Any] ?? [:]
         let limit = arguments["limit"] as? Int ?? 100
         Task {
@@ -430,7 +434,7 @@ private enum AppleMusicLookupChannel {
     }
   }
 
-  @available(iOS 15.0, *)
+  @available(iOS 16.0, *)
   private static func librarySongs(
     limit: Int
   ) async throws -> [[String: Any]] {
