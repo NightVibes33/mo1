@@ -61,7 +61,7 @@ APP_INFO="$(ruby -rjson -e '
     exit 2
   end
   attrs = app.fetch("attributes")
-  apple_id = attrs.fetch("appleId")
+  apple_id = attrs["appleId"] || app.fetch("id")
   name = attrs.fetch("name")
   puts [app.fetch("id"), apple_id, name].join("\t")
 ' "${APP_JSON}")"
