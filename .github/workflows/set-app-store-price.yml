@@ -1,0 +1,35 @@
+name: Set App Store Price
+
+on:
+  workflow_dispatch:
+    inputs:
+      customer_price:
+        description: Paid app customer price, e.g. 0.99
+        required: true
+        default: "0.99"
+      base_territory:
+        description: Base territory for the price point
+        required: true
+        default: USA
+
+permissions:
+  contents: read
+
+jobs:
+  set-price:
+    name: Set paid app price
+    runs-on: macos-26-intel
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set App Store paid app price
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_BUNDLE_ID: ${{ secrets.APP_BUNDLE_ID }}
+          CUSTOMER_PRICE: ${{ inputs.customer_price }}
+          BASE_TERRITORY: ${{ inputs.base_territory }}
+        run: .github/scripts/set_app_store_price.sh

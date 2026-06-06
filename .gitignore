@@ -50,6 +50,9 @@ google_service_account.json
 **/fastlane/report.xml
 **/fastlane/Preview.html
 **/fastlane/screenshots
+!ios/fastlane/screenshots/
+!ios/fastlane/screenshots/en-US/
+!ios/fastlane/screenshots/en-US/*.png
 **/fastlane/test_output
 /untranslated_messages.json
 /lib/l10n/generated/
