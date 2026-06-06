@@ -1,5 +1,5 @@
 icon: snap/gui/classipod.png
-summary: Local Music Player Inspired by the iPod Classic
+summary: Retro click-wheel local music player
 group: Applications/Multimedia
 vendor: adeeteya
 packager: Aditya R
@@ -28,12 +28,12 @@ requires:
   - xdg-utils
   - ca-certificates
 
-display_name: Classipod
+display_name: dopI
 
 keywords:
   - Music
   - Audio
-  - iPod
+  - retro music player
   - Local
   - Songs
   - Offline

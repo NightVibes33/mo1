@@ -1,15 +1,15 @@
-# mo1 Classic
+# dopI
 
-This branch is a mo1-branded fork of ClassiPod, a real iPod Classic-style local music player built with Flutter.
+This branch is the dopI-branded fork: a real retro click-wheel local music player built with Flutter.
 
-It keeps the native iPod-style click wheel, local library, metadata, Cover Flow, now playing screen, background playback, and local file/audio support from the upstream project. The iOS bundle display name is `mo1` and the bundle identifier is `app.mo1.player`.
+It keeps the native classic click wheel, local library, metadata, Cover Flow, now playing screen, background playback, and local file/audio support from the upstream project. The iOS bundle display name is `dopI` and the bundle identifier remains `app.mo1.player` for update compatibility.
 
 ## iOS 26 Visual Refresh
 
-The mo1 fork adds an iOS 26-inspired visual pass while preserving the working local MP3/audio stack:
+The dopI fork adds an iOS 26-inspired visual pass while preserving the working local MP3/audio stack:
 
 - Liquid Glass-style translucent device body, screen chrome, status bar, and selected-row focus.
-- Animated aurora lighting, reflection layers, and depth shadows around the iPod body.
+- Animated aurora lighting, reflection layers, and depth shadows around the player body.
 - Polished click wheel with glass highlights, glow, and center-button press animation.
 - Smoother eased wheel scrolling, split-screen motion, Cover Flow movement, and Now Playing page changes.
 - Now Playing waveform/heat visualizer driven by playback state.
@@ -19,10 +19,10 @@ Flutter cannot call SwiftUI-only Liquid Glass APIs directly, so this uses Flutte
 
 ## Unsigned IPA
 
-The `Build unsigned iOS IPA` GitHub Actions workflow installs Flutter 3.35.7 on `macos-26-intel`, runs `flutter pub get`, builds iOS with signing disabled, packages `Runner.app` into `Payload/mo1.app`, and uploads `mo1-classic-unsigned.ipa`.
+The `Build unsigned iOS IPA` GitHub Actions workflow installs Flutter 3.35.7 on `macos-26-intel`, runs `flutter pub get`, builds iOS with signing disabled, packages `Runner.app` into `Payload/dopI.app`, and uploads `dopI-classic-unsigned.ipa`.
 
 The artifact is unsigned. SideStore or AltStore signs it during install.
 
 ## Attribution
 
-Based on ClassiPod by Aditya R, licensed under the BSD-4-Clause license included in this repository.
+Based on the upstream open-source player by Aditya R, licensed under the BSD-4-Clause license included in this repository.

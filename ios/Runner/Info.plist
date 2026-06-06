@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>ClassiPod</string>
+	<string>dopI</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>ClassiPod</string>
+	<string>dopI</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -27,9 +27,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppleMusicUsageDescription</key>
-	<string>ClassiPod uses Apple Music access to search and play catalog songs, and to match local song metadata and artwork.</string>
+	<string>dopI uses Apple Music access to search and play catalog songs, and to match local song metadata and artwork.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>ClassiPod lets you choose local album artwork for imported songs.</string>
+	<string>dopI lets you choose local album artwork for imported songs.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

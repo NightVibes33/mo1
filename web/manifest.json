@@ -1,11 +1,11 @@
 {
-    "name": "ClassiPod",
-    "short_name": "ClassiPod",
+    "name": "dopI",
+    "short_name": "dopI",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A ipod Classic Emulator",
+    "description": "A retro click-wheel music player",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
