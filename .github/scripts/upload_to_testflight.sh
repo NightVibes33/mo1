@@ -76,5 +76,6 @@ xcrun altool \
   --upload-app \
   -f "${IPA_PATH}" \
   --type ios \
+  --apple-id "${APPLE_ID}" \
   --apiKey "${APP_STORE_CONNECT_KEY_ID}" \
   --apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}"
