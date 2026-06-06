@@ -1,0 +1,102 @@
+name: Upload Existing TestFlight IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: GitHub Actions run ID containing the exported IPA artifact
+        required: true
+        default: "27072573190"
+      artifact_name:
+        description: Artifact name containing the IPA and checksum
+        required: true
+        default: "døPi-testflight-ipa-1"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  upload:
+    name: Upload existing IPA to TestFlight
+    runs-on: macos-26-intel
+    timeout-minutes: 30
+
+    steps:
+      - name: Validate TestFlight secrets
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in \
+            APP_STORE_CONNECT_API_KEY_P8 \
+            APP_STORE_CONNECT_KEY_ID \
+            APP_STORE_CONNECT_ISSUER_ID
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Select latest Xcode 26
+        run: |
+          set -euo pipefail
+          XCODE_PATH="$(ls -1d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -z "${XCODE_PATH}" ]; then
+            echo "No Xcode 26 app found under /Applications" >&2
+            ls -la /Applications | grep Xcode || true
+            exit 1
+          fi
+          sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
+          xcodebuild -version
+          xcrun --find iTMSTransporter
+
+      - name: Download exported IPA artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/downloaded
+          gh run download "${SOURCE_RUN_ID}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --name "${ARTIFACT_NAME}" \
+            --dir build/downloaded
+          find build/downloaded -maxdepth 2 -type f -print
+          IPA_PATH="$(find build/downloaded -maxdepth 2 -name '*.ipa' -print -quit)"
+          if [ -z "${IPA_PATH}" ]; then
+            echo "No IPA found in downloaded artifact" >&2
+            exit 1
+          fi
+          echo "IPA_PATH=${IPA_PATH}" >> "${GITHUB_ENV}"
+
+      - name: Write App Store Connect key
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p private_keys
+          printf '%s' "${APP_STORE_CONNECT_API_KEY_P8}" > "${PWD}/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+
+      - name: Upload to TestFlight with Transporter
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          export API_PRIVATE_KEYS_DIR="${PWD}/private_keys"
+          xcrun iTMSTransporter \
+            -m upload \
+            -assetFile "${IPA_PATH}" \
+            -apiKey "${APP_STORE_CONNECT_KEY_ID}" \
+            -apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}" \
+            -v informational
