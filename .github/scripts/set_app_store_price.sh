@@ -77,7 +77,7 @@ PRICE_POINT_ID="$(CUSTOMER_PRICE="${CUSTOMER_PRICE}" ruby -rjson -e '
   end
   unless point
     available = data.fetch("data").map { |item| item.fetch("attributes", {})["customerPrice"] }.compact.uniq.take(20)
-    warn "No price point found for $#{format("%.2f", wanted)}. First available customer prices: #{available.join(', ')}"
+    warn "No price point found for $#{format("%.2f", wanted)}. First available customer prices: #{available.join(", ")}"
     exit 2
   end
   puts point.fetch("id")
