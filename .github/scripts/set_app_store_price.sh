@@ -93,6 +93,7 @@ puts JSON.pretty_generate({
     attributes: {},
     relationships: {
       app: { data: { type: 'apps', id: ENV.fetch('APP_ID') } },
+      baseTerritory: { data: { type: 'territories', id: ENV.fetch('BASE_TERRITORY') } },
       manualPrices: { data: [{ type: 'appPrices', id: price_id }] }
     }
   },
