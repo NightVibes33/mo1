@@ -73,11 +73,8 @@ APP_NAME="$(printf '%s' "${APP_INFO}" | cut -f3-)"
 echo "Matched App Store Connect app '${APP_NAME}' (${ASC_APP_ID}) for ${BUNDLE_ID}; Apple ID ${APPLE_ID}; version ${BUNDLE_SHORT_VERSION} (${BUNDLE_VERSION})."
 
 xcrun altool \
-  --upload-package "${IPA_PATH}" \
+  --upload-app \
+  -f "${IPA_PATH}" \
   --type ios \
-  --apple-id "${APPLE_ID}" \
-  --bundle-id "${BUNDLE_ID}" \
-  --bundle-version "${BUNDLE_VERSION}" \
-  --bundle-short-version-string "${BUNDLE_SHORT_VERSION}" \
   --apiKey "${APP_STORE_CONNECT_KEY_ID}" \
   --apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}"
