@@ -50,11 +50,42 @@ class LyricsLookupService {
     }
 
     final response = await _readJson(Uri.https('lrclib.net', '/api/get', query));
-    if (response is! Map<String, dynamic>) {
-      return null;
+    final exactResult = response is Map<String, dynamic>
+        ? LyricsSearchResult.fromJson(response)
+        : null;
+    final exactSyncedLyrics = exactResult?.syncedLyrics?.trim();
+    if (exactSyncedLyrics != null && exactSyncedLyrics.isNotEmpty) {
+      return exactSyncedLyrics;
     }
 
-    return LyricsSearchResult.fromJson(response).bestLyrics;
+    final fallbackResult = await _searchFallback(title, artist);
+    final fallbackSyncedLyrics = fallbackResult?.syncedLyrics?.trim();
+    if (fallbackSyncedLyrics != null && fallbackSyncedLyrics.isNotEmpty) {
+      return fallbackSyncedLyrics;
+    }
+
+    return exactResult?.bestLyrics ?? fallbackResult?.bestLyrics;
+  }
+
+  Future<LyricsSearchResult?> _searchFallback(
+    String title,
+    String? artist,
+  ) async {
+    final query = [
+      title,
+      if (artist != null && artist.trim().isNotEmpty) artist,
+    ].join(' ');
+    final results = await search(query);
+    if (results.isEmpty) {
+      return null;
+    }
+    for (final result in results) {
+      final syncedLyrics = result.syncedLyrics?.trim();
+      if (syncedLyrics != null && syncedLyrics.isNotEmpty) {
+        return result;
+      }
+    }
+    return results.first;
   }
 }
 

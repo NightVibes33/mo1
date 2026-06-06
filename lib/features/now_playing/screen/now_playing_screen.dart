@@ -312,7 +312,9 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   @override
   Widget build(BuildContext context) {
     final nowPlayingDetails = ref.watch(nowPlayingDetailsProvider);
-    if (nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
+    final currentMetadata = nowPlayingDetails.currentMetadata;
+    final isAppleMusic = currentMetadata?.isAppleMusicCatalogTrack ?? false;
+    if (isAppleMusic) {
       ref.listen<AsyncValue<AppleMusicPlaybackSnapshot>>(
         appleMusicPlaybackSnapshotProvider,
         (_, snapshotState) {
@@ -343,10 +345,12 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         },
       );
     }
-    final String? lyrics = nowPlayingDetails.currentMetadata?.lyrics;
+    final String? lyrics = currentMetadata?.lyrics;
     final bool hasLyrics = lyrics != null && lyrics.trim().isNotEmpty;
-    final int? currentLyricsSongIndex =
-        nowPlayingDetails.currentMetadata?.originalSongIndex;
+    final int? currentLyricsSongIndex = currentMetadata?.originalSongIndex;
+    final lyricsPositionStream = isAppleMusic
+        ? ref.read(appleMusicPlaybackServiceProvider).playbackPositions()
+        : ref.read(audioPlayerProvider).positionStream;
 
     if (_lastLyricsSongIndex != currentLyricsSongIndex) {
       _lastLyricsSongIndex = currentLyricsSongIndex;
@@ -461,7 +465,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                             'lyrics-view-${nowPlayingDetails.currentMetadata?.originalSongIndex ?? 0}',
                           ),
                           lyrics: lyrics,
-                          positionStream: ref.read(audioPlayerProvider).positionStream,
+                          positionStream: lyricsPositionStream,
                           scrollController: _lyricsScrollController,
                           timingOffset: _lyricsTimingOffset,
                           onTimingOffsetChanged: (offset) {

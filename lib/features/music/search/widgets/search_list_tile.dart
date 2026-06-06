@@ -1,9 +1,8 @@
-import 'dart:io';
-
 import 'package:classipod/core/constants/app_palette.dart';
 import 'package:classipod/core/constants/assets.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
+import 'package:classipod/core/utils/metadata_artwork.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/search/model/search_model.dart';
 import 'package:flutter/cupertino.dart';
@@ -102,12 +101,9 @@ class SearchListTile extends StatelessWidget {
                     )
                   : Image(
                       image:
-                          (searchResult.searchResultType ==
-                                  SearchResultType.album &&
-                              imageFilePath != null)
-                          ? (searchResult.result as AlbumModel).isOnDevice()
-                                ? FileImage(File(imageFilePath))
-                                : NetworkImage(imageFilePath)
+                          searchResult.searchResultType ==
+                              SearchResultType.album
+                          ? metadataArtworkProvider(imageFilePath)
                           : const AssetImage(Assets.defaultAlbumCoverImage),
                       errorBuilder: (_, _, _) => Image.asset(
                         Assets.defaultAlbumCoverImage,

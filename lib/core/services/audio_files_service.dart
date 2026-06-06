@@ -309,10 +309,25 @@ class AudioFilesServiceNotifier
       discNumber: incoming.discNumber,
       trackDuration: incoming.trackDuration,
       filePath: incoming.filePath,
-      thumbnailPath: incoming.thumbnailPath,
+      thumbnailPath: _mergedAppleMusicThumbnailPath(existing, incoming),
       isOnDevice: false,
       lyrics: incoming.lyrics,
     );
+  }
+
+  String? _mergedAppleMusicThumbnailPath(
+    MusicMetadata existing,
+    MusicMetadata incoming,
+  ) {
+    final existingPath = existing.thumbnailPath;
+    if (existingPath != null && _isUserManagedArtworkPath(existingPath)) {
+      return existingPath;
+    }
+    return incoming.thumbnailPath ?? existing.thumbnailPath;
+  }
+
+  bool _isUserManagedArtworkPath(String path) {
+    return path.contains('/ClassiPod/artwork/');
   }
 
   Future<ImportLocalAudioResult> importLocalAudioFiles({

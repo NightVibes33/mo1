@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:classipod/core/constants/app_palette.dart';
 import 'package:classipod/core/constants/assets.dart';
+import 'package:classipod/core/utils/metadata_artwork.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:flutter/cupertino.dart';
@@ -46,11 +45,7 @@ class AlbumArtSongListTile extends StatelessWidget {
           child: Row(
             children: [
               Image(
-                image: (songMetadata.thumbnailPath != null)
-                    ? songMetadata.isOnDevice
-                          ? FileImage(File(songMetadata.thumbnailPath!))
-                          : NetworkImage(songMetadata.thumbnailPath!)
-                    : const AssetImage(Assets.defaultAlbumCoverImage),
+                image: metadataArtworkProvider(songMetadata.thumbnailPath),
                 errorBuilder: (_, _, _) => Image.asset(
                   Assets.defaultAlbumCoverImage,
                   fit: BoxFit.fitWidth,

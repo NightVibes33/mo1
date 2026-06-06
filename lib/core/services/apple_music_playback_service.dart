@@ -31,6 +31,10 @@ class AppleMusicPlaybackService {
     }
   }
 
+  Stream<Duration> playbackPositions() {
+    return playbackSnapshots().map((snapshot) => snapshot.position);
+  }
+
   Future<AppleMusicPlaybackSnapshot> playbackSnapshot() async {
     if (!isSupported) {
       return AppleMusicPlaybackSnapshot.unsupported();

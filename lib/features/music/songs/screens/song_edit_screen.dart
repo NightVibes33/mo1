@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:classipod/core/constants/assets.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
+import 'package:classipod/core/utils/metadata_artwork.dart';
 import 'package:classipod/core/services/music_metadata_lookup_service.dart';
 import 'package:classipod/features/music/songs/models/music_metadata_match.dart';
 import 'package:classipod/features/music/songs/widgets/lyrics_search_sheet.dart';
@@ -217,8 +218,10 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
     await artworkDirectory.create(recursive: true);
 
     final extension = _imageExtension(sourcePath);
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
     final destination = File(
-      '${artworkDirectory.path}/manual_${widget.songMetadata.originalSongIndex}_${DateTime.now().millisecondsSinceEpoch}.$extension',
+      '${artworkDirectory.path}/manual_'
+      '${widget.songMetadata.originalSongIndex}_$timestamp.$extension',
     );
     await File(sourcePath).copy(destination.path);
     if (!mounted) {
@@ -466,14 +469,7 @@ class _ArtworkPreview extends StatelessWidget {
   }
 
   ImageProvider<Object> _imageProvider() {
-    final path = thumbnailPath;
-    if (path == null || path.isEmpty) {
-      return const AssetImage(Assets.defaultAlbumCoverImage);
-    }
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return NetworkImage(path);
-    }
-    return FileImage(File(path));
+    return metadataArtworkProvider(thumbnailPath);
   }
 }
 

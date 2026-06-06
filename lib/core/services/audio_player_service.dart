@@ -519,7 +519,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
   Future<void> _refreshAppleMusicLyrics(MusicMetadata metadata) async {
     if (metadata.originalSongIndex < 0 ||
-        (metadata.lyrics?.trim().isNotEmpty ?? false)) {
+        _hasSyncedLyricTiming(metadata.lyrics)) {
       return;
     }
 
@@ -643,4 +643,16 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       await ref.read(audioPlayerProvider).seek(Duration(seconds: clampedTarget));
     });
   }
+}
+
+final _syncedLyricTimestampRegex = RegExp(
+  r'^\[\d{1,2}:\d{2}(?:[\.:]\d{1,3})?\]',
+  multiLine: true,
+);
+
+bool _hasSyncedLyricTiming(String? lyrics) {
+  final value = lyrics?.trim();
+  return value != null &&
+      value.isNotEmpty &&
+      _syncedLyricTimestampRegex.hasMatch(value);
 }

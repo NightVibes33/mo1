@@ -393,6 +393,7 @@ MusicMetadataMatch _itunesMatchFromJson(
     title: _string(json['trackName']),
     artist: _string(json['artistName']),
     album: _string(json['collectionName']),
+    albumArtist: _string(json['collectionArtistName']),
     genres: _listFromStrings([json['primaryGenreName']]),
     artworkUrl: _highResolutionArtworkUrl(_stringOrNull(json['artworkUrl100'])),
     releaseDate: _date(json['releaseDate']),
@@ -419,6 +420,7 @@ MusicMetadataMatch _deezerMatchFromJson(Map<String, dynamic> json) {
         : _string(json['title_short']),
     artist: artist is Map<String, dynamic> ? _string(artist['name']) : '',
     album: album is Map<String, dynamic> ? _string(album['title']) : '',
+    albumArtist: artist is Map<String, dynamic> ? _string(artist['name']) : '',
     artworkUrl: album is Map<String, dynamic>
         ? _stringOrNull(album['cover_xl']) ?? _stringOrNull(album['cover_big'])
         : null,
@@ -434,6 +436,7 @@ MusicMetadataMatch _appleMusicMatchFromJson(Map<String, dynamic> json) {
     title: _string(json['title']),
     artist: _string(json['artist']),
     album: _string(json['album']),
+    albumArtist: _string(json['albumArtist']),
     genres: _listFromStrings(json['genres']),
     artworkUrl: _stringOrNull(json['artworkUrl']),
     releaseDate: _date(json['releaseDate']),

@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:classipod/core/constants/assets.dart';
+import 'package:classipod/core/utils/metadata_artwork.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/widgets/empty_state_widget.dart';
 import 'package:classipod/core/widgets/liquid_glass.dart';
@@ -37,9 +37,7 @@ class _AnimatedAlbumArtScrollerState
     final previewAlbum = albumDetails.first;
     setState(() {
       _isEmptyState = false;
-      _albumArtImage = previewAlbum.isOnDevice()
-          ? FileImage(File(previewAlbum.albumArtPath!))
-          : NetworkImage(previewAlbum.albumArtPath!);
+      _albumArtImage = metadataArtworkProvider(previewAlbum.albumArtPath);
     });
   }
 

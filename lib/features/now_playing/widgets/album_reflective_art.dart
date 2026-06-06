@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:classipod/core/constants/app_palette.dart';
 import 'package:classipod/core/constants/assets.dart';
+import 'package:classipod/core/utils/metadata_artwork.dart';
 import 'package:flutter/cupertino.dart';
 
 class AlbumReflectiveArt extends StatefulWidget {
@@ -118,11 +118,7 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
           children: [
             Flexible(
               child: Image(
-                image: (widget.thumbnailPath != null)
-                    ? widget.isOnDevice
-                          ? FileImage(File(widget.thumbnailPath!))
-                          : NetworkImage(widget.thumbnailPath!)
-                    : const AssetImage(Assets.defaultAlbumCoverImage),
+                image: metadataArtworkProvider(widget.thumbnailPath),
                 errorBuilder: (_, _, _) => Image.asset(
                   Assets.defaultAlbumCoverImage,
                   height: widget.imageWidth,
@@ -147,11 +143,7 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
                   Transform.flip(
                     flipY: true,
                     child: Image(
-                      image: (widget.thumbnailPath != null)
-                          ? widget.isOnDevice
-                                ? FileImage(File(widget.thumbnailPath!))
-                                : NetworkImage(widget.thumbnailPath!)
-                          : const AssetImage(Assets.defaultAlbumCoverImage),
+                      image: metadataArtworkProvider(widget.thumbnailPath),
                       errorBuilder: (_, _, _) => Image.asset(
                         Assets.defaultAlbumCoverImage,
                         height: widget.reflectedImageHeight,

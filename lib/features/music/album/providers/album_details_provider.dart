@@ -22,7 +22,17 @@ final albumDetailsProvider = Provider<List<AlbumModel>>((ref) {
     else {
       final int existingIdx = albumDetails.indexWhere((e) => e == albumDetail);
       if (existingIdx != -1) {
-        albumDetails[existingIdx].albumSongs.add(metadataList[i]);
+        final existingAlbum = albumDetails[existingIdx];
+        existingAlbum.albumSongs.add(metadataList[i]);
+        final albumArtPath = _preferredAlbumArtPath(
+          existingAlbum.albumArtPath,
+          metadataList[i].thumbnailPath,
+        );
+        if (albumArtPath != existingAlbum.albumArtPath) {
+          albumDetails[existingIdx] = existingAlbum.copyWith(
+            albumArtPath: albumArtPath,
+          );
+        }
       }
     }
   }
@@ -43,3 +53,23 @@ final albumDetailsProvider = Provider<List<AlbumModel>>((ref) {
 
   return albumDetails;
 });
+
+String? _preferredAlbumArtPath(String? currentPath, String? candidatePath) {
+  final current = currentPath?.trim();
+  final candidate = candidatePath?.trim();
+  if (candidate == null || candidate.isEmpty) {
+    return currentPath;
+  }
+  if (current == null || current.isEmpty) {
+    return candidatePath;
+  }
+  if (_isUserManagedArtworkPath(candidate) &&
+      !_isUserManagedArtworkPath(current)) {
+    return candidatePath;
+  }
+  return currentPath;
+}
+
+bool _isUserManagedArtworkPath(String path) {
+  return path.contains('/ClassiPod/artwork/');
+}

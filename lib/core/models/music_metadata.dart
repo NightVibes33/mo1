@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:classipod/core/constants/constants.dart';
+import 'package:classipod/core/utils/metadata_artwork.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
@@ -551,7 +552,7 @@ class MusicMetadata extends HiveObject {
           duration: trackDuration != null
               ? Duration(milliseconds: trackDuration!)
               : null,
-          artUri: thumbnailPath == null ? null : Uri.file(thumbnailPath!),
+          artUri: metadataArtworkUri(thumbnailPath),
           rating: Rating.newStarRating(RatingStyle.range5stars, rating),
           extras: {"loadThumbnailUri": true},
         ),
@@ -568,9 +569,8 @@ class MusicMetadata extends HiveObject {
           duration: trackDuration != null
               ? Duration(milliseconds: trackDuration!)
               : null,
-          artUri: thumbnailPath == null
-              ? Uri.parse(Constants.defaultNotificationAlbumArtImageUrl)
-              : Uri.file(thumbnailPath!),
+          artUri: metadataArtworkUri(thumbnailPath) ??
+              Uri.parse(Constants.defaultNotificationAlbumArtImageUrl),
           rating: Rating.newStarRating(RatingStyle.range5stars, rating),
         ),
       );

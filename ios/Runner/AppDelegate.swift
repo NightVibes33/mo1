@@ -605,13 +605,13 @@ private enum AppleMusicLookupChannel {
     }
 
     do {
-      let cachesDirectory = try FileManager.default.url(
-        for: .cachesDirectory,
+      let documentsDirectory = try FileManager.default.url(
+        for: .documentDirectory,
         in: .userDomainMask,
         appropriateFor: nil,
         create: true
       )
-      let artworkDirectory = cachesDirectory.appendingPathComponent(
+      let artworkDirectory = documentsDirectory.appendingPathComponent(
         "ClassiPod/AppleMusicArtwork",
         isDirectory: true
       )

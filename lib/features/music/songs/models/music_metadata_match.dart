@@ -21,6 +21,7 @@ class MusicMetadataMatch {
   final String title;
   final String artist;
   final String album;
+  final String albumArtist;
   final List<String> genres;
   final String? artworkUrl;
   final DateTime? releaseDate;
@@ -38,6 +39,7 @@ class MusicMetadataMatch {
     required this.title,
     required this.artist,
     required this.album,
+    this.albumArtist = '',
     this.genres = const [],
     this.artworkUrl,
     this.releaseDate,
@@ -62,10 +64,15 @@ class MusicMetadataMatch {
     final cleanTitle = title.trim();
     final cleanArtist = artist.trim();
     final cleanAlbum = album.trim();
+    final cleanAlbumArtist = albumArtist.trim();
     return MusicMetadata(
       trackName: cleanTitle.isEmpty ? null : cleanTitle,
       trackArtistNames: cleanArtist.isEmpty ? null : [cleanArtist],
-      albumArtistName: cleanArtist.isEmpty ? null : cleanArtist,
+      albumArtistName: cleanAlbumArtist.isEmpty
+          ? cleanArtist.isEmpty
+              ? null
+              : cleanArtist
+          : cleanAlbumArtist,
       albumName: cleanAlbum.isEmpty ? null : cleanAlbum,
       genres: genres,
       thumbnailPath: artworkUrl,
@@ -84,7 +91,11 @@ class MusicMetadataMatch {
     return current.copyWith(
       trackName: title.trim().isEmpty ? null : title.trim(),
       trackArtistNames: artist.trim().isEmpty ? null : [artist.trim()],
-      albumArtistName: artist.trim().isEmpty ? null : artist.trim(),
+      albumArtistName: albumArtist.trim().isEmpty
+          ? artist.trim().isEmpty
+              ? null
+              : artist.trim()
+          : albumArtist.trim(),
       albumName: album.trim().isEmpty ? null : album.trim(),
       genres: genres.isEmpty ? null : genres,
       thumbnailPath: thumbnailPath,
