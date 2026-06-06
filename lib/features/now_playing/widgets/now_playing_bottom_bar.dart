@@ -24,7 +24,7 @@ class NowPlayingBottomBar extends ConsumerWidget {
     final isAppleMusic =
         nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ?? false;
     if (isAppleMusic) {
-      final snapshot = ref.watch(appleMusicPlaybackSnapshotProvider).valueOrNull;
+      final snapshot = ref.watch(appleMusicPlaybackSnapshotProvider).value;
       final fallbackDuration = _metadataDurationSeconds(
         nowPlayingDetails.currentMetadata?.trackDuration,
       );

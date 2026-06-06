@@ -316,7 +316,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
       ref.listen<AsyncValue<AppleMusicPlaybackSnapshot>>(
         appleMusicPlaybackSnapshotProvider,
         (_, snapshotState) {
-          final snapshot = snapshotState.valueOrNull;
+          final snapshot = snapshotState.value;
           if (snapshot == null || !snapshot.isSupported) {
             return;
           }
