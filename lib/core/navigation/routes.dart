@@ -13,6 +13,7 @@ import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/album/screens/album_more_options_modal.dart';
 import 'package:classipod/features/music/album/screens/album_selection_screen.dart';
 import 'package:classipod/features/music/album/screens/album_songs_screen.dart';
+import 'package:classipod/features/music/apple_music/screens/apple_music_search_screen.dart';
 import 'package:classipod/features/music/artists/screens/artist_albums_screen.dart';
 import 'package:classipod/features/music/artists/screens/artists_selection_screen.dart';
 import 'package:classipod/features/music/cover_flow/screens/cover_flow_album_selection_screen.dart';
@@ -52,6 +53,7 @@ enum Routes {
   nowPlaying,
   nowPlayingMoreOptions,
   musicMenu,
+  appleMusic,
   coverFlow,
   coverFlowSelection,
   artists,
@@ -102,6 +104,8 @@ enum Routes {
         return context.localization.nowPlayingScreenTitle;
       case musicMenu:
         return context.localization.musicMenuScreenTitle;
+      case appleMusic:
+        return 'Apple Music';
       case coverFlow:
         return context.localization.coverFlowScreenTitle;
       case coverFlowSelection:
@@ -305,6 +309,14 @@ final routerProvider = Provider(
                     pageBuilder: (context, state) =>
                         const CupertinoPage(child: MusicMenuScreen()),
                     routes: [
+                      GoRoute(
+                        path: Routes.appleMusic.name,
+                        name: Routes.appleMusic.name,
+                        parentNavigatorKey: rootNavigatorKey,
+                        pageBuilder: (context, state) => const CupertinoPage(
+                          child: AppleMusicSearchScreen(),
+                        ),
+                      ),
                       GoRoute(
                         path: Routes.coverFlow.name,
                         name: Routes.coverFlow.name,

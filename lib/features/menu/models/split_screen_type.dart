@@ -10,6 +10,8 @@ enum SplitScreenType {
   clickWheelSensitivity,
   touchScreen,
   repeat,
+  equalizer,
+  songSortOrder,
   vibrate,
   clickWheelSound,
   volumeMode,

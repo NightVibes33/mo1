@@ -21,6 +21,8 @@ enum _SettingsDisplayItems {
   about,
   shuffle,
   repeat,
+  equalizer,
+  songSortOrder,
   language,
   appTheme,
   deviceColor,
@@ -47,6 +49,10 @@ enum _SettingsDisplayItems {
         return context.localization.shuffleSettingTitle;
       case repeat:
         return context.localization.repeatModeSettingTitle;
+      case equalizer:
+        return 'EQ';
+      case songSortOrder:
+        return 'Sort By';
       case language:
         return context.localization.languageScreenTitle;
       case appTheme:
@@ -120,6 +126,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         await ref
             .read(settingsPreferencesControllerProvider.notifier)
             .toggleRepeatMode();
+        break;
+      case _SettingsDisplayItems.equalizer:
+        await ref
+            .read(settingsPreferencesControllerProvider.notifier)
+            .toggleEqualizerPreset();
+        break;
+      case _SettingsDisplayItems.songSortOrder:
+        await ref
+            .read(settingsPreferencesControllerProvider.notifier)
+            .toggleSongSortOrder();
         break;
       case _SettingsDisplayItems.appTheme:
         await ref
@@ -261,6 +277,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         return settingsState.appTheme.title(context);
       case _SettingsDisplayItems.repeat:
         return settingsState.repeatMode.title(context);
+      case _SettingsDisplayItems.equalizer:
+        return settingsState.equalizerPreset.title;
+      case _SettingsDisplayItems.songSortOrder:
+        return settingsState.songSortOrder.titleText;
       case _SettingsDisplayItems.volumeMode:
         return settingsState.volumeMode.title(context);
       default:
@@ -311,6 +331,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       case _SettingsDisplayItems.repeat:
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
             SplitScreenType.repeat;
+        break;
+      case _SettingsDisplayItems.equalizer:
+        ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
+            SplitScreenType.equalizer;
+        break;
+      case _SettingsDisplayItems.songSortOrder:
+        ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
+            SplitScreenType.songSortOrder;
         break;
       case _SettingsDisplayItems.vibrate:
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =

@@ -20,6 +20,9 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
   @override
   NowPlayingModel build() {
     ref.read(audioPlayerProvider).currentIndexStream.listen((newIndex) {
+      if (state.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
+        return;
+      }
       if (newIndex != null &&
           newIndex != state.currentIndex &&
           state.metadataList.isNotEmpty) {
@@ -31,6 +34,9 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
     });
 
     ref.read(audioPlayerProvider).playingStream.listen((isPlaying) {
+      if (state.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
+        return;
+      }
       if (isPlaying != state.isPlaying) {
         state = state.copyWith(isPlaying: isPlaying);
       }
@@ -64,6 +70,7 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
     NowPlayingType? nowPlayingType,
     required List<MusicMetadata> newMetadataList,
     int currentIndex = 0,
+    bool? isPlaying,
   }) {
     final safeIndex = newMetadataList.isEmpty
         ? 0
@@ -75,6 +82,24 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
           ? newMetadataList[safeIndex]
           : null,
       metadataList: newMetadataList,
+      isPlaying: isPlaying,
+    );
+  }
+
+  void setPlaybackState(bool isPlaying) {
+    state = state.copyWith(isPlaying: isPlaying);
+  }
+
+  void setCurrentIndex(int currentIndex) {
+    if (state.metadataList.isEmpty) {
+      return;
+    }
+    final safeIndex = currentIndex
+        .clamp(0, state.metadataList.length - 1)
+        .toInt();
+    state = state.copyWith(
+      currentIndex: safeIndex,
+      currentMetadata: state.metadataList[safeIndex],
     );
   }
 

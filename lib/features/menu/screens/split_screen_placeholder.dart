@@ -168,6 +168,18 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
           icon: CupertinoIcons.repeat,
           contentText: currentSettings.repeatMode.name,
         );
+      } else if (splitScreenType == SplitScreenType.equalizer) {
+        splitScreenWidget = IconPreviewWidget(
+          titleText: 'EQ',
+          icon: CupertinoIcons.slider_horizontal_3,
+          contentText: currentSettings.equalizerPreset.title,
+        );
+      } else if (splitScreenType == SplitScreenType.songSortOrder) {
+        splitScreenWidget = IconPreviewWidget(
+          titleText: 'Sort By',
+          icon: CupertinoIcons.sort_down,
+          contentText: currentSettings.songSortOrder.titleText,
+        );
       } else if (splitScreenType == SplitScreenType.vibrate) {
         splitScreenWidget = IconPreviewWidget(
           titleText: context.localization.vibrateSettingTitle,

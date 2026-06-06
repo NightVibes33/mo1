@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:classipod/core/constants/assets.dart';
@@ -9,17 +10,57 @@ import 'package:classipod/features/settings/controller/settings_preferences_cont
 import 'package:classipod/features/settings/models/device_color.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 
-class DeviceFrame extends ConsumerWidget {
+class DeviceFrame extends ConsumerStatefulWidget {
   final Widget child;
 
   const DeviceFrame({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DeviceFrame> createState() => _DeviceFrameState();
+}
+
+class _DeviceFrameState extends ConsumerState<DeviceFrame> {
+  static const Duration _doubleTapWindow = Duration(milliseconds: 360);
+  static const double _doubleTapDistance = 52;
+
+  bool _isZoomedOut = false;
+  DateTime? _lastFramePointerAt;
+  Offset? _lastFramePointerPosition;
+
+  void _handleFramePointerDown(PointerDownEvent event, Rect frameRect) {
+    if (!frameRect.contains(event.localPosition)) {
+      return;
+    }
+
+    final previousTime = _lastFramePointerAt;
+    final previousPosition = _lastFramePointerPosition;
+    final now = DateTime.now();
+    final isDoubleTap = previousTime != null &&
+        previousPosition != null &&
+        now.difference(previousTime) <= _doubleTapWindow &&
+        (event.localPosition - previousPosition).distance <= _doubleTapDistance;
+
+    if (isDoubleTap) {
+      _lastFramePointerAt = null;
+      _lastFramePointerPosition = null;
+      setState(() {
+        _isZoomedOut = !_isZoomedOut;
+      });
+      unawaited(HapticFeedback.selectionClick());
+      return;
+    }
+
+    _lastFramePointerAt = now;
+    _lastFramePointerPosition = event.localPosition;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final DeviceColor deviceColor = ref.watch(
       settingsPreferencesControllerProvider.select((e) => e.deviceColor),
     );
@@ -59,6 +100,22 @@ class DeviceFrame extends ConsumerWidget {
         }
         final bodyCornerRadius = (bodyWidth * 0.12).clamp(36.0, 58.0).toDouble();
         final bodyRadius = BorderRadius.circular(bodyCornerRadius);
+        final viewportHeight = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : bodyHeight;
+        final frameScale = _isZoomedOut
+            ? (viewportHeight / max(bodyHeight, 1.0))
+                  .clamp(0.72, 0.86)
+                  .toDouble()
+            : 1.0;
+        final visibleFrameWidth = bodyWidth * frameScale;
+        final visibleFrameHeight = min(viewportHeight, bodyHeight * frameScale);
+        final visibleFrameRect = Rect.fromLTWH(
+          (constraints.maxWidth - visibleFrameWidth) / 2,
+          0,
+          visibleFrameWidth,
+          visibleFrameHeight,
+        );
         final innerWidth = max(0.0, bodyWidth - 20);
         final contentHeight = max(
           0.0,
@@ -68,12 +125,16 @@ class DeviceFrame extends ConsumerWidget {
           contentHeight * 0.42,
           (innerWidth * 0.72).clamp(218.0, 316.0).toDouble(),
         );
+        final shellKey = ValueKey(
+          'native-shell-${deviceColor.name}-'
+          '${bodyWidth.round()}-${bodyHeight.round()}',
+        );
         final bodyContent = Column(
           children: [
             DeviceScreen(
               key: deviceScreenGlobalKey,
               height: screenHeight,
-              child: child,
+              child: widget.child,
             ),
             Expanded(
               child: Center(
@@ -85,55 +146,92 @@ class DeviceFrame extends ConsumerWidget {
           ],
         );
 
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            if (!useNativeShell) ...[
-              AnimatedAuroraBackdrop(
-                colors: [
-                  deviceColorStyle.frameGradientColors.first.withValues(alpha: 0.82),
-                  const Color(0xFFF5F5F0),
-                  const Color(0xFFC9CED7),
-                  deviceColorStyle.frameGradientColors.last.withValues(alpha: 0.78),
-                ],
-                intensity: deviceColorStyle.isDark ? 0.48 : 0.28,
-              ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: const AssetImage(Assets.noiseImage),
-                    fit: BoxFit.cover,
-                    opacity: deviceColorStyle.noiseOpacity * 0.3,
+        return Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (event) {
+            _handleFramePointerDown(event, visibleFrameRect);
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (!useNativeShell) ...[
+                AnimatedAuroraBackdrop(
+                  colors: [
+                    deviceColorStyle.frameGradientColors.first.withValues(
+                      alpha: 0.82,
+                    ),
+                    const Color(0xFFF5F5F0),
+                    const Color(0xFFC9CED7),
+                    deviceColorStyle.frameGradientColors.last.withValues(
+                      alpha: 0.78,
+                    ),
+                  ],
+                  intensity: deviceColorStyle.isDark ? 0.48 : 0.28,
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: const AssetImage(Assets.noiseImage),
+                      fit: BoxFit.cover,
+                      opacity: deviceColorStyle.noiseOpacity * 0.3,
+                    ),
                   ),
                 ),
-              ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: topContentInset + 56,
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          deviceColorStyle.frameGradientColors.first.withValues(
-                            alpha: deviceColorStyle.isDark ? 0.32 : 0.18,
-                          ),
-                          CupertinoColors.white.withValues(
-                            alpha: deviceColorStyle.isDark ? 0.08 : 0.42,
-                          ),
-                          CupertinoColors.white.withValues(alpha: 0),
-                        ],
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: topContentInset + 56,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            deviceColorStyle.frameGradientColors.first
+                                .withValues(
+                              alpha: deviceColorStyle.isDark ? 0.32 : 0.18,
+                            ),
+                            CupertinoColors.white.withValues(
+                              alpha: deviceColorStyle.isDark ? 0.08 : 0.42,
+                            ),
+                            CupertinoColors.white.withValues(alpha: 0),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
-            if (useNativeShell)
+              ],
+              if (useNativeShell)
+                Positioned(
+                  top: 0,
+                  bottom: -bottomBleed,
+                  left: -horizontalBleed,
+                  right: -horizontalBleed,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: _AnimatedFrameZoom(
+                      scale: frameScale,
+                      child: SizedBox(
+                        width: bodyWidth,
+                        height: bodyHeight,
+                        child: _NativeDeviceShellView(
+                          key: shellKey,
+                          frameStartColor:
+                              deviceColorStyle.frameGradientColors.first,
+                          frameEndColor:
+                              deviceColorStyle.frameGradientColors.last,
+                          isDark: deviceColorStyle.isDark,
+                          topContentInset: topContentInset,
+                          bottomContentInset: bottomContentInset,
+                          bodyRadius: bodyCornerRadius,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
                 top: 0,
                 bottom: -bottomBleed,
@@ -141,123 +239,133 @@ class DeviceFrame extends ConsumerWidget {
                 right: -horizontalBleed,
                 child: Align(
                   alignment: Alignment.topCenter,
-                  child: SizedBox(
-                    width: bodyWidth,
-                    height: bodyHeight,
-                    child: _NativeDeviceShellView(
-                      key: ValueKey(
-                        'native-shell-${deviceColor.name}-${bodyWidth.round()}-${bodyHeight.round()}',
+                  child: _AnimatedFrameZoom(
+                    scale: frameScale,
+                    child: SizedBox(
+                      width: bodyWidth,
+                      height: bodyHeight,
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween<double>(begin: 0, end: 1),
+                        duration: const Duration(milliseconds: 520),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, child) {
+                          return Opacity(
+                            opacity: value,
+                            child: Transform.scale(
+                              scale: 0.985 + value * 0.015,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: useNativeShell
+                            ? Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  10,
+                                  topContentInset,
+                                  10,
+                                  bottomContentInset,
+                                ),
+                                child: bodyContent,
+                              )
+                            : LiquidGlass(
+                                borderRadius: bodyRadius,
+                                blur: 22,
+                                opacity:
+                                    deviceColorStyle.isDark ? 0.42 : 0.58,
+                                borderColor: CupertinoColors.white.withValues(
+                                  alpha: 0.5,
+                                ),
+                                gradientColors: glassColors,
+                                padding: EdgeInsets.fromLTRB(
+                                  10,
+                                  topContentInset,
+                                  10,
+                                  bottomContentInset,
+                                ),
+                                shadows: [
+                                  BoxShadow(
+                                    color: CupertinoColors.black.withValues(
+                                      alpha: 0.28,
+                                    ),
+                                    blurRadius: 32,
+                                    offset: const Offset(0, 20),
+                                  ),
+                                ],
+                                child: Stack(
+                                  children: [
+                                    Positioned.fill(
+                                      child: LiquidReflectionOverlay(
+                                        borderRadius: bodyRadius,
+                                        opacity: deviceColorStyle.isDark
+                                            ? 0.54
+                                            : 0.7,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      height: topContentInset + 22,
+                                      child: IgnorePointer(
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.vertical(
+                                              top: bodyRadius.topLeft,
+                                            ),
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                              colors: [
+                                                CupertinoColors.white
+                                                    .withValues(
+                                                  alpha: deviceColorStyle.isDark
+                                                      ? 0.08
+                                                      : 0.42,
+                                                ),
+                                                deviceColorStyle
+                                                    .frameGradientColors
+                                                    .first
+                                                    .withValues(alpha: 0.16),
+                                                CupertinoColors.white
+                                                    .withValues(alpha: 0),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    bodyContent,
+                                  ],
+                                ),
+                              ),
                       ),
-                      frameStartColor: deviceColorStyle.frameGradientColors.first,
-                      frameEndColor: deviceColorStyle.frameGradientColors.last,
-                      isDark: deviceColorStyle.isDark,
-                      topContentInset: topContentInset,
-                      bottomContentInset: bottomContentInset,
-                      bodyRadius: bodyCornerRadius,
                     ),
                   ),
                 ),
               ),
-            Positioned(
-              top: 0,
-              bottom: -bottomBleed,
-              left: -horizontalBleed,
-              right: -horizontalBleed,
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  width: bodyWidth,
-                  height: bodyHeight,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween<double>(begin: 0, end: 1),
-                    duration: const Duration(milliseconds: 520),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, value, child) {
-                      return Opacity(
-                        opacity: value,
-                        child: Transform.scale(
-                          scale: 0.985 + value * 0.015,
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: useNativeShell
-                        ? Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              10,
-                              topContentInset,
-                              10,
-                              bottomContentInset,
-                            ),
-                            child: bodyContent,
-                          )
-                        : LiquidGlass(
-                            borderRadius: bodyRadius,
-                            blur: 22,
-                            opacity: deviceColorStyle.isDark ? 0.42 : 0.58,
-                            borderColor: CupertinoColors.white.withValues(alpha: 0.5),
-                            gradientColors: glassColors,
-                            padding: EdgeInsets.fromLTRB(
-                              10,
-                              topContentInset,
-                              10,
-                              bottomContentInset,
-                            ),
-                            shadows: [
-                              BoxShadow(
-                                color: CupertinoColors.black.withValues(alpha: 0.28),
-                                blurRadius: 32,
-                                offset: const Offset(0, 20),
-                              ),
-                            ],
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: LiquidReflectionOverlay(
-                                    borderRadius: bodyRadius,
-                                    opacity: deviceColorStyle.isDark ? 0.54 : 0.7,
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  height: topContentInset + 22,
-                                  child: IgnorePointer(
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.vertical(
-                                          top: bodyRadius.topLeft,
-                                        ),
-                                        gradient: LinearGradient(
-                                          begin: Alignment.topCenter,
-                                          end: Alignment.bottomCenter,
-                                          colors: [
-                                            CupertinoColors.white.withValues(
-                                              alpha: deviceColorStyle.isDark
-                                                  ? 0.08
-                                                  : 0.42,
-                                            ),
-                                            deviceColorStyle.frameGradientColors.first
-                                                .withValues(alpha: 0.16),
-                                            CupertinoColors.white.withValues(alpha: 0),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                bodyContent,
-                              ],
-                            ),
-                          ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         );
       },
+    );
+  }
+}
+
+class _AnimatedFrameZoom extends StatelessWidget {
+  final double scale;
+  final Widget child;
+
+  const _AnimatedFrameZoom({required this.scale, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      scale: scale,
+      alignment: Alignment.topCenter,
+      duration: const Duration(milliseconds: 360),
+      curve: Curves.easeOutCubic,
+      child: child,
     );
   }
 }

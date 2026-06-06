@@ -3,9 +3,100 @@ import 'dart:io';
 
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/features/music/songs/models/music_metadata_match.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+
+
+enum AppleMusicAuthorizationStatus {
+  unsupported,
+  notDetermined,
+  denied,
+  restricted,
+  authorized,
+  unknown;
+
+  bool get canSearchCatalog {
+    switch (this) {
+      case AppleMusicAuthorizationStatus.authorized:
+        return true;
+      case AppleMusicAuthorizationStatus.unsupported:
+      case AppleMusicAuthorizationStatus.notDetermined:
+      case AppleMusicAuthorizationStatus.denied:
+      case AppleMusicAuthorizationStatus.restricted:
+      case AppleMusicAuthorizationStatus.unknown:
+        return false;
+    }
+  }
+
+  String get message {
+    switch (this) {
+      case AppleMusicAuthorizationStatus.unsupported:
+        return 'Apple Music catalog search is only available on iOS.';
+      case AppleMusicAuthorizationStatus.notDetermined:
+        return 'Apple Music access has not been requested yet.';
+      case AppleMusicAuthorizationStatus.denied:
+        return 'Apple Music access was denied.';
+      case AppleMusicAuthorizationStatus.restricted:
+        return 'Apple Music access is restricted on this device.';
+      case AppleMusicAuthorizationStatus.authorized:
+        return 'Apple Music access is authorized.';
+      case AppleMusicAuthorizationStatus.unknown:
+        return 'Apple Music authorization status is unknown.';
+    }
+  }
+
+  static AppleMusicAuthorizationStatus fromName(String? name) {
+    return AppleMusicAuthorizationStatus.values.firstWhere(
+      (status) => status.name == name,
+      orElse: () => AppleMusicAuthorizationStatus.unknown,
+    );
+  }
+}
+
+
+class AppleMusicSubscriptionStatus {
+  final bool isSupported;
+  final bool canPlayCatalogContent;
+  final bool canBecomeSubscriber;
+  final bool hasCloudLibraryEnabled;
+
+  const AppleMusicSubscriptionStatus({
+    required this.isSupported,
+    required this.canPlayCatalogContent,
+    required this.canBecomeSubscriber,
+    required this.hasCloudLibraryEnabled,
+  });
+
+  const AppleMusicSubscriptionStatus.unsupported()
+    : isSupported = false,
+      canPlayCatalogContent = false,
+      canBecomeSubscriber = false,
+      hasCloudLibraryEnabled = false;
+
+  factory AppleMusicSubscriptionStatus.fromMap(Map<String, dynamic>? map) {
+    if (map == null) {
+      return const AppleMusicSubscriptionStatus.unsupported();
+    }
+    return AppleMusicSubscriptionStatus(
+      isSupported: _bool(map['isSupported']),
+      canPlayCatalogContent: _bool(map['canPlayCatalogContent']),
+      canBecomeSubscriber: _bool(map['canBecomeSubscriber']),
+      hasCloudLibraryEnabled: _bool(map['hasCloudLibraryEnabled']),
+    );
+  }
+
+  String get playbackMessage {
+    if (!isSupported) {
+      return 'Apple Music subscription playback is only available on iOS.';
+    }
+    if (!canPlayCatalogContent) {
+      return 'Apple Music subscription playback is unavailable.';
+    }
+    return 'Apple Music subscription playback is available.';
+  }
+}
 
 final musicMetadataLookupServiceProvider = Provider<MusicMetadataLookupService>(
   (ref) => MusicMetadataLookupService(),
@@ -16,6 +107,32 @@ class MusicMetadataLookupService {
 
   MusicMetadataLookupService({AppleMusicCatalogBridge? appleMusicBridge})
     : _appleMusicBridge = appleMusicBridge ?? AppleMusicCatalogBridge();
+
+  Future<AppleMusicAuthorizationStatus> appleMusicAuthorizationStatus() {
+    return _appleMusicBridge.authorizationStatus();
+  }
+
+  Future<AppleMusicAuthorizationStatus> requestAppleMusicAuthorization() {
+    return _appleMusicBridge.requestAuthorization();
+  }
+
+
+  Future<AppleMusicSubscriptionStatus> appleMusicSubscriptionStatus() {
+    return _appleMusicBridge.subscriptionStatus();
+  }
+
+  Future<List<MusicMetadataMatch>> appleMusicLibrarySongs({
+    int limit = 100,
+  }) async {
+    if (!_appleMusicBridge.isSupported) {
+      return [];
+    }
+    final status = await _appleMusicBridge.requestAuthorization();
+    if (!status.canSearchCatalog) {
+      return [];
+    }
+    return _appleMusicBridge.librarySongs(limit: limit);
+  }
 
   Future<List<MusicMetadataMatch>> search({
     required MusicMetadataSource source,
@@ -34,6 +151,12 @@ class MusicMetadataLookupService {
       case MusicMetadataSource.deezer:
         return _searchDeezer(cleanQuery, limit);
       case MusicMetadataSource.appleMusic:
+        if (_appleMusicBridge.isSupported) {
+          final status = await _appleMusicBridge.requestAuthorization();
+          if (!status.canSearchCatalog) {
+            return [];
+          }
+        }
         final nativeMatches = await _appleMusicBridge.searchSongs(
           query: cleanQuery,
           limit: limit,
@@ -151,12 +274,63 @@ class MusicMetadataLookupService {
 class AppleMusicCatalogBridge {
   static const MethodChannel _channel = MethodChannel('mo1/apple_music');
 
+  bool get isSupported => !kIsWeb && Platform.isIOS;
+
+  Future<AppleMusicAuthorizationStatus> authorizationStatus() async {
+    if (!isSupported) {
+      return AppleMusicAuthorizationStatus.unsupported;
+    }
+    try {
+      final status = await _channel.invokeMethod<String>(
+        'authorizationStatus',
+      );
+      return AppleMusicAuthorizationStatus.fromName(status);
+    } on PlatformException {
+      return AppleMusicAuthorizationStatus.unknown;
+    } on MissingPluginException {
+      return AppleMusicAuthorizationStatus.unsupported;
+    }
+  }
+
+  Future<AppleMusicAuthorizationStatus> requestAuthorization() async {
+    if (!isSupported) {
+      return AppleMusicAuthorizationStatus.unsupported;
+    }
+    try {
+      final status = await _channel.invokeMethod<String>(
+        'requestAuthorization',
+      );
+      return AppleMusicAuthorizationStatus.fromName(status);
+    } on PlatformException {
+      return AppleMusicAuthorizationStatus.unknown;
+    } on MissingPluginException {
+      return AppleMusicAuthorizationStatus.unsupported;
+    }
+  }
+
+
+  Future<AppleMusicSubscriptionStatus> subscriptionStatus() async {
+    if (!isSupported) {
+      return const AppleMusicSubscriptionStatus.unsupported();
+    }
+    try {
+      final status = await _channel.invokeMapMethod<String, dynamic>(
+        'subscriptionStatus',
+      );
+      return AppleMusicSubscriptionStatus.fromMap(status);
+    } on PlatformException {
+      return const AppleMusicSubscriptionStatus.unsupported();
+    } on MissingPluginException {
+      return const AppleMusicSubscriptionStatus.unsupported();
+    }
+  }
+
   Future<List<MusicMetadataMatch>> searchSongs({
     required String query,
     int limit = 10,
     String storefront = 'US',
   }) async {
-    if (!Platform.isIOS) {
+    if (!isSupported) {
       return [];
     }
 
@@ -168,6 +342,30 @@ class AppleMusicCatalogBridge {
           'limit': limit.clamp(1, 25),
           'storefront': storefront.trim().isEmpty ? 'US' : storefront.trim(),
         },
+      );
+      return (rawResults ?? [])
+          .whereType<Map<dynamic, dynamic>>()
+          .map((map) => Map<String, dynamic>.from(map))
+          .map(_appleMusicMatchFromJson)
+          .where((match) => match.title.isNotEmpty || match.artist.isNotEmpty)
+          .toList(growable: false);
+    } on PlatformException {
+      return [];
+    } on MissingPluginException {
+      return [];
+    }
+  }
+
+
+  Future<List<MusicMetadataMatch>> librarySongs({int limit = 100}) async {
+    if (!isSupported) {
+      return [];
+    }
+
+    try {
+      final rawResults = await _channel.invokeMethod<List<dynamic>>(
+        'librarySongs',
+        {'limit': limit.clamp(1, 250)},
       );
       return (rawResults ?? [])
           .whereType<Map<dynamic, dynamic>>()
@@ -203,6 +401,7 @@ MusicMetadataMatch _itunesMatchFromJson(
     discNumber: _integer(json['discNumber']),
     durationMs: _integer(json['trackTimeMillis']),
     previewUrl: _stringOrNull(json['previewUrl']),
+    catalogUrl: _stringOrNull(json['trackViewUrl']),
     isrc: _stringOrNull(json['isrc']),
   );
 }
@@ -242,6 +441,7 @@ MusicMetadataMatch _appleMusicMatchFromJson(Map<String, dynamic> json) {
     discNumber: _integer(json['discNumber']),
     durationMs: _integer(json['durationMs']),
     previewUrl: _stringOrNull(json['previewUrl']),
+    catalogUrl: _stringOrNull(json['catalogUrl']),
     isrc: _stringOrNull(json['isrc']),
   );
 }
@@ -300,6 +500,21 @@ int? _integer(dynamic value) {
     return int.tryParse(value);
   }
   return null;
+}
+
+
+bool _bool(dynamic value) {
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    return value != 0;
+  }
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    return normalized == 'true' || normalized == '1' || normalized == 'yes';
+  }
+  return false;
 }
 
 DateTime? _date(dynamic value) {

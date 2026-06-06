@@ -8,6 +8,7 @@ import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/search/model/search_model.dart';
 import 'package:classipod/features/music/search/provider/search_provider.dart';
 import 'package:classipod/features/music/search/widgets/search_list_tile.dart';
+import 'package:classipod/features/music/songs/provider/songs_provider.dart';
 import 'package:classipod/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,10 +47,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
       final searchResult = displayItems[selectedDisplayItem - 1];
       if (searchResult.searchResultType == SearchResultType.track) {
         final metadata = searchResult.result as MusicMetadata;
-        await ref
+        final songs = ref.read(songsProvider);
+        final songIndex = songs.indexWhere(
+          (song) => song.filePath == metadata.filePath,
+        );
+        final didStart = await ref
             .read(audioPlayerServiceProvider.notifier)
-            .playSongFromOriginalList(metadata.originalSongIndex);
-        if (mounted) {
+            .playMetadataListAtIndex(
+              metadataList: songs,
+              index: songIndex,
+            );
+        if (didStart && mounted) {
           await context.pushNamed(Routes.nowPlaying.name);
         }
       } else if (searchResult.searchResultType == SearchResultType.artist) {

@@ -237,6 +237,8 @@ class _MetadataFallback {
 }
 
 class MusicMetadata extends HiveObject {
+  static const appleMusicCatalogPathPrefix = 'applemusic://song/';
+
   /// Name of the track.
   final String? trackName;
 
@@ -478,6 +480,19 @@ class MusicMetadata extends HiveObject {
       rating: rating ?? this.rating,
       lyrics: lyrics ?? this.lyrics,
     );
+  }
+
+  bool get isAppleMusicCatalogTrack {
+    return filePath?.startsWith(appleMusicCatalogPathPrefix) ?? false;
+  }
+
+  String? get appleMusicCatalogId {
+    final path = filePath;
+    if (path == null || !path.startsWith(appleMusicCatalogPathPrefix)) {
+      return null;
+    }
+    final catalogId = path.substring(appleMusicCatalogPathPrefix.length);
+    return catalogId.isEmpty ? null : catalogId;
   }
 
   MusicMetadata withFilenameFallbacks() {

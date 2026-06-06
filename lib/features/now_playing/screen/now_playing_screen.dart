@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/extensions/go_router_extensions.dart';
 import 'package:classipod/core/navigation/routes.dart';
+import 'package:classipod/core/services/apple_music_playback_service.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/core/widgets/empty_state_widget.dart';
 import 'package:classipod/features/device/models/device_action.dart';
@@ -300,6 +301,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         seekBackwardLongPress();
         break;
       case DeviceAction.playPause:
+        await ref.read(audioPlayerServiceProvider.notifier).togglePlayback();
         break;
       case DeviceAction.longPressEnd:
         onLongPressEnd();
@@ -310,6 +312,37 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   @override
   Widget build(BuildContext context) {
     final nowPlayingDetails = ref.watch(nowPlayingDetailsProvider);
+    if (nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
+      ref.listen<AsyncValue<AppleMusicPlaybackSnapshot>>(
+        appleMusicPlaybackSnapshotProvider,
+        (_, snapshotState) {
+          final snapshot = snapshotState.valueOrNull;
+          if (snapshot == null || !snapshot.isSupported) {
+            return;
+          }
+          final details = ref.read(nowPlayingDetailsProvider);
+          if (!(details.currentMetadata?.isAppleMusicCatalogTrack ?? false)) {
+            return;
+          }
+          final catalogId = snapshot.catalogId;
+          if (catalogId != null) {
+            final currentIndex = details.metadataList.indexWhere(
+              (metadata) => metadata.appleMusicCatalogId == catalogId,
+            );
+            if (currentIndex != -1 && currentIndex != details.currentIndex) {
+              ref
+                  .read(nowPlayingDetailsProvider.notifier)
+                  .setCurrentIndex(currentIndex);
+            }
+          }
+          if (details.isPlaying != snapshot.isPlaying) {
+            ref
+                .read(nowPlayingDetailsProvider.notifier)
+                .setPlaybackState(snapshot.isPlaying);
+          }
+        },
+      );
+    }
     final String? lyrics = nowPlayingDetails.currentMetadata?.lyrics;
     final bool hasLyrics = lyrics != null && lyrics.trim().isNotEmpty;
     final int? currentLyricsSongIndex =

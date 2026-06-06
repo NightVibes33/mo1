@@ -29,6 +29,7 @@ class MusicMetadataMatch {
   final int? discNumber;
   final int? durationMs;
   final String? previewUrl;
+  final String? catalogUrl;
   final String? isrc;
 
   const MusicMetadataMatch({
@@ -45,6 +46,7 @@ class MusicMetadataMatch {
     this.discNumber,
     this.durationMs,
     this.previewUrl,
+    this.catalogUrl,
     this.isrc,
   });
 
@@ -54,6 +56,28 @@ class MusicMetadataMatch {
         .where((value) => value.isNotEmpty)
         .toList(growable: false);
     return values.join(' - ');
+  }
+
+  MusicMetadata toAppleMusicMetadata({required int originalSongIndex}) {
+    final cleanTitle = title.trim();
+    final cleanArtist = artist.trim();
+    final cleanAlbum = album.trim();
+    return MusicMetadata(
+      trackName: cleanTitle.isEmpty ? null : cleanTitle,
+      trackArtistNames: cleanArtist.isEmpty ? null : [cleanArtist],
+      albumArtistName: cleanArtist.isEmpty ? null : cleanArtist,
+      albumName: cleanAlbum.isEmpty ? null : cleanAlbum,
+      genres: genres,
+      thumbnailPath: artworkUrl,
+      trackNumber: trackNumber,
+      albumLength: trackCount,
+      discNumber: discNumber,
+      year: releaseDate?.year,
+      trackDuration: durationMs,
+      filePath: '${MusicMetadata.appleMusicCatalogPathPrefix}$id',
+      originalSongIndex: originalSongIndex,
+      isOnDevice: false,
+    );
   }
 
   MusicMetadata applyTo(MusicMetadata current, {String? thumbnailPath}) {

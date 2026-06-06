@@ -1,5 +1,6 @@
 import AVFoundation
 import Flutter
+import MediaPlayer
 import MusicKit
 import SwiftUI
 import UIKit
@@ -24,6 +25,7 @@ import UIKit
     GeneratedPluginRegistrant.register(with: self)
     if let controller = window?.rootViewController as? FlutterViewController {
       AppleMusicLookupChannel.register(with: controller.binaryMessenger)
+      EqualizerChannel.register(with: controller.binaryMessenger)
     }
     if let registrar = registrar(forPlugin: "ClassiPodNativeVisuals") {
       registrar.register(
@@ -39,6 +41,40 @@ import UIKit
   }
 }
 
+private enum EqualizerChannel {
+  static func register(with messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "mo1/equalizer",
+      binaryMessenger: messenger
+    )
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "setPreset" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+
+      let arguments = call.arguments as? [String: Any] ?? [:]
+      let presetName = arguments["presetName"] as? String ?? "off"
+
+      if presetName == "off" || presetName == "flat" {
+        result([
+          "isApplied": true,
+          "backend": "neutral",
+          "message": "Neutral equalizer curve selected."
+        ])
+        return
+      }
+
+      result([
+        "isApplied": false,
+        "backend": "just_audio_avplayer",
+        "message": "The current iOS playback backend uses just_audio/AVPlayer; " +
+          "audible EQ requires an AVAudioEngine-backed player."
+      ])
+    }
+  }
+}
+
 private enum AppleMusicLookupChannel {
   static func register(with messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
@@ -46,46 +82,336 @@ private enum AppleMusicLookupChannel {
       binaryMessenger: messenger
     )
     channel.setMethodCallHandler { call, result in
-      guard call.method == "searchSongs" else {
-        result(FlutterMethodNotImplemented)
-        return
-      }
-
       guard #available(iOS 15.0, *) else {
-        result([])
+        if call.method == "authorizationStatus" || call.method == "requestAuthorization" {
+          result("unsupported")
+        } else if call.method == "subscriptionStatus" {
+          result([
+            "isSupported": false,
+            "canPlayCatalogContent": false,
+            "canBecomeSubscriber": false,
+            "hasCloudLibraryEnabled": false
+          ])
+        } else if call.method == "searchSongs" || call.method == "librarySongs" {
+          result([])
+        } else if call.method == "playbackSnapshot" {
+          result([
+            "isSupported": false,
+            "positionSeconds": 0,
+            "durationSeconds": 0,
+            "isPlaying": false,
+            "playbackState": "unsupported"
+          ])
+        } else if call.method == "playCatalogSong" ||
+                    call.method == "playCatalogQueue" ||
+                    call.method == "pausePlayback" ||
+                    call.method == "resumePlayback" ||
+                    call.method == "seekToSeconds" {
+          result(false)
+        } else {
+          result(FlutterMethodNotImplemented)
+        }
         return
       }
 
-      guard let arguments = call.arguments as? [String: Any],
-            let query = arguments["query"] as? String else {
-        result(FlutterError(
-          code: "APPLE_MUSIC_BAD_ARGUMENTS",
-          message: "Missing Apple Music search query.",
-          details: nil
-        ))
-        return
-      }
-
-      let limit = arguments["limit"] as? Int ?? 10
-      Task {
-        do {
-          let matches = try await searchSongs(
-            query: query,
-            limit: max(1, min(limit, 25))
-          )
+      switch call.method {
+      case "authorizationStatus":
+        result(authorizationStatusName(MusicAuthorization.currentStatus))
+      case "requestAuthorization":
+        Task {
+          let status = await MusicAuthorization.request()
           await MainActor.run {
-            result(matches)
-          }
-        } catch {
-          await MainActor.run {
-            result(FlutterError(
-              code: "APPLE_MUSIC_SEARCH_FAILED",
-              message: error.localizedDescription,
-              details: nil
-            ))
+            result(authorizationStatusName(status))
           }
         }
+      case "subscriptionStatus":
+        Task {
+          do {
+            let status = try await subscriptionStatus()
+            await MainActor.run {
+              result(status)
+            }
+          } catch {
+            await MainActor.run {
+              result(FlutterError(
+                code: "APPLE_MUSIC_SUBSCRIPTION_FAILED",
+                message: error.localizedDescription,
+                details: nil
+              ))
+            }
+          }
+        }
+      case "playCatalogSong":
+        guard let arguments = call.arguments as? [String: Any],
+              let catalogId = arguments["catalogId"] as? String,
+              !catalogId.isEmpty else {
+          result(FlutterError(
+            code: "APPLE_MUSIC_BAD_ARGUMENTS",
+            message: "Missing Apple Music catalog song id.",
+            details: nil
+          ))
+          return
+        }
+
+        authorizeAppleMusicThen(result: result) {
+          playCatalogQueue(
+            catalogIds: [catalogId],
+            startCatalogId: catalogId,
+            result: result
+          )
+        }
+      case "playCatalogQueue":
+        guard let arguments = call.arguments as? [String: Any],
+              let rawCatalogIds = arguments["catalogIds"] as? [String],
+              let startCatalogId = arguments["startCatalogId"] as? String,
+              !rawCatalogIds.isEmpty,
+              !startCatalogId.isEmpty else {
+          result(FlutterError(
+            code: "APPLE_MUSIC_BAD_ARGUMENTS",
+            message: "Missing Apple Music catalog queue.",
+            details: nil
+          ))
+          return
+        }
+
+        authorizeAppleMusicThen(result: result) {
+          playCatalogQueue(
+            catalogIds: rawCatalogIds,
+            startCatalogId: startCatalogId,
+            result: result
+          )
+        }
+      case "pausePlayback":
+        MPMusicPlayerController.applicationQueuePlayer.pause()
+        result(true)
+      case "resumePlayback":
+        let player = MPMusicPlayerController.applicationQueuePlayer
+        guard player.nowPlayingItem != nil else {
+          result(false)
+          return
+        }
+        player.play()
+        result(true)
+      case "seekToSeconds":
+        guard let arguments = call.arguments as? [String: Any],
+              let seconds = arguments["seconds"] as? Double else {
+          result(FlutterError(
+            code: "APPLE_MUSIC_BAD_ARGUMENTS",
+            message: "Missing Apple Music seek target.",
+            details: nil
+          ))
+          return
+        }
+        result(seekToSeconds(seconds))
+      case "playbackSnapshot":
+        result(playbackSnapshot())
+      case "librarySongs":
+        let arguments = call.arguments as? [String: Any] ?? [:]
+        let limit = arguments["limit"] as? Int ?? 100
+        Task {
+          do {
+            let matches = try await librarySongs(
+              limit: max(1, min(limit, 250))
+            )
+            await MainActor.run {
+              result(matches)
+            }
+          } catch {
+            await MainActor.run {
+              result(FlutterError(
+                code: "APPLE_MUSIC_LIBRARY_FAILED",
+                message: error.localizedDescription,
+                details: nil
+              ))
+            }
+          }
+        }
+      case "searchSongs":
+        guard let arguments = call.arguments as? [String: Any],
+              let query = arguments["query"] as? String else {
+          result(FlutterError(
+            code: "APPLE_MUSIC_BAD_ARGUMENTS",
+            message: "Missing Apple Music search query.",
+            details: nil
+          ))
+          return
+        }
+
+        let limit = arguments["limit"] as? Int ?? 10
+        Task {
+          do {
+            let matches = try await searchSongs(
+              query: query,
+              limit: max(1, min(limit, 25))
+            )
+            await MainActor.run {
+              result(matches)
+            }
+          } catch {
+            await MainActor.run {
+              result(FlutterError(
+                code: "APPLE_MUSIC_SEARCH_FAILED",
+                message: error.localizedDescription,
+                details: nil
+              ))
+            }
+          }
+        }
+      default:
+        result(FlutterMethodNotImplemented)
       }
+    }
+  }
+
+  @available(iOS 15.0, *)
+  private static func authorizationStatusName(
+    _ status: MusicAuthorization.Status
+  ) -> String {
+    switch status {
+    case .notDetermined:
+      return "notDetermined"
+    case .denied:
+      return "denied"
+    case .restricted:
+      return "restricted"
+    case .authorized:
+      return "authorized"
+    @unknown default:
+      return "unknown"
+    }
+  }
+
+  @available(iOS 15.0, *)
+  private static func authorizeAppleMusicThen(
+    result: @escaping FlutterResult,
+    action: @escaping () -> Void
+  ) {
+    Task {
+      let status = await MusicAuthorization.request()
+      guard status == .authorized else {
+        await MainActor.run {
+          result(FlutterError(
+            code: "APPLE_MUSIC_NOT_AUTHORIZED",
+            message: authorizationStatusName(status),
+            details: nil
+          ))
+        }
+        return
+      }
+      await MainActor.run {
+        action()
+      }
+    }
+  }
+
+  @available(iOS 15.0, *)
+  private static func subscriptionStatus() async throws -> [String: Any] {
+    let subscription = try await MusicSubscription.current
+    return [
+      "isSupported": true,
+      "canPlayCatalogContent": subscription.canPlayCatalogContent,
+      "canBecomeSubscriber": subscription.canBecomeSubscriber,
+      "hasCloudLibraryEnabled": subscription.hasCloudLibraryEnabled
+    ]
+  }
+
+  private static func playCatalogQueue(
+    catalogIds: [String],
+    startCatalogId: String,
+    result: @escaping FlutterResult
+  ) {
+    var seenCatalogIds = Set<String>()
+    var cleanCatalogIds: [String] = []
+    for catalogId in catalogIds {
+      let cleanCatalogId = catalogId.trimmingCharacters(in: .whitespacesAndNewlines)
+      if cleanCatalogId.isEmpty || seenCatalogIds.contains(cleanCatalogId) {
+        continue
+      }
+      seenCatalogIds.insert(cleanCatalogId)
+      cleanCatalogIds.append(cleanCatalogId)
+    }
+    let cleanStartCatalogId = startCatalogId.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !cleanStartCatalogId.isEmpty && !seenCatalogIds.contains(cleanStartCatalogId) {
+      cleanCatalogIds.insert(cleanStartCatalogId, at: 0)
+    }
+    guard !cleanCatalogIds.isEmpty, !cleanStartCatalogId.isEmpty else {
+      result(FlutterError(
+        code: "APPLE_MUSIC_BAD_ARGUMENTS",
+        message: "Apple Music catalog queue is empty.",
+        details: nil
+      ))
+      return
+    }
+
+    let player = MPMusicPlayerController.applicationQueuePlayer
+    let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: cleanCatalogIds)
+    descriptor.startItemID = cleanStartCatalogId
+    player.setQueue(with: descriptor)
+    player.prepareToPlay { error in
+      DispatchQueue.main.async {
+        if let error = error {
+          result(FlutterError(
+            code: "APPLE_MUSIC_PLAYBACK_FAILED",
+            message: error.localizedDescription,
+            details: nil
+          ))
+          return
+        }
+        player.play()
+        result(true)
+      }
+    }
+  }
+
+  private static func playbackSnapshot() -> [String: Any] {
+    let player = MPMusicPlayerController.applicationQueuePlayer
+    let duration = player.nowPlayingItem?.playbackDuration ?? 0
+    let safeDuration = duration.isFinite && duration > 0 ? duration : 0
+    let rawPosition = player.currentPlaybackTime
+    let position = rawPosition.isFinite && rawPosition > 0 ? rawPosition : 0
+    let clampedPosition = safeDuration > 0 ? min(position, safeDuration) : position
+
+    return [
+      "isSupported": true,
+      "positionSeconds": clampedPosition,
+      "durationSeconds": safeDuration,
+      "isPlaying": player.playbackState == .playing,
+      "playbackState": playbackStateName(player.playbackState),
+      "catalogId": player.nowPlayingItem?.playbackStoreID ?? ""
+    ]
+  }
+
+  private static func seekToSeconds(_ seconds: Double) -> Bool {
+    let player = MPMusicPlayerController.applicationQueuePlayer
+    guard player.nowPlayingItem != nil else {
+      return false
+    }
+
+    let duration = player.nowPlayingItem?.playbackDuration ?? 0
+    let safeDuration = duration.isFinite && duration > 0 ? duration : seconds
+    let safeSeconds = seconds.isFinite && seconds > 0 ? seconds : 0
+    player.currentPlaybackTime = min(safeSeconds, safeDuration)
+    return true
+  }
+
+  private static func playbackStateName(
+    _ state: MPMusicPlaybackState
+  ) -> String {
+    switch state {
+    case .stopped:
+      return "stopped"
+    case .playing:
+      return "playing"
+    case .paused:
+      return "paused"
+    case .interrupted:
+      return "interrupted"
+    case .seekingForward:
+      return "seekingForward"
+    case .seekingBackward:
+      return "seekingBackward"
+    @unknown default:
+      return "unknown"
     }
   }
 
@@ -100,39 +426,77 @@ private enum AppleMusicLookupChannel {
     let formatter = ISO8601DateFormatter()
 
     return response.songs.prefix(limit).map { song in
-      var item: [String: Any] = [
-        "id": song.id.rawValue,
-        "title": song.title,
-        "artist": song.artistName
-      ]
-
-      if let albumTitle = song.albumTitle, !albumTitle.isEmpty {
-        item["album"] = albumTitle
-      }
-      if let artworkUrl = song.artwork?.url(width: 1200, height: 1200) {
-        item["artworkUrl"] = artworkUrl.absoluteString
-      }
-      if !song.genreNames.isEmpty {
-        item["genres"] = song.genreNames
-      }
-      if let releaseDate = song.releaseDate {
-        item["releaseDate"] = formatter.string(from: releaseDate)
-      }
-      if let trackNumber = song.trackNumber {
-        item["trackNumber"] = trackNumber
-      }
-      if let discNumber = song.discNumber {
-        item["discNumber"] = discNumber
-      }
-      if let duration = song.duration {
-        item["durationMs"] = Int(duration * 1000)
-      }
-      if let isrc = song.isrc, !isrc.isEmpty {
-        item["isrc"] = isrc
-      }
-
-      return item
+      musicMetadataDictionary(for: song, formatter: formatter)
     }
+  }
+
+  @available(iOS 15.0, *)
+  private static func librarySongs(
+    limit: Int
+  ) async throws -> [[String: Any]] {
+    var request = MusicLibraryRequest<Song>()
+    request.limit = limit
+    let response = try await request.response()
+    let formatter = ISO8601DateFormatter()
+
+    return response.items.prefix(limit).map { song in
+      musicMetadataDictionary(for: song, formatter: formatter)
+    }
+  }
+
+  @available(iOS 15.0, *)
+  private static func musicMetadataDictionary(
+    for song: Song,
+    formatter: ISO8601DateFormatter
+  ) -> [String: Any] {
+    var item: [String: Any] = [
+      "id": playParameterId(for: song),
+      "title": song.title,
+      "artist": song.artistName
+    ]
+
+    if let albumTitle = song.albumTitle, !albumTitle.isEmpty {
+      item["album"] = albumTitle
+    }
+    if let artworkUrl = song.artwork?.url(width: 1200, height: 1200) {
+      item["artworkUrl"] = artworkUrl.absoluteString
+    }
+    if let catalogUrl = song.url {
+      item["catalogUrl"] = catalogUrl.absoluteString
+    }
+    if !song.genreNames.isEmpty {
+      item["genres"] = song.genreNames
+    }
+    if let releaseDate = song.releaseDate {
+      item["releaseDate"] = formatter.string(from: releaseDate)
+    }
+    if let trackNumber = song.trackNumber {
+      item["trackNumber"] = trackNumber
+    }
+    if let discNumber = song.discNumber {
+      item["discNumber"] = discNumber
+    }
+    if let duration = song.duration {
+      item["durationMs"] = Int(duration * 1000)
+    }
+    if let isrc = song.isrc, !isrc.isEmpty {
+      item["isrc"] = isrc
+    }
+
+    return item
+  }
+
+  @available(iOS 15.0, *)
+  private static func playParameterId(for song: Song) -> String {
+    guard let playParameters = song.playParameters,
+          let data = try? JSONEncoder().encode(playParameters),
+          let json = try? JSONSerialization.jsonObject(with: data),
+          let dictionary = json as? [String: Any],
+          let id = dictionary["id"] as? String,
+          !id.isEmpty else {
+      return song.id.rawValue
+    }
+    return id
   }
 }
 

@@ -43,13 +43,14 @@ class _SongsScreenState extends ConsumerState<SongsScreen> with CustomScreen {
 
   Future<void> _playSong(int displayIndex) async {
     setState(() => selectedDisplayItem = displayIndex);
-    final int originalSongIndex = displayItems[displayIndex].originalSongIndex;
-
-    await ref
+    final didStart = await ref
         .read(audioPlayerServiceProvider.notifier)
-        .playSongFromOriginalList(originalSongIndex);
+        .playMetadataListAtIndex(
+          metadataList: displayItems,
+          index: displayIndex,
+        );
 
-    if (mounted) {
+    if (didStart && mounted) {
       await context.pushNamed(Routes.nowPlaying.name);
     }
   }

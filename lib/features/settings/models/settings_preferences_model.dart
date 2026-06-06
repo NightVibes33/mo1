@@ -2,7 +2,9 @@ import 'package:classipod/features/settings/models/app_theme.dart';
 import 'package:classipod/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:classipod/features/settings/models/click_wheel_size.dart';
 import 'package:classipod/features/settings/models/device_color.dart';
+import 'package:classipod/features/settings/models/equalizer_preset.dart';
 import 'package:classipod/features/settings/models/repeat_mode.dart';
+import 'package:classipod/features/settings/models/song_sort_order.dart';
 import 'package:classipod/features/settings/models/volume_mode.dart';
 
 class SettingsPreferencesModel {
@@ -15,6 +17,8 @@ class SettingsPreferencesModel {
   final bool vibrate;
   final bool clickWheelSound;
   final VolumeMode volumeMode;
+  final EqualizerPreset equalizerPreset;
+  final SongSortOrder songSortOrder;
   final bool splitScreenEnabled;
   final bool immersiveMode;
   final bool fetchOnlineMusic;
@@ -30,6 +34,8 @@ class SettingsPreferencesModel {
     required this.vibrate,
     required this.clickWheelSound,
     required this.volumeMode,
+    required this.equalizerPreset,
+    required this.songSortOrder,
     required this.splitScreenEnabled,
     required this.immersiveMode,
     required this.appTheme,
@@ -46,6 +52,8 @@ class SettingsPreferencesModel {
     bool? vibrate,
     bool? clickWheelSound,
     VolumeMode? volumeMode,
+    EqualizerPreset? equalizerPreset,
+    SongSortOrder? songSortOrder,
     bool? splitScreenEnabled,
     bool? immersiveMode,
     bool? fetchOnlineMusic,
@@ -62,6 +70,8 @@ class SettingsPreferencesModel {
       vibrate: vibrate ?? this.vibrate,
       clickWheelSound: clickWheelSound ?? this.clickWheelSound,
       volumeMode: volumeMode ?? this.volumeMode,
+      equalizerPreset: equalizerPreset ?? this.equalizerPreset,
+      songSortOrder: songSortOrder ?? this.songSortOrder,
       splitScreenEnabled: splitScreenEnabled ?? this.splitScreenEnabled,
       immersiveMode: immersiveMode ?? this.immersiveMode,
       appTheme: appTheme ?? this.appTheme,
@@ -81,6 +91,8 @@ class SettingsPreferencesModel {
         other.vibrate == vibrate &&
         other.clickWheelSound == clickWheelSound &&
         other.volumeMode == volumeMode &&
+        other.equalizerPreset == equalizerPreset &&
+        other.songSortOrder == songSortOrder &&
         other.splitScreenEnabled == splitScreenEnabled &&
         other.immersiveMode == immersiveMode &&
         other.fetchOnlineMusic == fetchOnlineMusic &&
@@ -98,6 +110,8 @@ class SettingsPreferencesModel {
     vibrate,
     clickWheelSound,
     volumeMode,
+    equalizerPreset,
+    songSortOrder,
     splitScreenEnabled,
     immersiveMode,
     appTheme,

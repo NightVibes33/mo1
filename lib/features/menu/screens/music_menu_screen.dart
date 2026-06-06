@@ -13,6 +13,7 @@ import 'package:go_router/go_router.dart';
 
 enum _MusicListDisplayItems {
   coverFlow,
+  appleMusic,
   importSongs,
   playlists,
   artists,
@@ -25,6 +26,8 @@ enum _MusicListDisplayItems {
     switch (this) {
       case coverFlow:
         return context.localization.coverFlowScreenTitle;
+      case appleMusic:
+        return 'Apple Music';
       case importSongs:
         return '+ MP3 Import';
       case playlists:
@@ -77,6 +80,9 @@ class _MusicMenuScreenState extends ConsumerState<MusicMenuScreen>
           extra: Routes.musicMenu.name,
         );
         unawaited(ref.read(splitScreenViewControllerProvider).openSplitView());
+        break;
+      case _MusicListDisplayItems.appleMusic:
+        await context.pushNamed(Routes.appleMusic.name);
         break;
       case _MusicListDisplayItems.importSongs:
         final importResult = await ref

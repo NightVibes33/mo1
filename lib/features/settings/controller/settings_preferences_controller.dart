@@ -7,6 +7,7 @@ import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
+import 'package:classipod/core/services/audio_equalizer_service.dart';
 import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/features/music/playlist/models/playlist_model.dart';
@@ -14,8 +15,10 @@ import 'package:classipod/features/settings/models/app_theme.dart';
 import 'package:classipod/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:classipod/features/settings/models/click_wheel_size.dart';
 import 'package:classipod/features/settings/models/device_color.dart';
+import 'package:classipod/features/settings/models/equalizer_preset.dart';
 import 'package:classipod/features/settings/models/repeat_mode.dart';
 import 'package:classipod/features/settings/models/settings_preferences_model.dart';
+import 'package:classipod/features/settings/models/song_sort_order.dart';
 import 'package:classipod/features/settings/models/volume_mode.dart';
 import 'package:classipod/features/settings/repository/settings_preferences_repository.dart';
 import 'package:classipod/features/tutorial/controller/tutorial_controller.dart';
@@ -63,6 +66,12 @@ class SettingsPreferencesControllerNotifier
       clickWheelSound: settingsPreferencesRepository.getClickWheelSound(),
       volumeMode: VolumeMode.values.byName(
         settingsPreferencesRepository.getVolumeMode(),
+      ),
+      equalizerPreset: EqualizerPreset.fromName(
+        settingsPreferencesRepository.getEqualizerPreset(),
+      ),
+      songSortOrder: SongSortOrder.fromName(
+        settingsPreferencesRepository.getSongSortOrder(),
       ),
       splitScreenEnabled: settingsPreferencesRepository.getSplitScreenEnabled(),
       immersiveMode: settingsPreferencesRepository.getImmersiveMode(),
@@ -285,6 +294,23 @@ class SettingsPreferencesControllerNotifier
     }
   }
 
+  Future<void> toggleEqualizerPreset() async {
+    final updatedPreset = state.equalizerPreset.next;
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setEqualizerPreset(equalizerPresetName: updatedPreset.name);
+    state = state.copyWith(equalizerPreset: updatedPreset);
+    await ref.read(audioEqualizerServiceProvider).applyPreset(updatedPreset);
+  }
+
+  Future<void> toggleSongSortOrder() async {
+    final updatedSortOrder = state.songSortOrder.next;
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setSongSortOrder(songSortOrderName: updatedSortOrder.name);
+    state = state.copyWith(songSortOrder: updatedSortOrder);
+  }
+
   Future<void> toggleSplitScreen() async {
     state = state.copyWith(splitScreenEnabled: !state.splitScreenEnabled);
     await ref
@@ -341,6 +367,12 @@ class SettingsPreferencesControllerNotifier
         .setClickWheelSound(isClickWheelSoundEnabled: false);
     await ref
         .read(settingsPreferencesRepositoryProvider)
+        .setEqualizerPreset(equalizerPresetName: EqualizerPreset.off.name);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setSongSortOrder(songSortOrderName: SongSortOrder.title.name);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
         .setSplitScreenEnabled(isSplitScreenEnabled: true);
     await ref
         .read(settingsPreferencesRepositoryProvider)
@@ -348,6 +380,9 @@ class SettingsPreferencesControllerNotifier
     await ref
         .read(settingsPreferencesRepositoryProvider)
         .setAppTheme(appThemeName: AppTheme.light.name);
+    await ref.read(audioEqualizerServiceProvider).applyPreset(
+          EqualizerPreset.off,
+        );
     ref.invalidateSelf();
   }
 

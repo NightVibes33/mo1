@@ -28,9 +28,10 @@ class MetadataMatchSheet extends ConsumerStatefulWidget {
 
 class _MetadataMatchSheetState extends ConsumerState<MetadataMatchSheet> {
   late final TextEditingController _queryController;
-  MusicMetadataSource _source = MusicMetadataSource.itunes;
+  MusicMetadataSource _source = MusicMetadataSource.appleMusic;
   List<MusicMetadataMatch> _matches = [];
   bool _isSearching = false;
+  AppleMusicAuthorizationStatus? _appleMusicStatus;
   String? _errorText;
   int _searchSerial = 0;
 
@@ -74,7 +75,25 @@ class _MetadataMatchSheetState extends ConsumerState<MetadataMatchSheet> {
     });
 
     try {
-      final matches = await ref.read(musicMetadataLookupServiceProvider).search(
+      final lookupService = ref.read(musicMetadataLookupServiceProvider);
+      if (source == MusicMetadataSource.appleMusic) {
+        final status = await lookupService.requestAppleMusicAuthorization();
+        if (!mounted || requestId != _searchSerial) {
+          return;
+        }
+        _appleMusicStatus = status;
+        if (status != AppleMusicAuthorizationStatus.unsupported &&
+            !status.canSearchCatalog) {
+          setState(() {
+            _matches = [];
+            _errorText = status.message;
+            _isSearching = false;
+          });
+          return;
+        }
+      }
+
+      final matches = await lookupService.search(
             source: source,
             query: query,
           );
@@ -84,7 +103,7 @@ class _MetadataMatchSheetState extends ConsumerState<MetadataMatchSheet> {
       setState(() {
         _matches = matches;
         _errorText = matches.isEmpty
-            ? 'No ${source.label} matches found for this search.'
+            ? _emptyMessageForSource(source)
             : null;
       });
     } catch (error) {
@@ -102,6 +121,14 @@ class _MetadataMatchSheetState extends ConsumerState<MetadataMatchSheet> {
         });
       }
     }
+  }
+
+  String _emptyMessageForSource(MusicMetadataSource source) {
+    if (source == MusicMetadataSource.appleMusic &&
+        _appleMusicStatus == AppleMusicAuthorizationStatus.unsupported) {
+      return 'No Apple Music catalog matches found. iTunes fallback also returned no results.';
+    }
+    return 'No ${source.label} matches found for this search.';
   }
 
   void _changeSource(MusicMetadataSource? source) {
@@ -303,6 +330,7 @@ class _MetadataMatchTile extends StatelessWidget {
                           match.releaseDate!.year.toString(),
                         if (match.trackNumber != null)
                           'Track ${match.trackNumber}',
+                        if (match.catalogUrl != null) 'Catalog',
                       ].join(' / '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

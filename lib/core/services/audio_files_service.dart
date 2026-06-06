@@ -177,6 +177,53 @@ class AudioFilesServiceNotifier
     }
   }
 
+
+  Future<int> importAppleMusicMetadata(
+    List<MusicMetadata> appleMusicMetadata,
+  ) async {
+    if (!Hive.isBoxOpen(Constants.metadataBoxName)) {
+      return 0;
+    }
+
+    final metadataBox = Hive.box<MusicMetadata>(Constants.metadataBoxName);
+    final existingPaths = metadataBox.values
+        .map((metadata) => metadata.filePath)
+        .whereType<String>()
+        .toSet();
+    final startIndex = metadataBox.length;
+    final importedMetadata = <MusicMetadata>[];
+
+    for (final metadata in appleMusicMetadata) {
+      final path = metadata.filePath;
+      if (path == null ||
+          path.isEmpty ||
+          !metadata.isAppleMusicCatalogTrack ||
+          existingPaths.contains(path)) {
+        continue;
+      }
+      final imported = metadata.copyWith(
+        originalSongIndex: startIndex + importedMetadata.length,
+        isOnDevice: false,
+      );
+      importedMetadata.add(imported);
+      existingPaths.add(path);
+    }
+
+    if (importedMetadata.isEmpty) {
+      state = AsyncData(_storedMetadata(metadataBox));
+      return 0;
+    }
+
+    await metadataBox.addAll(importedMetadata);
+    state = AsyncData(_storedMetadata(metadataBox));
+    ref.read(debugLogServiceProvider).info(
+      'apple_music',
+      'Imported Apple Music library references.',
+      data: {'count': importedMetadata.length},
+    );
+    return importedMetadata.length;
+  }
+
   Future<ImportLocalAudioResult> importLocalAudioFiles({
     bool updateState = true,
   }) async {
