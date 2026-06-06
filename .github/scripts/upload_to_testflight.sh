@@ -50,7 +50,7 @@ APP_JSON="${WORK_DIR}/app.json"
 curl -fsS \
   -H "Authorization: Bearer ${JWT}" \
   -H 'Accept: application/json' \
-  "https://api.appstoreconnect.apple.com/v1/apps?filter[bundleId]=${BUNDLE_ID}" \
+  "https://api.appstoreconnect.apple.com/v1/apps?filter%5BbundleId%5D=${BUNDLE_ID}" \
   -o "${APP_JSON}"
 
 APP_INFO="$(ruby -rjson -e '
