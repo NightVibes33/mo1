@@ -397,7 +397,7 @@ class AudioFilesServiceNotifier
     final metadataBox = Hive.box<MusicMetadata>(Constants.metadataBoxName);
     final existingFingerprints = <String>{};
     for (final metadata in metadataBox.values) {
-      final fingerprint = _fingerprintForExistingFile(metadata.filePath);
+      final fingerprint = _fingerprintForExistingMetadata(metadata);
       if (fingerprint != null) {
         existingFingerprints.add(fingerprint);
       }
@@ -672,7 +672,11 @@ class AudioFilesServiceNotifier
     return '${_normalizedStem(pathOrName)}:$byteLength';
   }
 
-  String? _fingerprintForExistingFile(String? path) {
+  String? _fingerprintForExistingMetadata(MusicMetadata metadata) {
+    if (!metadata.isOnDevice || metadata.isAppleMusicCatalogTrack) {
+      return null;
+    }
+    final path = metadata.filePath;
     if (path == null || path.isEmpty) {
       return null;
     }
