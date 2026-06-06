@@ -122,7 +122,7 @@ class MusicMetadataLookupService {
   }
 
   Future<List<MusicMetadataMatch>> appleMusicLibrarySongs({
-    int limit = 100,
+    int limit = 0,
   }) async {
     if (!_appleMusicBridge.isSupported) {
       return [];
@@ -356,8 +356,7 @@ class AppleMusicCatalogBridge {
     }
   }
 
-
-  Future<List<MusicMetadataMatch>> librarySongs({int limit = 100}) async {
+  Future<List<MusicMetadataMatch>> librarySongs({int limit = 0}) async {
     if (!isSupported) {
       return [];
     }
@@ -365,7 +364,7 @@ class AppleMusicCatalogBridge {
     try {
       final rawResults = await _channel.invokeMethod<List<dynamic>>(
         'librarySongs',
-        {'limit': limit.clamp(1, 250)},
+        {'limit': limit},
       );
       return (rawResults ?? [])
           .whereType<Map<dynamic, dynamic>>()

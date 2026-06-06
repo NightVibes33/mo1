@@ -200,11 +200,11 @@ private enum AppleMusicLookupChannel {
           return
         }
         let arguments = call.arguments as? [String: Any] ?? [:]
-        let limit = arguments["limit"] as? Int ?? 100
+        let requestedLimit = arguments["limit"] as? Int ?? 0
         Task {
           do {
             let matches = try await librarySongs(
-              limit: max(1, min(limit, 250))
+              limit: normalizedLibraryLimit(requestedLimit)
             )
             await MainActor.run {
               result(matches)
@@ -431,6 +431,13 @@ private enum AppleMusicLookupChannel {
   }
 
   @available(iOS 15.0, *)
+  private static func normalizedLibraryLimit(_ limit: Int) -> Int {
+    if limit <= 0 {
+      return 0
+    }
+    return max(1, min(limit, 10000))
+  }
+
   private static func searchSongs(
     query: String,
     limit: Int
@@ -458,11 +465,18 @@ private enum AppleMusicLookupChannel {
     }
 
     var request = MusicLibraryRequest<Song>()
-    request.limit = limit
+    let effectiveLimit = limit > 0 ? limit : 10000
+    request.limit = effectiveLimit
     let response = try await request.response()
     let formatter = ISO8601DateFormatter()
 
-    return response.items.prefix(limit).map { song in
+    if limit > 0 {
+      return response.items.prefix(limit).map { song in
+        musicMetadataDictionary(for: song, formatter: formatter)
+      }
+    }
+
+    return response.items.map { song in
       musicMetadataDictionary(for: song, formatter: formatter)
     }
   }
@@ -494,7 +508,7 @@ private enum AppleMusicLookupChannel {
       }
       seenIds.insert(id)
       results.append(mediaMetadataDictionary(for: item, identifier: id))
-      if results.count >= limit {
+      if limit > 0 && results.count >= limit {
         break
       }
     }

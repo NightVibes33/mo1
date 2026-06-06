@@ -235,7 +235,7 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
     }
 
     final subscriptionStatus = await lookupService.appleMusicSubscriptionStatus();
-    final matches = await lookupService.appleMusicLibrarySongs(limit: 250);
+    final matches = await lookupService.appleMusicLibrarySongs();
     if (!mounted) {
       return;
     }
