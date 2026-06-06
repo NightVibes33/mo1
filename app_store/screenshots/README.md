@@ -1,18 +1,19 @@
-# døPi App Store screenshot overlay
+# døPi App Store screenshots
 
-This folder now follows the `ios-screenshots` skill overlay flow instead of generated fake UI art.
+This folder uses the `ios-screenshots` skill overlay flow.
 
 Files:
 
-- `mockup.png`: iPhone frame copied from the `ios-screenshots` skill.
-- `raw/`: place the exact four screenshots from the chat here.
-- `index.html`: browser export page with per-slide controls, URL-hash persistence, and Apple iPhone export sizes.
+- `mockup.png`: iPhone frame copied from the skill.
+- `raw/`: the four extracted screenshots from the chat, in app order.
+- `index.html`: browser overlay/export page with per-slide controls, URL-hash persistence, screenshot zoom, and Apple iPhone export sizes.
+- `exports/iphone-6.9/`: generated 1320x2868 App Store PNGs using the raw images and the iPhone overlay.
 
-Required raw filenames:
+Raw screenshot mapping:
 
 - `raw/01-home-menu.png`
 - `raw/02-cover-flow.png`
 - `raw/03-apple-music.png`
 - `raw/04-genres.png`
 
-Open `index.html`, adjust the overlay if needed, and export the App Store PNGs.
+The overlay follows the skill rule: `mockup.png` is behind the screen content and the screenshot layer sits above the mockup screen area so the opaque black mockup screen cannot hide it.

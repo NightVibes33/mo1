@@ -66,7 +66,7 @@ APP_ID="$(ruby -rjson -e 'data = JSON.parse(File.read(ARGV[0])); app = data.fetc
 APP_NAME="$(ruby -rjson -e 'data = JSON.parse(File.read(ARGV[0])); app = data.fetch("data").first; puts app.fetch("attributes").fetch("name")' "${APP_JSON}")"
 
 POINTS_JSON="${WORK_DIR}/price-points.json"
-api_get "https://api.appstoreconnect.apple.com/v3/apps/${APP_ID}/appPricePoints?filter%5Bterritory%5D=${BASE_TERRITORY}&limit=200" "${POINTS_JSON}"
+api_get "https://api.appstoreconnect.apple.com/v1/apps/${APP_ID}/appPricePoints?filter%5Bterritory%5D=${BASE_TERRITORY}&fields%5BappPricePoints%5D=customerPrice,proceeds,territory&limit=200" "${POINTS_JSON}"
 PRICE_POINT_ID="$(CUSTOMER_PRICE="${CUSTOMER_PRICE}" ruby -rjson -e '
   data = JSON.parse(File.read(ARGV[0]))
   wanted = ENV.fetch("CUSTOMER_PRICE").to_f
@@ -86,13 +86,13 @@ PRICE_POINT_ID="$(CUSTOMER_PRICE="${CUSTOMER_PRICE}" ruby -rjson -e '
 PAYLOAD="${WORK_DIR}/price-schedule.json"
 APP_ID="${APP_ID}" PRICE_POINT_ID="${PRICE_POINT_ID}" BASE_TERRITORY="${BASE_TERRITORY}" ruby <<'RUBY' > "${PAYLOAD}"
 require 'json'
-price_id = 'dopi-paid-app-price-0'
+price_id = '${newprice-0}'
 puts JSON.pretty_generate({
   data: {
     type: 'appPriceSchedules',
+    attributes: {},
     relationships: {
       app: { data: { type: 'apps', id: ENV.fetch('APP_ID') } },
-      baseTerritory: { data: { type: 'territories', id: ENV.fetch('BASE_TERRITORY') } },
       manualPrices: { data: [{ type: 'appPrices', id: price_id }] }
     }
   },

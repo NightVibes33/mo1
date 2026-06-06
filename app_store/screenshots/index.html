@@ -3,34 +3,27 @@
 <title>døPi App Store Screenshot Overlay</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js"></script>
 <style>
-  :root { color-scheme: dark; --bg:#101114; --panel:#191b20; --text:#f5f6f8; --muted:#9ba3ad; --accent:#68d7e7; }
-  * { box-sizing: border-box; }
+  :root { color-scheme: dark; --bg:#101114; --panel:#181a1f; --text:#f7f8fb; --muted:#9ba3ad; --accent:#70d7e7; }
+  * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font-family:Inter, Arial, sans-serif; }
-  .app { display:grid; grid-template-columns:320px 1fr; min-height:100vh; }
-  aside { padding:18px; background:var(--panel); border-right:1px solid #2a2d34; position:sticky; top:0; height:100vh; overflow:auto; }
-  h1 { font-size:20px; margin:0 0 14px; }
-  label { display:block; font-size:12px; color:var(--muted); margin:14px 0 6px; }
+  .app { min-height:100vh; display:grid; grid-template-columns:320px 1fr; }
+  aside { height:100vh; overflow:auto; position:sticky; top:0; padding:18px; background:var(--panel); border-right:1px solid #2a2d34; }
+  h1 { margin:0 0 14px; font-size:20px; }
+  label { display:block; margin:14px 0 6px; font-size:12px; color:var(--muted); }
   select, button, input { width:100%; border:1px solid #343842; background:#0f1115; color:var(--text); border-radius:8px; padding:8px; }
-  button { cursor:pointer; font-weight:700; margin-top:10px; }
+  button { margin-top:10px; cursor:pointer; font-weight:700; }
   input[type="range"] { padding:0; accent-color:var(--accent); }
-  main { padding:24px; overflow:auto; }
-  .preview { width:min(390px, 90vw); aspect-ratio:1320/2868; margin:0 auto; transform-origin:top center; }
-  .slide { position:relative; width:1320px; height:2868px; overflow:hidden; background:linear-gradient(180deg,#f0f1f1 0%,#c8cccc 42%,#aeb3b3 100%); }
-  .slide.dark { background:linear-gradient(180deg,#0b0c10 0%,#171a20 58%,#272b33 100%); }
-  .shine { position:absolute; inset:0; background:radial-gradient(circle at 24% 8%,#fff9 0 16%,transparent 40%),linear-gradient(90deg,#fff4,transparent 10%,transparent 90%,#0002); pointer-events:none; }
-  .copy { position:absolute; left:86px; right:86px; top:96px; z-index:8; text-shadow:0 4px 18px #0004; }
-  .copy.right { text-align:right; }
-  .eyebrow { font-size:38px; font-weight:700; color:#37404a; margin-bottom:16px; }
-  .dark .eyebrow { color:#aeb8c7; }
-  .headline { font-size:116px; line-height:.94; font-weight:800; letter-spacing:0; }
-  .phone-wrap { position:absolute; z-index:5; width:760px; left:50%; bottom:-155px; transform:translateX(-50%); filter:drop-shadow(0 56px 70px #0007); }
-  .phone { position:relative; width:100%; aspect-ratio:1022/2082; transform-style:preserve-3d; }
-  .mockup { position:absolute; inset:0; width:100%; height:100%; z-index:1; }
-  .screen { position:absolute; z-index:2; left:5.09%; top:2.21%; width:89.82%; height:95.58%; border-radius:13.73%/6.33%; overflow:hidden; background:#111; }
-  .screen img { width:100%; height:100%; object-fit:cover; object-position:top center; transform-origin:center top; }
-  .missing { height:100%; display:grid; place-items:center; padding:56px; text-align:center; color:#fff; font-size:42px; line-height:1.1; background:#15171d; }
-  .bad { color:#ff7d7d; }
+  main { overflow:auto; padding:24px; }
+  .preview { width:min(390px, 90vw); aspect-ratio:1320/2868; margin:0 auto; }
   .stage { width:1320px; height:2868px; transform-origin:top left; }
+  .slide { width:1320px; height:2868px; position:relative; overflow:hidden; background:#d5d8d8; }
+  .grain { position:absolute; inset:0; pointer-events:none; opacity:.26; background:radial-gradient(circle at 50% 20%,#fff 0 0.08%,transparent 0.16%),linear-gradient(180deg,#fff6,#b9bdbc 52%,#919897); background-size:18px 18px,100% 100%; }
+  .phone-wrap { position:absolute; z-index:5; left:50%; top:50%; width:880px; transform:translate(-50%,-50%); filter:drop-shadow(0 48px 66px #0008); }
+  .phone { position:relative; width:100%; aspect-ratio:1022/2082; transform-style:preserve-3d; }
+  .mockup { position:absolute; inset:0; z-index:1; width:100%; height:100%; }
+  .screen { position:absolute; z-index:2; left:5.09%; top:2.21%; width:89.82%; height:95.58%; overflow:hidden; border-radius:13.73% / 6.33%; background:#111; }
+  .screen img { width:100%; height:100%; object-fit:cover; object-position:center top; transform-origin:center top; }
+  .missing { height:100%; display:grid; place-items:center; padding:52px; text-align:center; color:#ff9a9a; font-size:42px; line-height:1.1; background:#15171d; }
   .offscreen { position:fixed; left:-9999px; top:0; width:1320px; height:2868px; opacity:.01; pointer-events:none; z-index:-9999; }
 </style>
 <div class="app">
@@ -38,17 +31,20 @@
     <h1>døPi Screenshot Overlay</h1>
     <label>Slide</label><select id="slideSelect"></select>
     <label>Export Size</label><select id="sizeSelect"></select>
-    <label>Device Size</label><input id="deviceSize" type="range" min="45" max="118" value="82">
-    <label>Horizontal Offset</label><input id="offsetX" type="range" min="-70" max="70" value="0">
-    <label>Vertical Offset</label><input id="offsetY" type="range" min="-80" max="80" value="0">
+    <label>Device Size</label><input id="deviceSize" type="range" min="45" max="118" value="92">
+    <label>Horizontal Offset</label><input id="offsetX" type="range" min="-80" max="80" value="0">
+    <label>Vertical Offset</label><input id="offsetY" type="range" min="-90" max="90" value="0">
     <label>Rotate Z</label><input id="rotateZ" type="range" min="-18" max="18" value="0">
     <label>Rotate Y</label><input id="rotateY" type="range" min="-28" max="28" value="0">
-    <label>Screenshot Zoom</label><input id="shotZoom" type="range" min="100" max="170" value="100">
+    <label>Screenshot Zoom</label><input id="shotZoom" type="range" min="100" max="220" value="100">
     <button id="exportOne">Export Selected</button>
     <button id="exportAll">Export All 6.9 inch</button>
-    <p style="color:var(--muted);font-size:12px;line-height:1.35">Uses the ios-screenshots skill layering rule: mockup z-index 1, screenshot z-index 2. State is stored in the URL hash.</p>
+    <p style="color:var(--muted);font-size:12px;line-height:1.35">Uses the ios-screenshots skill overlay rule: mockup z-index 1, screenshot z-index 2. State is stored in the URL hash.</p>
   </aside>
-  <main><div class="preview"><div id="previewStage" class="stage"></div></div><div id="exportStage" class="offscreen"></div></main>
+  <main>
+    <div class="preview"><div id="previewStage" class="stage"></div></div>
+    <div id="exportStage" class="offscreen"></div>
+  </main>
 </div>
 <script>
 const IPHONE_SIZES = [
@@ -58,10 +54,10 @@ const IPHONE_SIZES = [
   { label:'6.1 inch - 1125x2436', w:1125, h:2436 },
 ];
 const SLIDES = [
-  { id:'01-home-menu', src:'raw/01-home-menu.png', eyebrow:'Classic feel', headline:'Your music\ninside døPi', dark:false, x:0, y:0, size:82, rz:0, ry:0, zoom:100 },
-  { id:'02-cover-flow', src:'raw/02-cover-flow.png', eyebrow:'Cover Flow', headline:'Albums feel\nalive again', dark:true, x:7, y:8, size:84, rz:-4, ry:-10, zoom:100 },
-  { id:'03-apple-music', src:'raw/03-apple-music.png', eyebrow:'Apple Music', headline:'Import your\nlibrary', dark:false, x:-8, y:3, size:82, rz:3, ry:8, zoom:100 },
-  { id:'04-genres', src:'raw/04-genres.png', eyebrow:'Browse fast', headline:'Find songs\nlike 2006', dark:true, x:0, y:6, size:84, rz:0, ry:0, zoom:100 },
+  { id:'01-home-menu', src:'raw/01-home-menu.png', bg:'#d4d7d7', x:0, y:0, size:92, rz:0, ry:0, zoom:100 },
+  { id:'02-cover-flow', src:'raw/02-cover-flow.png', bg:'#d2d5d5', x:0, y:0, size:92, rz:0, ry:0, zoom:100 },
+  { id:'03-apple-music', src:'raw/03-apple-music.png', bg:'#d3d6d6', x:0, y:0, size:92, rz:0, ry:0, zoom:100 },
+  { id:'04-genres', src:'raw/04-genres.png', bg:'#d3d6d6', x:0, y:0, size:92, rz:0, ry:0, zoom:100 },
 ];
 const controls = ['deviceSize','offsetX','offsetY','rotateZ','rotateY','shotZoom'].reduce((m,id)=>(m[id]=document.getElementById(id),m),{});
 const slideSelect = document.getElementById('slideSelect');
@@ -76,12 +72,26 @@ function saveState(){ location.hash = encodeURIComponent(JSON.stringify(state));
 function values(i){ return { ...SLIDES[i], ...(state[SLIDES[i].id] || {}) }; }
 function applyInputs(i){ const v=values(i); controls.deviceSize.value=v.size; controls.offsetX.value=v.x; controls.offsetY.value=v.y; controls.rotateZ.value=v.rz; controls.rotateY.value=v.ry; controls.shotZoom.value=v.zoom; }
 function captureInputs(){ const id=SLIDES[+slideSelect.value].id; state[id] = { size:+controls.deviceSize.value, x:+controls.offsetX.value, y:+controls.offsetY.value, rz:+controls.rotateZ.value, ry:+controls.rotateY.value, zoom:+controls.shotZoom.value }; saveState(); render(); }
-function slideHtml(i, scale=1){ const v=values(i); const dark=v.dark?' dark':''; return `<div class="slide${dark}" style="transform:scale(${scale});transform-origin:top left"><div class="shine"></div><div class="copy ${i===2?'right':''}"><div class="eyebrow">${v.eyebrow}</div><div class="headline">${v.headline.replace(/\n/g,'<br>')}</div></div><div class="phone-wrap" style="width:${v.size/100*920}px;left:calc(50% + ${v.x*8}px);bottom:${-155-v.y*8}px;transform:translateX(-50%) rotateZ(${v.rz}deg) rotateY(${v.ry}deg)"><div class="phone"><img class="mockup" src="mockup.png"><div class="screen"><img src="${v.src}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'missing bad',innerHTML:'Missing raw screenshot<br>${v.src}'}))" style="transform:scale(${v.zoom/100})"></div></div></div></div>`; }
+function slideHtml(i, scale=1){
+  const v=values(i);
+  return `<div class="slide" style="transform:scale(${scale});transform-origin:top left;background:${v.bg}"><div class="grain"></div><div class="phone-wrap" style="width:${v.size/100*930}px;left:calc(50% + ${v.x*8}px);top:calc(50% + ${v.y*8}px);transform:translate(-50%,-50%) rotateZ(${v.rz}deg) rotateY(${v.ry}deg)"><div class="phone"><img class="mockup" src="mockup.png"><div class="screen"><img src="${v.src}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'missing',innerHTML:'Missing raw screenshot<br>${v.src}'}))" style="transform:scale(${v.zoom/100})"></div></div></div></div>`;
+}
 function render(){ previewStage.innerHTML = slideHtml(+slideSelect.value, 390/1320); }
 slideSelect.onchange = () => { applyInputs(+slideSelect.value); render(); };
 Object.values(controls).forEach(c=>c.oninput=captureInputs);
 applyInputs(0); render();
-async function exportSlide(i, size){ exportStage.style.width=size.w+'px'; exportStage.style.height=size.h+'px'; exportStage.innerHTML = slideHtml(i, size.w/1320); await new Promise(r=>setTimeout(r,300)); await htmlToImage.toPng(exportStage,{width:size.w,height:size.h,pixelRatio:1,cacheBust:true}); const url = await htmlToImage.toPng(exportStage,{width:size.w,height:size.h,pixelRatio:1,cacheBust:true}); const a=document.createElement('a'); a.download=`${String(i+1).padStart(2,'0')}-${SLIDES[i].id}-${size.w}x${size.h}.png`; a.href=url; a.click(); }
+async function exportSlide(i, size){
+  exportStage.style.width=size.w+'px';
+  exportStage.style.height=size.h+'px';
+  exportStage.innerHTML = slideHtml(i, size.w/1320);
+  await new Promise(r=>setTimeout(r,300));
+  await htmlToImage.toPng(exportStage,{width:size.w,height:size.h,pixelRatio:1,cacheBust:true});
+  const url = await htmlToImage.toPng(exportStage,{width:size.w,height:size.h,pixelRatio:1,cacheBust:true});
+  const a=document.createElement('a');
+  a.download=`${String(i+1).padStart(2,'0')}-${SLIDES[i].id}-${size.w}x${size.h}.png`;
+  a.href=url;
+  a.click();
+}
 document.getElementById('exportOne').onclick = () => exportSlide(+slideSelect.value, IPHONE_SIZES[+sizeSelect.value]);
 document.getElementById('exportAll').onclick = async () => { for (let i=0;i<SLIDES.length;i++){ await exportSlide(i, IPHONE_SIZES[0]); await new Promise(r=>setTimeout(r,300)); } };
 </script>
