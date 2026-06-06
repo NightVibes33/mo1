@@ -10,7 +10,6 @@ import 'package:classipod/features/music/playlist/models/playlist_model.dart';
 import 'package:classipod/features/now_playing/models/now_playing_model.dart';
 import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -235,27 +234,18 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      // If Album has no songs or the songIndex is out of bounds
       if (albumDetail.albumSongs.isEmpty ||
           songIndex >= albumDetail.albumSongs.length) {
         return;
       }
-      final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
 
-      // If the album is already playing
-      if (nowPlayingDetails.nowPlayingType == NowPlayingType.album &&
-          nowPlayingDetails.currentMetadata?.getAlbumDetail == albumDetail) {
-        await playSongAtIndex(songIndex);
-        return;
-      } else {
-        await setAudioSource(
-          nowPlayingType: NowPlayingType.album,
-          musicMetadataList: albumDetail.albumSongs,
-          initialIndex: songIndex,
-        );
-        await playSongAtIndex(songIndex);
+      final didStart = await playMetadataListAtIndex(
+        metadataList: albumDetail.albumSongs,
+        index: songIndex,
+        nowPlayingType: NowPlayingType.album,
+      );
+      if (didStart) {
         await setShuffleMode(false);
-        Future.delayed(const Duration(milliseconds: 100), play);
       }
     });
   }
@@ -266,27 +256,18 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      // If Playlist has no songs or the songIndex is out of bounds
       if (playlistDetail.songs.isEmpty ||
           songIndex >= playlistDetail.songs.length) {
         return;
       }
-      final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
 
-      // If the playlist is already playing
-      if (nowPlayingDetails.nowPlayingType == NowPlayingType.playlist &&
-          listEquals(nowPlayingDetails.metadataList, playlistDetail.songs)) {
-        await playSongAtIndex(songIndex);
-        return;
-      } else {
-        await setAudioSource(
-          nowPlayingType: NowPlayingType.playlist,
-          musicMetadataList: playlistDetail.songs,
-          initialIndex: songIndex,
-        );
-        await playSongAtIndex(songIndex);
+      final didStart = await playMetadataListAtIndex(
+        metadataList: playlistDetail.songs,
+        index: songIndex,
+        nowPlayingType: NowPlayingType.playlist,
+      );
+      if (didStart) {
         await setShuffleMode(false);
-        Future.delayed(const Duration(milliseconds: 100), play);
       }
     });
   }
