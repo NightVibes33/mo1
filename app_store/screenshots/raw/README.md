@@ -1,10 +1,8 @@
-# Raw screenshots
+# Raw selected screenshots
 
-These files are the extracted screenshots from the chat, mapped in order:
+These four PNGs are selected portrait crops from `screenshots/combined.jpg`:
 
-- `01-home-menu.png`
-- `02-cover-flow.png`
-- `03-apple-music.png`
-- `04-genres.png`
-
-Open `../index.html` to fine tune the iPhone overlay and export additional App Store sizes.
+- `01-home-menu.png` from sheet cell `11`
+- `02-cover-flow.png` from sheet cell `13`
+- `03-apple-music.png` from sheet cell `21`
+- `04-genres.png` from sheet cell `23`
