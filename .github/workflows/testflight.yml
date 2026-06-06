@@ -148,6 +148,7 @@ jobs:
 
       - name: Upload to TestFlight
         env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
@@ -158,5 +159,5 @@ jobs:
             find build/export -maxdepth 2 -type f -print
             exit 1
           fi
-          export API_PRIVATE_KEYS_DIR="${PWD}/private_keys"
-          xcrun iTMSTransporter -m upload -assetFile "${IPA_PATH}" -apiKey "${APP_STORE_CONNECT_KEY_ID}" -apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}" -v informational
+          export IPA_PATH
+          .github/scripts/upload_to_testflight.sh

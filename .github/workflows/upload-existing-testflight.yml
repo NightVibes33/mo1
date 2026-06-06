@@ -23,6 +23,9 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Validate TestFlight secrets
         env:
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
@@ -56,7 +59,7 @@ jobs:
           fi
           sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
           xcodebuild -version
-          xcrun --find iTMSTransporter
+          xcrun --find altool
 
       - name: Download exported IPA artifact
         env:
@@ -78,25 +81,9 @@ jobs:
           fi
           echo "IPA_PATH=${IPA_PATH}" >> "${GITHUB_ENV}"
 
-      - name: Write App Store Connect key
+      - name: Upload to TestFlight
         env:
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-        run: |
-          set -euo pipefail
-          mkdir -p private_keys
-          printf '%s' "${APP_STORE_CONNECT_API_KEY_P8}" > "${PWD}/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
-
-      - name: Upload to TestFlight with Transporter
-        env:
-          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-        run: |
-          set -euo pipefail
-          export API_PRIVATE_KEYS_DIR="${PWD}/private_keys"
-          xcrun iTMSTransporter \
-            -m upload \
-            -assetFile "${IPA_PATH}" \
-            -apiKey "${APP_STORE_CONNECT_KEY_ID}" \
-            -apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}" \
-            -v informational
+        run: .github/scripts/upload_to_testflight.sh
