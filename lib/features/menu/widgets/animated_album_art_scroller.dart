@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:classipod/core/constants/assets.dart';
-import 'package:classipod/core/utils/metadata_artwork.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
+import 'package:classipod/core/models/music_metadata.dart';
+import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
+import 'package:classipod/core/utils/metadata_artwork.dart';
 import 'package:classipod/core/widgets/empty_state_widget.dart';
 import 'package:classipod/core/widgets/liquid_glass.dart';
 import 'package:classipod/features/menu/models/split_screen_type.dart';
-import 'package:classipod/features/music/album/providers/album_details_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,44 +20,90 @@ class AnimatedAlbumArtScroller extends ConsumerStatefulWidget {
 
 class _AnimatedAlbumArtScrollerState
     extends ConsumerState<AnimatedAlbumArtScroller> {
-  ImageProvider _albumArtImage = const AssetImage(
-    Assets.defaultAlbumCoverImage,
-  );
-  bool _isEmptyState = false;
+  Timer? _rotationTimer;
+  int _artworkIndex = 0;
+  String _artworkSignature = '';
 
-  void _setPreviewAlbumArt() {
-    final albumDetails = ref
-        .read(albumDetailsProvider)
-        .where((album) => album.albumArtPath != null)
-        .toList();
-    if (albumDetails.isEmpty) {
-      setState(() {
-        _isEmptyState = true;
-      });
+  @override
+  void dispose() {
+    _rotationTimer?.cancel();
+    super.dispose();
+  }
+
+  void _syncArtworkRotation(List<String> artworkPaths) {
+    final signature = artworkPaths.join('\u0001');
+    if (_artworkSignature == signature) {
       return;
     }
 
-    final previewAlbum = albumDetails.first;
-    setState(() {
-      _isEmptyState = false;
-      _albumArtImage = metadataArtworkProvider(previewAlbum.albumArtPath);
+    _artworkSignature = signature;
+    _artworkIndex = 0;
+    _rotationTimer?.cancel();
+    _rotationTimer = null;
+
+    if (artworkPaths.length <= 1) {
+      return;
+    }
+
+    _rotationTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _artworkIndex = (_artworkIndex + 1) % artworkPaths.length;
+      });
     });
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _setPreviewAlbumArt();
+  List<String> _artworkPathsFrom(Iterable<MusicMetadata> metadataList) {
+    final seenPaths = <String>{};
+    final artworkPaths = <String>[];
+    for (final metadata in metadataList) {
+      final path = metadata.thumbnailPath?.trim();
+      if (path == null || path.isEmpty || !seenPaths.add(path)) {
+        continue;
+      }
+      artworkPaths.add(path);
+    }
+    return artworkPaths;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isEmptyState) {
-      return EmptyStateWidget(
-        emptyDescription: context.localization.noMusicFilesFound,
-      );
-    }
+    final metadataState = ref.watch(filteredAudioFilesProvider);
 
+    return metadataState.when(
+      data: (metadataList) {
+        final artworkPaths = _artworkPathsFrom(metadataList);
+        _syncArtworkRotation(artworkPaths);
+
+        if (metadataList.isEmpty) {
+          return EmptyStateWidget(
+            emptyDescription: context.localization.noMusicFilesFound,
+          );
+        }
+
+        final artworkPath = artworkPaths.isEmpty
+            ? null
+            : artworkPaths[_artworkIndex % artworkPaths.length];
+        return _AlbumArtPreview(artworkPath: artworkPath);
+      },
+      loading: () => const _AlbumArtPreview(artworkPath: null),
+      error: (_, _) => EmptyStateWidget(
+        emptyDescription: context.localization.noMusicFilesFound,
+      ),
+    );
+  }
+}
+
+class _AlbumArtPreview extends StatelessWidget {
+  final String? artworkPath;
+
+  const _AlbumArtPreview({required this.artworkPath});
+
+  @override
+  Widget build(BuildContext context) {
+    final image = metadataArtworkProvider(artworkPath);
     return RepaintBoundary(
       key: const ValueKey(SplitScreenType.albumArt),
       child: DecoratedBox(
@@ -92,15 +141,20 @@ class _AnimatedAlbumArtScrollerState
                     decoration: BoxDecoration(
                       color: CupertinoColors.black.withValues(alpha: 0.18),
                     ),
-                    child: Image(
-                      key: ValueKey(_albumArtImage),
-                      image: _albumArtImage,
-                      fit: BoxFit.contain,
-                      alignment: Alignment.center,
-                      errorBuilder: (_, _, _) => Image.asset(
-                        Assets.defaultAlbumCoverImage,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 520),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      child: Image(
+                        key: ValueKey(artworkPath ?? 'default-album-art'),
+                        image: image,
                         fit: BoxFit.contain,
                         alignment: Alignment.center,
+                        errorBuilder: (_, _, _) => Image.asset(
+                          Assets.defaultAlbumCoverImage,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                        ),
                       ),
                     ),
                   ),
