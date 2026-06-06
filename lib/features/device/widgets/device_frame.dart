@@ -8,7 +8,10 @@ import 'package:classipod/features/device/widgets/device_screen.dart';
 import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
 import 'package:classipod/features/settings/models/device_color.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 class DeviceFrame extends ConsumerWidget {
   final Widget child;
@@ -22,6 +25,7 @@ class DeviceFrame extends ConsumerWidget {
     );
     final deviceColorStyle = deviceColor.style;
     final mediaQuery = MediaQuery.of(context);
+    final useNativeShell = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     final glassColors = [
       deviceColorStyle.frameGradientColors.first.withValues(alpha: 0.86),
       CupertinoColors.white.withValues(
@@ -53,9 +57,8 @@ class DeviceFrame extends ConsumerWidget {
         if (idealBodyHeight > availableHeight && constraints.maxWidth >= 700) {
           bodyWidth = availableHeight / bodyAspectRatio;
         }
-        final bodyRadius = BorderRadius.circular(
-          (bodyWidth * 0.12).clamp(36.0, 58.0).toDouble(),
-        );
+        final bodyCornerRadius = (bodyWidth * 0.12).clamp(36.0, 58.0).toDouble();
+        final bodyRadius = BorderRadius.circular(bodyCornerRadius);
         final innerWidth = max(0.0, bodyWidth - 20);
         final contentHeight = max(
           0.0,
@@ -65,53 +68,96 @@ class DeviceFrame extends ConsumerWidget {
           contentHeight * 0.42,
           (innerWidth * 0.72).clamp(218.0, 316.0).toDouble(),
         );
+        final bodyContent = Column(
+          children: [
+            DeviceScreen(
+              key: deviceScreenGlobalKey,
+              height: screenHeight,
+              child: child,
+            ),
+            Expanded(
+              child: Center(
+                child: DeviceControls(
+                  key: deviceControlsGlobalKey,
+                ),
+              ),
+            ),
+          ],
+        );
 
         return Stack(
           fit: StackFit.expand,
           children: [
-            AnimatedAuroraBackdrop(
-              colors: [
-                deviceColorStyle.frameGradientColors.first.withValues(alpha: 0.82),
-                const Color(0xFFF5F5F0),
-                const Color(0xFFC9CED7),
-                deviceColorStyle.frameGradientColors.last.withValues(alpha: 0.78),
-              ],
-              intensity: deviceColorStyle.isDark ? 0.48 : 0.28,
-            ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: const AssetImage(Assets.noiseImage),
-                  fit: BoxFit.cover,
-                  opacity: deviceColorStyle.noiseOpacity * 0.3,
+            if (!useNativeShell) ...[
+              AnimatedAuroraBackdrop(
+                colors: [
+                  deviceColorStyle.frameGradientColors.first.withValues(alpha: 0.82),
+                  const Color(0xFFF5F5F0),
+                  const Color(0xFFC9CED7),
+                  deviceColorStyle.frameGradientColors.last.withValues(alpha: 0.78),
+                ],
+                intensity: deviceColorStyle.isDark ? 0.48 : 0.28,
+              ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: const AssetImage(Assets.noiseImage),
+                    fit: BoxFit.cover,
+                    opacity: deviceColorStyle.noiseOpacity * 0.3,
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: topContentInset + 56,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        deviceColorStyle.frameGradientColors.first.withValues(
-                          alpha: deviceColorStyle.isDark ? 0.32 : 0.18,
-                        ),
-                        CupertinoColors.white.withValues(
-                          alpha: deviceColorStyle.isDark ? 0.08 : 0.42,
-                        ),
-                        CupertinoColors.white.withValues(alpha: 0),
-                      ],
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: topContentInset + 56,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          deviceColorStyle.frameGradientColors.first.withValues(
+                            alpha: deviceColorStyle.isDark ? 0.32 : 0.18,
+                          ),
+                          CupertinoColors.white.withValues(
+                            alpha: deviceColorStyle.isDark ? 0.08 : 0.42,
+                          ),
+                          CupertinoColors.white.withValues(alpha: 0),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
+            if (useNativeShell)
+              Positioned(
+                top: 0,
+                bottom: -bottomBleed,
+                left: -horizontalBleed,
+                right: -horizontalBleed,
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    width: bodyWidth,
+                    height: bodyHeight,
+                    child: _NativeDeviceShellView(
+                      key: ValueKey(
+                        'native-shell-${deviceColor.name}-${bodyWidth.round()}-${bodyHeight.round()}',
+                      ),
+                      frameStartColor: deviceColorStyle.frameGradientColors.first,
+                      frameEndColor: deviceColorStyle.frameGradientColors.last,
+                      isDark: deviceColorStyle.isDark,
+                      topContentInset: topContentInset,
+                      bottomContentInset: bottomContentInset,
+                      bodyRadius: bodyCornerRadius,
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               top: 0,
               bottom: -bottomBleed,
@@ -135,81 +181,76 @@ class DeviceFrame extends ConsumerWidget {
                         ),
                       );
                     },
-                    child: LiquidGlass(
-                      borderRadius: bodyRadius,
-                      blur: 22,
-                      opacity: deviceColorStyle.isDark ? 0.42 : 0.58,
-                      borderColor: CupertinoColors.white.withValues(alpha: 0.5),
-                      gradientColors: glassColors,
-                      padding: EdgeInsets.fromLTRB(
-                        10,
-                        topContentInset,
-                        10,
-                        bottomContentInset,
-                      ),
-                      shadows: [
-                        BoxShadow(
-                          color: CupertinoColors.black.withValues(alpha: 0.28),
-                          blurRadius: 32,
-                          offset: const Offset(0, 20),
-                        ),
-                      ],
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: LiquidReflectionOverlay(
-                              borderRadius: bodyRadius,
-                              opacity: deviceColorStyle.isDark ? 0.54 : 0.7,
+                    child: useNativeShell
+                        ? Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              10,
+                              topContentInset,
+                              10,
+                              bottomContentInset,
                             ),
-                          ),
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: topContentInset + 22,
-                            child: IgnorePointer(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.vertical(
-                                    top: bodyRadius.topLeft,
-                                  ),
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      CupertinoColors.white.withValues(
-                                        alpha: deviceColorStyle.isDark
-                                            ? 0.08
-                                            : 0.42,
-                                      ),
-                                      deviceColorStyle.frameGradientColors.first
-                                          .withValues(alpha: 0.16),
-                                      CupertinoColors.white.withValues(alpha: 0),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                            child: bodyContent,
+                          )
+                        : LiquidGlass(
+                            borderRadius: bodyRadius,
+                            blur: 22,
+                            opacity: deviceColorStyle.isDark ? 0.42 : 0.58,
+                            borderColor: CupertinoColors.white.withValues(alpha: 0.5),
+                            gradientColors: glassColors,
+                            padding: EdgeInsets.fromLTRB(
+                              10,
+                              topContentInset,
+                              10,
+                              bottomContentInset,
                             ),
-                          ),
-                          Column(
-                            children: [
-                              DeviceScreen(
-                                key: deviceScreenGlobalKey,
-                                height: screenHeight,
-                                child: child,
-                              ),
-                              Expanded(
-                                child: Center(
-                                  child: DeviceControls(
-                                    key: deviceControlsGlobalKey,
-                                  ),
-                                ),
+                            shadows: [
+                              BoxShadow(
+                                color: CupertinoColors.black.withValues(alpha: 0.28),
+                                blurRadius: 32,
+                                offset: const Offset(0, 20),
                               ),
                             ],
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: LiquidReflectionOverlay(
+                                    borderRadius: bodyRadius,
+                                    opacity: deviceColorStyle.isDark ? 0.54 : 0.7,
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  height: topContentInset + 22,
+                                  child: IgnorePointer(
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.vertical(
+                                          top: bodyRadius.topLeft,
+                                        ),
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            CupertinoColors.white.withValues(
+                                              alpha: deviceColorStyle.isDark
+                                                  ? 0.08
+                                                  : 0.42,
+                                            ),
+                                            deviceColorStyle.frameGradientColors.first
+                                                .withValues(alpha: 0.16),
+                                            CupertinoColors.white.withValues(alpha: 0),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                bodyContent,
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
-                    ),
                   ),
                 ),
               ),
@@ -219,4 +260,47 @@ class DeviceFrame extends ConsumerWidget {
       },
     );
   }
+}
+
+class _NativeDeviceShellView extends StatelessWidget {
+  final Color frameStartColor;
+  final Color frameEndColor;
+  final bool isDark;
+  final double topContentInset;
+  final double bottomContentInset;
+  final double bodyRadius;
+
+  const _NativeDeviceShellView({
+    super.key,
+    required this.frameStartColor,
+    required this.frameEndColor,
+    required this.isDark,
+    required this.topContentInset,
+    required this.bottomContentInset,
+    required this.bodyRadius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return UiKitView(
+      viewType: 'classipod/native_device_shell',
+      hitTestBehavior: PlatformViewHitTestBehavior.transparent,
+      creationParamsCodec: const StandardMessageCodec(),
+      creationParams: {
+        'frameStartColor': _colorToArgb(frameStartColor),
+        'frameEndColor': _colorToArgb(frameEndColor),
+        'isDark': isDark,
+        'topContentInset': topContentInset,
+        'bottomContentInset': bottomContentInset,
+        'bodyRadius': bodyRadius,
+      },
+    );
+  }
+}
+
+int _colorToArgb(Color color) {
+  return ((color.alpha & 0xff) << 24) |
+      ((color.red & 0xff) << 16) |
+      ((color.green & 0xff) << 8) |
+      (color.blue & 0xff);
 }
