@@ -1,0 +1,161 @@
+name: TestFlight
+
+on:
+  workflow_dispatch:
+
+jobs:
+  upload:
+    name: Build and upload TestFlight IPA
+    runs-on: macos-26-intel
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate TestFlight secrets
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in \
+            APP_STORE_CONNECT_API_KEY_P8 \
+            APP_STORE_CONNECT_KEY_ID \
+            APP_STORE_CONNECT_ISSUER_ID \
+            APPLE_TEAM_ID
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Select latest Xcode 26
+        run: |
+          set -euo pipefail
+          XCODE_PATH="$(ls -1d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)"
+          if [ -z "${XCODE_PATH}" ]; then
+            echo "No Xcode 26 app found under /Applications" >&2
+            ls -la /Applications | grep Xcode || true
+            exit 1
+          fi
+          sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.7"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Install CocoaPods
+        run: sudo gem install cocoapods --no-document
+
+      - name: Refresh iOS pods
+        run: |
+          set -euo pipefail
+          cd ios
+          pod install --repo-update
+
+      - name: Build Flutter iOS artifacts without codesigning
+        run: |
+          set -euo pipefail
+          TESTFLIGHT_BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
+          echo "Building dopI TestFlight build ${TESTFLIGHT_BUILD_NUMBER}"
+          flutter build ios --release --no-codesign --no-pub --build-number="${TESTFLIGHT_BUILD_NUMBER}"
+
+      - name: Write App Store Connect key
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p private_keys
+          printf '%s' "${APP_STORE_CONNECT_API_KEY_P8}" > "${PWD}/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+
+      - name: Archive unsigned app
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          TESTFLIGHT_BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/dopI.xcarchive \
+            DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
+            CURRENT_PROJECT_VERSION="${TESTFLIGHT_BUILD_NUMBER}" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            archive
+
+      - name: Export App Store Connect IPA
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/export
+          cp ExportOptions.plist build/ExportOptions.generated.plist
+          /usr/libexec/PlistBuddy -c "Set :manageAppVersionAndBuildNumber false" build/ExportOptions.generated.plist
+          /usr/libexec/PlistBuddy -c "Delete :teamID" build/ExportOptions.generated.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :teamID string ${APPLE_TEAM_ID}" build/ExportOptions.generated.plist
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/dopI.xcarchive \
+            -exportOptionsPlist build/ExportOptions.generated.plist \
+            -exportPath build/export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${PWD}/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8" \
+            -authenticationKeyID "${APP_STORE_CONNECT_KEY_ID}" \
+            -authenticationKeyIssuerID "${APP_STORE_CONNECT_ISSUER_ID}"
+          IPA_PATH="$(find build/export -maxdepth 1 -name '*.ipa' -print -quit)"
+          if [ -z "${IPA_PATH}" ]; then
+            echo "No IPA found in build/export" >&2
+            find build/export -maxdepth 2 -type f -print
+            exit 1
+          fi
+          shasum -a 256 "${IPA_PATH}" | tee build/export/ipa.sha256
+
+      - name: Upload TestFlight IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dopI-testflight-ipa-${{ github.run_number }}
+          path: |
+            build/export/*.ipa
+            build/export/ipa.sha256
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload to TestFlight
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          IPA_PATH="$(find build/export -maxdepth 1 -name '*.ipa' -print -quit)"
+          if [ -z "${IPA_PATH}" ]; then
+            echo "No IPA found in build/export" >&2
+            find build/export -maxdepth 2 -type f -print
+            exit 1
+          fi
+          xcrun altool --upload-app --type ios --file "${IPA_PATH}" --apiKey "${APP_STORE_CONNECT_KEY_ID}" --apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}"
