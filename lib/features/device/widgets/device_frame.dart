@@ -27,6 +27,7 @@ class DeviceFrame extends ConsumerStatefulWidget {
 class _DeviceFrameState extends ConsumerState<DeviceFrame> {
   static const Duration _doubleTapWindow = Duration(milliseconds: 360);
   static const double _doubleTapDistance = 52;
+  static const Duration _frameZoomDuration = Duration(milliseconds: 420);
 
   bool _isZoomedOut = false;
   DateTime? _lastFramePointerAt;
@@ -103,16 +104,32 @@ class _DeviceFrameState extends ConsumerState<DeviceFrame> {
         final viewportHeight = constraints.maxHeight.isFinite
             ? constraints.maxHeight
             : bodyHeight;
+        final zoomedOutTop = max(topInset + 86, viewportHeight * 0.14);
+        final zoomedOutBottomPadding = max(bottomInset + 24, 34.0);
+        final zoomedOutHeightScale = (
+          (viewportHeight - zoomedOutTop - zoomedOutBottomPadding) /
+              max(bodyHeight, 1.0)
+        ).clamp(0.68, 0.86).toDouble();
+        final zoomedOutWidthScale = constraints.maxWidth < 390 ? 0.82 : 0.86;
         final frameScale = _isZoomedOut
-            ? (viewportHeight / max(bodyHeight, 1.0))
-                  .clamp(0.72, 0.86)
-                  .toDouble()
+            ? min(zoomedOutHeightScale, zoomedOutWidthScale)
             : 1.0;
+        final scaledFrameHeight = bodyHeight * frameScale;
+        final maxZoomedOutTop = max(
+          0.0,
+          viewportHeight - scaledFrameHeight - zoomedOutBottomPadding,
+        );
+        final frameTranslateY = _isZoomedOut
+            ? zoomedOutTop.clamp(0.0, maxZoomedOutTop).toDouble()
+            : 0.0;
         final visibleFrameWidth = bodyWidth * frameScale;
-        final visibleFrameHeight = min(viewportHeight, bodyHeight * frameScale);
+        final visibleFrameHeight = min(
+          max(0.0, viewportHeight - frameTranslateY),
+          scaledFrameHeight,
+        );
         final visibleFrameRect = Rect.fromLTWH(
           (constraints.maxWidth - visibleFrameWidth) / 2,
-          0,
+          frameTranslateY,
           visibleFrameWidth,
           visibleFrameHeight,
         );
@@ -154,27 +171,43 @@ class _DeviceFrameState extends ConsumerState<DeviceFrame> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              if (!useNativeShell) ...[
-                AnimatedAuroraBackdrop(
-                  colors: [
-                    deviceColorStyle.frameGradientColors.first.withValues(
-                      alpha: 0.82,
-                    ),
-                    const Color(0xFFF5F5F0),
-                    const Color(0xFFC9CED7),
-                    deviceColorStyle.frameGradientColors.last.withValues(
-                      alpha: 0.78,
-                    ),
-                  ],
-                  intensity: deviceColorStyle.isDark ? 0.48 : 0.28,
+              AnimatedOpacity(
+                opacity: _isZoomedOut ? 1 : 0,
+                duration: _frameZoomDuration,
+                curve: Curves.easeOutCubic,
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(color: CupertinoColors.black),
                 ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: const AssetImage(Assets.noiseImage),
-                      fit: BoxFit.cover,
-                      opacity: deviceColorStyle.noiseOpacity * 0.3,
-                    ),
+              ),
+              if (!useNativeShell) ...[
+                AnimatedOpacity(
+                  opacity: _isZoomedOut ? 0 : 1,
+                  duration: _frameZoomDuration,
+                  curve: Curves.easeOutCubic,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      AnimatedAuroraBackdrop(
+                        colors: [
+                          deviceColorStyle.frameGradientColors.first
+                              .withValues(alpha: 0.82),
+                          const Color(0xFFF5F5F0),
+                          const Color(0xFFC9CED7),
+                          deviceColorStyle.frameGradientColors.last
+                              .withValues(alpha: 0.78),
+                        ],
+                        intensity: deviceColorStyle.isDark ? 0.48 : 0.28,
+                      ),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          image: DecorationImage(
+                            image: const AssetImage(Assets.noiseImage),
+                            fit: BoxFit.cover,
+                            opacity: deviceColorStyle.noiseOpacity * 0.3,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Positioned(
@@ -183,21 +216,26 @@ class _DeviceFrameState extends ConsumerState<DeviceFrame> {
                   right: 0,
                   height: topContentInset + 56,
                   child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            deviceColorStyle.frameGradientColors.first
-                                .withValues(
-                              alpha: deviceColorStyle.isDark ? 0.32 : 0.18,
-                            ),
-                            CupertinoColors.white.withValues(
-                              alpha: deviceColorStyle.isDark ? 0.08 : 0.42,
-                            ),
-                            CupertinoColors.white.withValues(alpha: 0),
-                          ],
+                    child: AnimatedOpacity(
+                      opacity: _isZoomedOut ? 0 : 1,
+                      duration: _frameZoomDuration,
+                      curve: Curves.easeOutCubic,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              deviceColorStyle.frameGradientColors.first
+                                  .withValues(
+                                alpha: deviceColorStyle.isDark ? 0.32 : 0.18,
+                              ),
+                              CupertinoColors.white.withValues(
+                                alpha: deviceColorStyle.isDark ? 0.08 : 0.42,
+                              ),
+                              CupertinoColors.white.withValues(alpha: 0),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -214,6 +252,8 @@ class _DeviceFrameState extends ConsumerState<DeviceFrame> {
                     alignment: Alignment.topCenter,
                     child: _AnimatedFrameZoom(
                       scale: frameScale,
+                      translateY: frameTranslateY,
+                      duration: _frameZoomDuration,
                       child: SizedBox(
                         width: bodyWidth,
                         height: bodyHeight,
@@ -241,6 +281,8 @@ class _DeviceFrameState extends ConsumerState<DeviceFrame> {
                   alignment: Alignment.topCenter,
                   child: _AnimatedFrameZoom(
                     scale: frameScale,
+                    translateY: frameTranslateY,
+                    duration: _frameZoomDuration,
                     child: SizedBox(
                       width: bodyWidth,
                       height: bodyHeight,
@@ -354,17 +396,26 @@ class _DeviceFrameState extends ConsumerState<DeviceFrame> {
 
 class _AnimatedFrameZoom extends StatelessWidget {
   final double scale;
+  final double translateY;
+  final Duration duration;
   final Widget child;
 
-  const _AnimatedFrameZoom({required this.scale, required this.child});
+  const _AnimatedFrameZoom({
+    required this.scale,
+    required this.translateY,
+    required this.duration,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedScale(
-      scale: scale,
-      alignment: Alignment.topCenter,
-      duration: const Duration(milliseconds: 360),
+    return AnimatedContainer(
+      duration: duration,
       curve: Curves.easeOutCubic,
+      transform: Matrix4.identity()
+        ..translate(0.0, translateY)
+        ..scale(scale),
+      transformAlignment: Alignment.topCenter,
       child: child,
     );
   }
