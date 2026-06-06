@@ -5,6 +5,7 @@ import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
 import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/widgets/display_list_tile.dart';
+import 'package:classipod/features/app_startup/controllers/splash_controller.dart';
 import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
 import 'package:classipod/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
@@ -93,7 +94,10 @@ class _MusicMenuScreenState extends ConsumerState<MusicMenuScreen>
         }
         if (importResult.hasImportedSongs && mounted) {
           ref.invalidate(filteredAudioFilesProvider);
-          context.goNamed(Routes.splash.name);
+          context.goNamed(
+            Routes.splash.name,
+            extra: SplashLaunchMode.libraryRefresh,
+          );
         }
         break;
       case _MusicListDisplayItems.playlists:

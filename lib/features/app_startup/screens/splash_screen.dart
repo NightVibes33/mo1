@@ -11,7 +11,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
-  const SplashScreen({super.key});
+  final SplashLaunchMode launchMode;
+
+  const SplashScreen({
+    super.key,
+    this.launchMode = SplashLaunchMode.startup,
+  });
 
   @override
   ConsumerState createState() => _SplashScreenState();
@@ -29,8 +34,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   void initState() {
-    _timer = Timer(const Duration(seconds: 5), _toggleScanningMusicText);
     super.initState();
+    _timer = Timer(const Duration(seconds: 5), _toggleScanningMusicText);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      unawaited(
+        ref.read(splashControllerProvider.notifier).launch(widget.launchMode),
+      );
+    });
   }
 
   @override
@@ -42,32 +55,33 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen(splashControllerProvider, (_, state) async {
-      if (state.hasError) {
-        if (state.error is AudioPermissionDeniedException) {
-          await Dialogs.showInfoDialog(
-            context: context,
-            title: context.localization.audioAccessPermissionTitle,
-            content: context.localization.audioAccessPermissionContent,
-          );
-          await ref
-              .read(splashControllerProvider.notifier)
-              .requestStoragePermissions();
-        } else if (state.error is AudioPermissionPermanentlyDeniedException) {
-          await Dialogs.showInfoDialog(
-            context: context,
-            title: context
-                .localization
-                .audioAccessPermissionPermanentlyDeniedTitle,
-            content: context
-                .localization
-                .audioAccessPermissionPermanentlyDeniedContent,
-          );
-          await ref
-              .read(splashControllerProvider.notifier)
-              .requestStoragePermissions();
-        } else if (!state.hasError && context.mounted) {
-          context.goNamed(Routes.menu.name);
-        }
+      if (!state.hasError) {
+        return;
+      }
+      if (state.error is AudioPermissionDeniedException) {
+        await Dialogs.showInfoDialog(
+          context: context,
+          title: context.localization.audioAccessPermissionTitle,
+          content: context.localization.audioAccessPermissionContent,
+        );
+        await ref
+            .read(splashControllerProvider.notifier)
+            .requestStoragePermissions();
+      } else if (state.error is AudioPermissionPermanentlyDeniedException) {
+        await Dialogs.showInfoDialog(
+          context: context,
+          title: context
+              .localization
+              .audioAccessPermissionPermanentlyDeniedTitle,
+          content: context
+              .localization
+              .audioAccessPermissionPermanentlyDeniedContent,
+        );
+        await ref
+            .read(splashControllerProvider.notifier)
+            .requestStoragePermissions();
+      } else if (context.mounted) {
+        context.goNamed(Routes.menu.name);
       }
     });
     return CupertinoPageScaffold(

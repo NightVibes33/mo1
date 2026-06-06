@@ -5,6 +5,7 @@ import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
 import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
+import 'package:classipod/features/app_startup/controllers/splash_controller.dart';
 import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
 import 'package:classipod/features/menu/controller/split_screen_controller.dart';
 import 'package:classipod/features/menu/models/split_screen_type.dart';
@@ -199,7 +200,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         }
         if (importResult.hasImportedSongs && mounted) {
           ref.invalidate(filteredAudioFilesProvider);
-          context.goNamed(Routes.splash.name);
+          context.goNamed(
+            Routes.splash.name,
+            extra: SplashLaunchMode.libraryRefresh,
+          );
         }
         break;
       case _SettingsDisplayItems.rescanMusicFiles:
