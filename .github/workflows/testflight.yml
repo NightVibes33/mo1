@@ -158,4 +158,5 @@ jobs:
             find build/export -maxdepth 2 -type f -print
             exit 1
           fi
-          xcrun altool --upload-app --type ios --file "${IPA_PATH}" --apiKey "${APP_STORE_CONNECT_KEY_ID}" --apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}"
+          export API_PRIVATE_KEYS_DIR="${PWD}/private_keys"
+          xcrun iTMSTransporter -m upload -assetFile "${IPA_PATH}" -apiKey "${APP_STORE_CONNECT_KEY_ID}" -apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}" -v informational
