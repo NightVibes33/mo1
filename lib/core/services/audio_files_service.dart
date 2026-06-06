@@ -203,10 +203,18 @@ class AudioFilesServiceNotifier
 
     final metadataBox = Hive.box<MusicMetadata>(Constants.metadataBoxName);
     final existingPathIndexes = <String, int>{};
+    final existingSignatureIndexes = <String, int>{};
     for (var index = 0; index < metadataBox.length; index++) {
-      final path = metadataBox.getAt(index)?.filePath;
+      final existing = metadataBox.getAt(index);
+      final path = existing?.filePath;
       if (path != null && path.isNotEmpty) {
         existingPathIndexes[path] = index;
+      }
+      if (existing?.isAppleMusicCatalogTrack ?? false) {
+        final signature = _appleMusicSignature(existing!);
+        if (signature != null) {
+          existingSignatureIndexes[signature] = index;
+        }
       }
     }
 
@@ -220,7 +228,10 @@ class AudioFilesServiceNotifier
         continue;
       }
 
-      final existingIndex = existingPathIndexes[path];
+      final signature = _appleMusicSignature(metadata);
+      final existingIndex =
+          existingPathIndexes[path] ??
+          (signature == null ? null : existingSignatureIndexes[signature]);
       if (existingIndex != null) {
         final existing = metadataBox.getAt(existingIndex);
         if (existing == null) {
@@ -231,6 +242,10 @@ class AudioFilesServiceNotifier
           await metadataBox.putAt(existingIndex, refreshed);
           updatedCount++;
         }
+        existingPathIndexes[path] = existingIndex;
+        if (signature != null) {
+          existingSignatureIndexes[signature] = existingIndex;
+        }
         continue;
       }
 
@@ -239,7 +254,11 @@ class AudioFilesServiceNotifier
         isOnDevice: false,
       );
       importedMetadata.add(imported);
-      existingPathIndexes[path] = metadataBox.length + importedMetadata.length - 1;
+      final importedIndex = metadataBox.length + importedMetadata.length - 1;
+      existingPathIndexes[path] = importedIndex;
+      if (signature != null) {
+        existingSignatureIndexes[signature] = importedIndex;
+      }
       importedCount++;
     }
 
@@ -257,6 +276,21 @@ class AudioFilesServiceNotifier
       importedCount: importedCount,
       updatedCount: updatedCount,
     );
+  }
+
+  String? _appleMusicSignature(MusicMetadata metadata) {
+    final values = [
+      metadata.trackName,
+      metadata.getTrackArtistNames,
+      metadata.albumName,
+    ]
+        .map((value) => value?.trim().toLowerCase() ?? '')
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (values.length < 2) {
+      return null;
+    }
+    return values.join('|');
   }
 
   MusicMetadata _mergeAppleMusicMetadata(
