@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>com.adeeteya.classipod</id>
-  <name>dopI</name>
+  <name>døPi</name>
   <summary>
     Retro click-wheel local music player
   </summary>
@@ -16,19 +16,19 @@
   <url type="homepage">https://github.com/adeeteya/Classipod</url>
   <url type="donation">https://buymeacoffee.com/adeeteya</url>
   <description>
-    <p>Introducing "dopI" – a timeless audio experience</p>
-    <p>Step back in time with dopI, a local music player app designed around a nostalgic click-wheel interface and focused music browsing.</p>
+    <p>Introducing "døPi" – a timeless audio experience</p>
+    <p>Step back in time with døPi, a local music player app designed around a nostalgic click-wheel interface and focused music browsing.</p>
 
     <ul>
         <li>🧭 <strong>Intuitive Navigation:</strong> Navigate through your music library effortlessly using the virtual click wheel. Scroll, click, and feel the tactile response as you rediscover the joy of selecting your favorite tracks with the same ease as a classic dedicated music player.</li>
-        <li>🗃️ <strong>Local Music Library:</strong> dopI is focused on your locally stored music files, ensuring that your personal music collection takes center stage. Organize your tracks, albums, and playlists just like you did on a dedicated music player.</li>
-        <li>🖌️ <strong>Customizable Themes:</strong> Personalize your dopI experience with the option of silver or grey device frame. Choose from the two different color schemes to tailor the app's appearance to your unique style.</li>
-        <li>🖼️ <strong>Cover Art Display:</strong> Immerse yourself in your music by appreciating album artwork on the vibrant display. dopI showcases your favorite album covers by showcasing your favorite album covers in a retro-inspired format.</li>
-        <li>🎼 <strong>No Frills, Just Music:</strong> dopI stays true to the essence of a music player – no distractions, no unnecessary features. Focus solely on the joy of listening to your favorite tunes without the complexities of a modern streaming service.</li>
-        <li>🎧 <strong>Offline Listening:</strong> Enjoy your music without relying on an internet connection. dopI is perfect for those moments when you want to disconnect and savor the tunes stored locally on your device.</li>
+        <li>🗃️ <strong>Local Music Library:</strong> døPi is focused on your locally stored music files, ensuring that your personal music collection takes center stage. Organize your tracks, albums, and playlists just like you did on a dedicated music player.</li>
+        <li>🖌️ <strong>Customizable Themes:</strong> Personalize your døPi experience with the option of silver or grey device frame. Choose from the two different color schemes to tailor the app's appearance to your unique style.</li>
+        <li>🖼️ <strong>Cover Art Display:</strong> Immerse yourself in your music by appreciating album artwork on the vibrant display. døPi showcases your favorite album covers by showcasing your favorite album covers in a retro-inspired format.</li>
+        <li>🎼 <strong>No Frills, Just Music:</strong> døPi stays true to the essence of a music player – no distractions, no unnecessary features. Focus solely on the joy of listening to your favorite tunes without the complexities of a modern streaming service.</li>
+        <li>🎧 <strong>Offline Listening:</strong> Enjoy your music without relying on an internet connection. døPi is perfect for those moments when you want to disconnect and savor the tunes stored locally on your device.</li>
     </ul>
 
-    <p>Relive classic music browsing with dopI – where timeless design meets the convenience of today. Download now and embark on a journey down memory lane with your music in the palm of your hand.</p>
+    <p>Relive classic music browsing with døPi – where timeless design meets the convenience of today. Download now and embark on a journey down memory lane with your music in the palm of your hand.</p>
     <p>If you like what you see, please ⭐ the repo.</p>
 
     <p><strong>✨ Features:</strong></p>
@@ -77,7 +77,7 @@
       <image type="source">
         https://rawcdn.githack.com/adeeteya/Classipod/refs/heads/master/screenshots/combined.jpg
       </image>
-      <caption>dopI features</caption>
+      <caption>døPi features</caption>
     </screenshot>
   </screenshots>
   <launchable type="desktop-id">com.adeeteya.classipod.desktop</launchable>

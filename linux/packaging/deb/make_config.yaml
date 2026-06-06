@@ -1,4 +1,4 @@
-display_name: dopI
+display_name: døPi
 package_name: classipod
 maintainer:
   name: Aditya
@@ -32,7 +32,7 @@ dependencies:
   - ca-certificates
 
 postinstall_scripts:
-  - echo "Thanks for installing dopI. If you like the app please give it a star on GitHub"
+  - echo "Thanks for installing døPi. If you like the app please give it a star on GitHub"
 postuninstall_scripts:
   - echo "Sorry to see you go. If there are problems in the app please open an issue on GitHub"
 

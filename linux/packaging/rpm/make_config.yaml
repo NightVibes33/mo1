@@ -28,7 +28,7 @@ requires:
   - xdg-utils
   - ca-certificates
 
-display_name: dopI
+display_name: døPi
 
 keywords:
   - Music

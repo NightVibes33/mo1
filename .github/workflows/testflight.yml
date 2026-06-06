@@ -76,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           TESTFLIGHT_BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
-          echo "Building dopI TestFlight build ${TESTFLIGHT_BUILD_NUMBER}"
+          echo "Building døPi TestFlight build ${TESTFLIGHT_BUILD_NUMBER}"
           flutter build ios --release --no-codesign --no-pub --build-number="${TESTFLIGHT_BUILD_NUMBER}"
 
       - name: Write App Store Connect key
@@ -99,7 +99,7 @@ jobs:
             -scheme Runner \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath build/dopI.xcarchive \
+            -archivePath build/dopi.xcarchive \
             DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
             CURRENT_PROJECT_VERSION="${TESTFLIGHT_BUILD_NUMBER}" \
             CODE_SIGNING_ALLOWED=NO \
@@ -121,7 +121,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :teamID string ${APPLE_TEAM_ID}" build/ExportOptions.generated.plist
           xcodebuild \
             -exportArchive \
-            -archivePath build/dopI.xcarchive \
+            -archivePath build/dopi.xcarchive \
             -exportOptionsPlist build/ExportOptions.generated.plist \
             -exportPath build/export \
             -allowProvisioningUpdates \
@@ -139,7 +139,7 @@ jobs:
       - name: Upload TestFlight IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dopI-testflight-ipa-${{ github.run_number }}
+          name: døPi-testflight-ipa-${{ github.run_number }}
           path: |
             build/export/*.ipa
             build/export/ipa.sha256
