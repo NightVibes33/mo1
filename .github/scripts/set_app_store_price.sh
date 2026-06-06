@@ -120,4 +120,4 @@ if [ "${STATUS}" -lt 200 ] || [ "${STATUS}" -ge 300 ]; then
   exit 1
 fi
 
-echo "Set ${APP_NAME} (${APP_BUNDLE_ID}) to paid app price $${CUSTOMER_PRICE} using ${BASE_TERRITORY} price point ${PRICE_POINT_ID}."
+echo "Set ${APP_NAME} (${APP_BUNDLE_ID}) to paid app price \$${CUSTOMER_PRICE} using ${BASE_TERRITORY} price point ${PRICE_POINT_ID}."
