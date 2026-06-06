@@ -4,6 +4,7 @@ import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
 import 'package:classipod/core/services/audio_equalizer_service.dart';
 import 'package:classipod/core/services/apple_music_playback_service.dart';
+import 'package:classipod/core/services/lyrics_lookup_service.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/playlist/models/playlist_model.dart';
 import 'package:classipod/features/now_playing/models/now_playing_model.dart';
@@ -493,7 +494,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       await localPlayer.pause();
     }
 
-    final catalogIds = (metadataList ?? [metadata])
+    final playbackList = metadataList ?? [metadata];
+    final catalogIds = playbackList
         .map((entry) => entry.appleMusicCatalogId)
         .whereType<String>()
         .toList(growable: false);
@@ -505,11 +507,36 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         );
     ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
           nowPlayingType: nowPlayingType,
-          newMetadataList: metadataList ?? [metadata],
+          newMetadataList: playbackList,
           currentIndex: currentIndex,
           isPlaying: didStart,
         );
+    if (didStart) {
+      unawaited(_refreshAppleMusicLyrics(metadata));
+    }
     return didStart;
+  }
+
+  Future<void> _refreshAppleMusicLyrics(MusicMetadata metadata) async {
+    if (metadata.originalSongIndex < 0 ||
+        (metadata.lyrics?.trim().isNotEmpty ?? false)) {
+      return;
+    }
+
+    try {
+      final lyrics = await ref.read(lyricsLookupServiceProvider).findBestFor(
+            metadata,
+          );
+      if (lyrics == null || lyrics.trim().isEmpty) {
+        return;
+      }
+      final enrichedMetadata = metadata.copyWith(lyrics: lyrics);
+      await ref
+          .read(nowPlayingDetailsProvider.notifier)
+          .updateMetadata(enrichedMetadata);
+    } catch (_) {
+      // Lyrics are best-effort metadata; playback should never depend on them.
+    }
   }
 
   Future<void> _pauseAppleMusicPlaybackIfCurrent() async {

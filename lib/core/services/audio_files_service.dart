@@ -21,6 +21,22 @@ final audioFilesServiceProvider =
       UnmodifiableListView<MusicMetadata>
     >(AudioFilesServiceNotifier.new);
 
+class ImportAppleMusicMetadataResult {
+  final int importedCount;
+  final int updatedCount;
+
+  const ImportAppleMusicMetadataResult({
+    required this.importedCount,
+    required this.updatedCount,
+  });
+
+  const ImportAppleMusicMetadataResult.empty()
+    : importedCount = 0,
+      updatedCount = 0;
+
+  int get changedCount => importedCount + updatedCount;
+}
+
 class ImportLocalAudioResult {
   final int importedCount;
   final int duplicateCount;
@@ -178,50 +194,91 @@ class AudioFilesServiceNotifier
   }
 
 
-  Future<int> importAppleMusicMetadata(
+  Future<ImportAppleMusicMetadataResult> importAppleMusicMetadata(
     List<MusicMetadata> appleMusicMetadata,
   ) async {
     if (!Hive.isBoxOpen(Constants.metadataBoxName)) {
-      return 0;
+      return const ImportAppleMusicMetadataResult.empty();
     }
 
     final metadataBox = Hive.box<MusicMetadata>(Constants.metadataBoxName);
-    final existingPaths = metadataBox.values
-        .map((metadata) => metadata.filePath)
-        .whereType<String>()
-        .toSet();
-    final startIndex = metadataBox.length;
+    final existingPathIndexes = <String, int>{};
+    for (var index = 0; index < metadataBox.length; index++) {
+      final path = metadataBox.getAt(index)?.filePath;
+      if (path != null && path.isNotEmpty) {
+        existingPathIndexes[path] = index;
+      }
+    }
+
+    var importedCount = 0;
+    var updatedCount = 0;
     final importedMetadata = <MusicMetadata>[];
 
     for (final metadata in appleMusicMetadata) {
       final path = metadata.filePath;
-      if (path == null ||
-          path.isEmpty ||
-          !metadata.isAppleMusicCatalogTrack ||
-          existingPaths.contains(path)) {
+      if (path == null || path.isEmpty || !metadata.isAppleMusicCatalogTrack) {
         continue;
       }
+
+      final existingIndex = existingPathIndexes[path];
+      if (existingIndex != null) {
+        final existing = metadataBox.getAt(existingIndex);
+        if (existing == null) {
+          continue;
+        }
+        final refreshed = _mergeAppleMusicMetadata(existing, metadata);
+        if (refreshed != existing) {
+          await metadataBox.putAt(existingIndex, refreshed);
+          updatedCount++;
+        }
+        continue;
+      }
+
       final imported = metadata.copyWith(
-        originalSongIndex: startIndex + importedMetadata.length,
+        originalSongIndex: metadataBox.length + importedMetadata.length,
         isOnDevice: false,
       );
       importedMetadata.add(imported);
-      existingPaths.add(path);
+      existingPathIndexes[path] = metadataBox.length + importedMetadata.length - 1;
+      importedCount++;
     }
 
-    if (importedMetadata.isEmpty) {
-      state = AsyncData(_storedMetadata(metadataBox));
-      return 0;
+    if (importedMetadata.isNotEmpty) {
+      await metadataBox.addAll(importedMetadata);
     }
 
-    await metadataBox.addAll(importedMetadata);
     state = AsyncData(_storedMetadata(metadataBox));
     ref.read(debugLogServiceProvider).info(
       'apple_music',
-      'Imported Apple Music library references.',
-      data: {'count': importedMetadata.length},
+      'Upserted Apple Music library references.',
+      data: {'imported': importedCount, 'updated': updatedCount},
     );
-    return importedMetadata.length;
+    return ImportAppleMusicMetadataResult(
+      importedCount: importedCount,
+      updatedCount: updatedCount,
+    );
+  }
+
+  MusicMetadata _mergeAppleMusicMetadata(
+    MusicMetadata existing,
+    MusicMetadata incoming,
+  ) {
+    return existing.copyWith(
+      trackName: incoming.trackName,
+      trackArtistNames: incoming.trackArtistNames,
+      albumName: incoming.albumName,
+      albumArtistName: incoming.albumArtistName,
+      trackNumber: incoming.trackNumber,
+      albumLength: incoming.albumLength,
+      year: incoming.year,
+      genres: incoming.genres.isEmpty ? existing.genres : incoming.genres,
+      discNumber: incoming.discNumber,
+      trackDuration: incoming.trackDuration,
+      filePath: incoming.filePath,
+      thumbnailPath: incoming.thumbnailPath,
+      isOnDevice: false,
+      lyrics: incoming.lyrics,
+    );
   }
 
   Future<ImportLocalAudioResult> importLocalAudioFiles({

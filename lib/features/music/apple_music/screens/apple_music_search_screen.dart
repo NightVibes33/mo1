@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:classipod/core/constants/app_palette.dart';
 import 'package:classipod/core/constants/assets.dart';
@@ -8,8 +9,7 @@ import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
 import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/core/services/music_metadata_lookup_service.dart';
-import 'package:classipod/core/widgets/input_text_bar.dart';
-import 'package:classipod/features/custom_screen_elements/custom_input_text_screen.dart';
+import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
 import 'package:classipod/features/music/songs/models/music_metadata_match.dart';
 import 'package:classipod/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
@@ -24,17 +24,20 @@ class AppleMusicSearchScreen extends ConsumerStatefulWidget {
       _AppleMusicSearchScreenState();
 }
 
-class _AppleMusicSearchScreenState
-    extends ConsumerState<AppleMusicSearchScreen>
-    with CustomInputTextScreen {
+class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
+    with CustomScreen {
   final List<MusicMetadataMatch> _matches = [];
   bool _isSearching = false;
   bool _isLibraryMode = false;
+  String _searchQuery = '';
   String? _searchErrorText;
   String? _libraryStatusText;
 
   @override
   int get extraDisplayItems => 2;
+
+  @override
+  double get displayTileHeight => 54;
 
   @override
   String get routeName => Routes.appleMusic.name;
@@ -43,14 +46,14 @@ class _AppleMusicSearchScreenState
   List<MusicMetadataMatch> get displayItems => _matches;
 
   @override
-  Future<void> onSelectAction() => _onAppleMusicResultAction(
+  Future<void> onSelectPressed() => _onAppleMusicResultAction(
         selectedDisplayItem,
       );
 
   Future<void> _onAppleMusicResultAction(int displayIndex) async {
     setState(() => selectedDisplayItem = displayIndex);
     if (displayIndex == 0) {
-      _onSearchDefaultTileAction();
+      await _onSearchDefaultTileAction();
       return;
     }
     if (displayIndex == 1) {
@@ -81,9 +84,9 @@ class _AppleMusicSearchScreenState
     if (!didStart) {
       setState(() {
         if (_isLibraryMode) {
-          _libraryStatusText = 'Apple Music playback is unavailable.';
+          _libraryStatusText = 'Apple Music playback failed. Check Debug Logs.';
         } else {
-          _searchErrorText = 'Apple Music playback is unavailable.';
+          _searchErrorText = 'Apple Music playback failed. Check Debug Logs.';
         }
       });
       return;
@@ -91,23 +94,59 @@ class _AppleMusicSearchScreenState
     await context.pushNamed(Routes.nowPlaying.name);
   }
 
-  void _onSearchDefaultTileAction() {
-    final cleanQuery = inputText.trim();
+  Future<void> _onSearchDefaultTileAction() async {
+    final query = await _promptForSearchQuery();
+    if (!mounted || query == null) {
+      return;
+    }
+
+    final cleanQuery = query.trim();
     if (cleanQuery.isEmpty) {
       setState(() {
         selectedDisplayItem = 0;
-        isInputTextBarActive = !isInputTextBarActive;
+        _searchErrorText = 'Enter a song, artist, or album.';
       });
       return;
     }
 
-    if (isInputTextBarActive) {
-      setState(() {
-        selectedDisplayItem = 0;
-        isInputTextBarActive = false;
-      });
-    }
+    setState(() => _searchQuery = cleanQuery);
     unawaited(_searchAppleMusic(cleanQuery));
+  }
+
+  Future<String?> _promptForSearchQuery() async {
+    final controller = TextEditingController(text: _searchQuery);
+    final result = await showCupertinoDialog<String>(
+      context: context,
+      builder: (context) {
+        return CupertinoAlertDialog(
+          title: const Text('Search Apple Music'),
+          content: Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: CupertinoTextField(
+              controller: controller,
+              autofocus: true,
+              clearButtonMode: OverlayVisibilityMode.editing,
+              placeholder: 'Song, artist, or album',
+              textInputAction: TextInputAction.search,
+              onSubmitted: (value) => Navigator.of(context).pop(value),
+            ),
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: const Text('Search'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    return result;
   }
 
   Future<void> _searchAppleMusic(String query) async {
@@ -153,7 +192,6 @@ class _AppleMusicSearchScreenState
         ..addAll(matches);
       _isLibraryMode = false;
       _searchErrorText = matches.isEmpty ? 'No Apple Music results.' : null;
-      isInputTextBarActive = false;
       selectedDisplayItem = matches.isEmpty ? 0 : extraDisplayItems;
     });
   }
@@ -168,7 +206,6 @@ class _AppleMusicSearchScreenState
       _searchErrorText = null;
       _libraryStatusText = null;
       selectedDisplayItem = 1;
-      isInputTextBarActive = false;
     });
 
     final lookupService = ref.read(musicMetadataLookupServiceProvider);
@@ -198,7 +235,7 @@ class _AppleMusicSearchScreenState
     }
 
     final subscriptionStatus = await lookupService.appleMusicSubscriptionStatus();
-    final matches = await lookupService.appleMusicLibrarySongs(limit: 100);
+    final matches = await lookupService.appleMusicLibrarySongs(limit: 250);
     if (!mounted) {
       return;
     }
@@ -207,7 +244,7 @@ class _AppleMusicSearchScreenState
       for (var index = 0; index < matches.length; index++)
         matches[index].toAppleMusicMetadata(originalSongIndex: -index - 1),
     ];
-    final importedCount = await ref
+    final importResult = await ref
         .read(audioFilesServiceProvider.notifier)
         .importAppleMusicMetadata(metadataToImport);
     if (!mounted) {
@@ -223,8 +260,8 @@ class _AppleMusicSearchScreenState
       playbackStatusText = null;
     }
 
-    final importStatusText = importedCount > 0
-        ? 'Imported $importedCount Apple Music songs.'
+    final importStatusText = importResult.changedCount > 0
+        ? 'Imported ${importResult.importedCount}, refreshed ${importResult.updatedCount}.'
         : 'Apple Music library loaded.';
 
     setState(() {
@@ -254,79 +291,59 @@ class _AppleMusicSearchScreenState
 
     return CupertinoPageScaffold(
       resizeToAvoidBottomInset: false,
-      child: Stack(
-        clipBehavior: Clip.none,
+      child: Column(
         children: [
-          Column(
-            children: [
-              StatusBar(title: statusBarTitle),
-              Flexible(
-                child: CupertinoScrollbar(
-                  controller: scrollController,
-                  child: ListView.builder(
-                    controller: scrollController,
-                    padding: listViewPadding,
-                    itemCount: _matches.length + extraDisplayItems,
-                    prototypeItem: const SizedBox(height: 54),
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return _AppleMusicListTile(
-                          title: inputText.trim().isEmpty
-                              ? 'Search Apple Music'
-                              : 'Search "${inputText.trim()}"',
-                          description: _searchErrorText ??
-                              (_isSearching && selectedDisplayItem == 0
-                                  ? 'Searching catalog'
-                                  : 'Catalog search'),
-                          isSelected: selectedDisplayItem == 0,
-                          isLoading: _isSearching && selectedDisplayItem == 0,
-                          onTap: _onSearchDefaultTileAction,
-                        );
-                      }
-                      if (index == 1) {
-                        return _AppleMusicListTile(
-                          title: 'Import Music Library',
-                          description: _libraryStatusText ??
-                              (_isSearching && selectedDisplayItem == 1
-                                  ? 'Loading saved songs'
-                                  : 'Saved Apple Music songs'),
-                          isSelected: selectedDisplayItem == 1,
-                          isLoading: _isSearching && selectedDisplayItem == 1,
-                          onTap: () => unawaited(_loadAppleMusicLibrary()),
-                        );
-                      }
+          StatusBar(title: statusBarTitle),
+          Flexible(
+            child: CupertinoScrollbar(
+              controller: scrollController,
+              child: ListView.builder(
+                controller: scrollController,
+                padding: listViewPadding,
+                itemCount: _matches.length + extraDisplayItems,
+                prototypeItem: const SizedBox(height: 54),
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return _AppleMusicListTile(
+                      title: _searchQuery.trim().isEmpty
+                          ? 'Search Apple Music'
+                          : 'Search "${_searchQuery.trim()}"',
+                      description: _searchErrorText ??
+                          (_isSearching && selectedDisplayItem == 0
+                              ? 'Searching catalog'
+                              : 'Catalog search'),
+                      isSelected: selectedDisplayItem == 0,
+                      isLoading: _isSearching && selectedDisplayItem == 0,
+                      onTap: () => unawaited(_onSearchDefaultTileAction()),
+                    );
+                  }
+                  if (index == 1) {
+                    return _AppleMusicListTile(
+                      title: 'Import Music Library',
+                      description: _libraryStatusText ??
+                          (_isSearching && selectedDisplayItem == 1
+                              ? 'Loading saved songs'
+                              : 'Saved Apple Music songs'),
+                      isSelected: selectedDisplayItem == 1,
+                      isLoading: _isSearching && selectedDisplayItem == 1,
+                      onTap: () => unawaited(_loadAppleMusicLibrary()),
+                    );
+                  }
 
-                      final match = _matches[index - extraDisplayItems];
-                      return _AppleMusicListTile(
-                        title: match.title.isEmpty ? 'Unknown Song' : match.title,
-                        description: match.subtitle.isEmpty
-                            ? match.source.label
-                            : match.subtitle,
-                        artworkUrl: match.artworkUrl,
-                        isSelected: selectedDisplayItem == index,
-                        onTap: () async => _onAppleMusicResultAction(index),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (isInputTextBarActive)
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: InputTextBar(
-                inputTextBarController: inputTextBarController,
-                onSearchTextChanged: (value) {
-                  setState(() {
-                    inputText = value;
-                    _searchErrorText = null;
-                  });
+                  final match = _matches[index - extraDisplayItems];
+                  return _AppleMusicListTile(
+                    title: match.title.isEmpty ? 'Unknown Song' : match.title,
+                    description: match.subtitle.isEmpty
+                        ? match.source.label
+                        : match.subtitle,
+                    artworkUrl: match.artworkUrl,
+                    isSelected: selectedDisplayItem == index,
+                    onTap: () async => _onAppleMusicResultAction(index),
+                  );
                 },
               ),
             ),
+          ),
         ],
       ),
     );
@@ -454,12 +471,27 @@ class _AppleMusicArtwork extends StatelessWidget {
         width: 54,
       );
     }
+    final file = File(url);
+    if (file.existsSync()) {
+      return Image.file(
+        file,
+        fit: BoxFit.cover,
+        height: 54,
+        width: 54,
+        errorBuilder: (_, __, ___) => Image.asset(
+          Assets.defaultAlbumCoverImage,
+          fit: BoxFit.cover,
+          height: 54,
+          width: 54,
+        ),
+      );
+    }
     return Image.network(
       url,
       fit: BoxFit.cover,
       height: 54,
       width: 54,
-      errorBuilder: (_, _, _) => Image.asset(
+      errorBuilder: (_, __, ___) => Image.asset(
         Assets.defaultAlbumCoverImage,
         fit: BoxFit.cover,
         height: 54,

@@ -337,6 +337,28 @@ private enum AppleMusicLookupChannel {
     }
 
     let player = MPMusicPlayerController.applicationQueuePlayer
+    if let mediaDescriptor = mediaItemQueueDescriptor(
+      catalogIds: cleanCatalogIds,
+      startCatalogId: cleanStartCatalogId
+    ) {
+      player.setQueue(with: mediaDescriptor)
+      player.prepareToPlay { error in
+        DispatchQueue.main.async {
+          if let error = error {
+            result(FlutterError(
+              code: "APPLE_MUSIC_PLAYBACK_FAILED",
+              message: error.localizedDescription,
+              details: ["backend": "mediaLibrary"]
+            ))
+            return
+          }
+          player.play()
+          result(true)
+        }
+      }
+      return
+    }
+
     let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: cleanCatalogIds)
     descriptor.startItemID = cleanStartCatalogId
     player.setQueue(with: descriptor)
@@ -346,7 +368,7 @@ private enum AppleMusicLookupChannel {
           result(FlutterError(
             code: "APPLE_MUSIC_PLAYBACK_FAILED",
             message: error.localizedDescription,
-            details: nil
+            details: ["backend": "storeQueue"]
           ))
           return
         }
@@ -427,6 +449,14 @@ private enum AppleMusicLookupChannel {
   private static func librarySongs(
     limit: Int
   ) async throws -> [[String: Any]] {
+    let mediaStatus = await requestMediaLibraryAuthorization()
+    if mediaStatus == .authorized {
+      let mediaMatches = mediaLibrarySongs(limit: limit)
+      if !mediaMatches.isEmpty {
+        return mediaMatches
+      }
+    }
+
     var request = MusicLibraryRequest<Song>()
     request.limit = limit
     let response = try await request.response()
@@ -434,6 +464,173 @@ private enum AppleMusicLookupChannel {
 
     return response.items.prefix(limit).map { song in
       musicMetadataDictionary(for: song, formatter: formatter)
+    }
+  }
+
+  private static func requestMediaLibraryAuthorization() async -> MPMediaLibraryAuthorizationStatus {
+    let currentStatus = MPMediaLibrary.authorizationStatus()
+    if currentStatus != .notDetermined {
+      return currentStatus
+    }
+
+    return await withCheckedContinuation { continuation in
+      MPMediaLibrary.requestAuthorization { status in
+        continuation.resume(returning: status)
+      }
+    }
+  }
+
+  private static func mediaLibrarySongs(limit: Int) -> [[String: Any]] {
+    guard let items = MPMediaQuery.songs().items else {
+      return []
+    }
+
+    var seenIds = Set<String>()
+    var results: [[String: Any]] = []
+    for item in items {
+      guard let id = preferredMediaItemIdentifier(item),
+            !seenIds.contains(id) else {
+        continue
+      }
+      seenIds.insert(id)
+      results.append(mediaMetadataDictionary(for: item, identifier: id))
+      if results.count >= limit {
+        break
+      }
+    }
+    return results
+  }
+
+  private static func mediaItemQueueDescriptor(
+    catalogIds: [String],
+    startCatalogId: String
+  ) -> MPMusicPlayerMediaItemQueueDescriptor? {
+    guard MPMediaLibrary.authorizationStatus() == .authorized,
+          let libraryItems = MPMediaQuery.songs().items,
+          !libraryItems.isEmpty else {
+      return nil
+    }
+
+    let requestedIds = catalogIds.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+      .filter { !$0.isEmpty }
+    guard !requestedIds.isEmpty else {
+      return nil
+    }
+
+    let matchedItems = requestedIds.compactMap { requestedId in
+      libraryItems.first { item in
+        mediaItemIdentifiers(item).contains(requestedId)
+      }
+    }
+    guard !matchedItems.isEmpty else {
+      return nil
+    }
+
+    let collection = MPMediaItemCollection(items: matchedItems)
+    let descriptor = MPMusicPlayerMediaItemQueueDescriptor(itemCollection: collection)
+    descriptor.startItem = matchedItems.first { item in
+      mediaItemIdentifiers(item).contains(startCatalogId)
+    } ?? matchedItems.first
+    return descriptor
+  }
+
+  private static func mediaMetadataDictionary(
+    for item: MPMediaItem,
+    identifier: String
+  ) -> [String: Any] {
+    var result: [String: Any] = [
+      "id": identifier,
+      "title": item.title ?? "",
+      "artist": item.artist ?? item.albumArtist ?? ""
+    ]
+
+    if let album = item.albumTitle, !album.isEmpty {
+      result["album"] = album
+    }
+    if let albumArtist = item.albumArtist, !albumArtist.isEmpty {
+      result["albumArtist"] = albumArtist
+    }
+    if let genre = item.genre, !genre.isEmpty {
+      result["genres"] = [genre]
+    }
+    if item.albumTrackNumber > 0 {
+      result["trackNumber"] = item.albumTrackNumber
+    }
+    if item.albumTrackCount > 0 {
+      result["trackCount"] = item.albumTrackCount
+    }
+    if item.discNumber > 0 {
+      result["discNumber"] = item.discNumber
+    }
+    if item.playbackDuration.isFinite && item.playbackDuration > 0 {
+      result["durationMs"] = Int(item.playbackDuration * 1000)
+    }
+    if let artworkPath = cachedArtworkPath(for: item, identifier: identifier) {
+      result["artworkUrl"] = artworkPath
+    }
+
+    return result
+  }
+
+  private static func preferredMediaItemIdentifier(_ item: MPMediaItem) -> String? {
+    for identifier in mediaItemIdentifiers(item) {
+      if !identifier.isEmpty && identifier != "0" {
+        return identifier
+      }
+    }
+    return nil
+  }
+
+  private static func mediaItemIdentifiers(_ item: MPMediaItem) -> [String] {
+    var identifiers: [String] = []
+    let playbackStoreId = item.playbackStoreID.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !playbackStoreId.isEmpty && playbackStoreId != "0" {
+      identifiers.append(playbackStoreId)
+    }
+    let persistentId = String(item.persistentID)
+    if !persistentId.isEmpty && persistentId != "0" {
+      identifiers.append(persistentId)
+    }
+    return identifiers
+  }
+
+  private static func cachedArtworkPath(
+    for item: MPMediaItem,
+    identifier: String
+  ) -> String? {
+    guard let artwork = item.artwork,
+          let image = artwork.image(at: CGSize(width: 1200, height: 1200)),
+          let data = image.jpegData(compressionQuality: 0.92) else {
+      return nil
+    }
+
+    do {
+      let cachesDirectory = try FileManager.default.url(
+        for: .cachesDirectory,
+        in: .userDomainMask,
+        appropriateFor: nil,
+        create: true
+      )
+      let artworkDirectory = cachesDirectory.appendingPathComponent(
+        "ClassiPod/AppleMusicArtwork",
+        isDirectory: true
+      )
+      try FileManager.default.createDirectory(
+        at: artworkDirectory,
+        withIntermediateDirectories: true
+      )
+      let safeName = identifier.replacingOccurrences(
+        of: "[^A-Za-z0-9_-]+",
+        with: "_",
+        options: .regularExpression
+      )
+      let destination = artworkDirectory.appendingPathComponent("\(safeName).jpg")
+      if !FileManager.default.fileExists(atPath: destination.path) {
+        try data.write(to: destination, options: .atomic)
+      }
+      return destination.path
+    } catch {
+      return nil
     }
   }
 
