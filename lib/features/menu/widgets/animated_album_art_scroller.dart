@@ -144,58 +144,110 @@ class _AlbumArtCarousel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final selectedIndex = currentPage
+        .round()
+        .clamp(0, albums.length - 1)
+        .toInt();
+    final selectedAlbum = albums[selectedIndex];
+
     return _AlbumArtBackdrop(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final flowHeight = constraints.maxHeight
+          final availableHeight = constraints.maxHeight;
+          final flowHeight = (availableHeight - 44)
               .clamp(160.0, 250.0)
               .toDouble();
-          final artWidth = (flowHeight * 0.82).clamp(130.0, 205.0).toDouble();
+          final artWidth = (flowHeight * 0.92).clamp(145.0, 232.0).toDouble();
 
-          return Center(
-            child: SizedBox(
-              height: flowHeight,
-              child: PageView.builder(
-                controller: pageController,
-                itemCount: albums.length,
-                padEnds: true,
-                allowImplicitScrolling: true,
-                physics: const BouncingScrollPhysics(),
-                itemBuilder: (context, index) {
-                  final relativePosition = (index - currentPage)
-                      .clamp(-1.5, 1.5)
-                      .toDouble();
-                  final distance = relativePosition.abs();
-                  final scale = (1 - distance * 0.16)
-                      .clamp(0.74, 1.0)
-                      .toDouble();
-                  final album = albums[index];
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Align(
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  height: flowHeight,
+                  child: PageView.builder(
+                    controller: pageController,
+                    itemCount: albums.length,
+                    padEnds: true,
+                    allowImplicitScrolling: true,
+                    physics: const BouncingScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      final relativePosition = (index - currentPage)
+                          .clamp(-1.5, 1.5)
+                          .toDouble();
+                      final distance = relativePosition.abs();
+                      final scale = (1 - distance * 0.16)
+                          .clamp(0.74, 1.0)
+                          .toDouble();
+                      final album = albums[index];
 
-                  return Transform(
-                    transform: Matrix4.identity()
-                      ..setEntry(3, 2, 0.0022)
-                      ..translate(
-                        relativePosition * -10,
-                        0.0,
-                        -distance * 72,
-                      )
-                      ..scaleByDouble(scale, scale, scale, 1)
-                      ..rotateY(relativePosition * 0.72),
-                    alignment: relativePosition >= 0
-                        ? Alignment.centerLeft
-                        : Alignment.centerRight,
-                    child: AlbumReflectiveArt(
-                      imageWidth: artWidth,
-                      reflectedImageHeight: 34,
-                      thumbnailPath: album.albumArtPath,
-                      isOnDevice: album.isOnDevice(),
-                      heroTag:
-                          'preview-${album.albumName}-${album.albumArtistName}',
-                    ),
-                  );
-                },
+                      return Transform(
+                        transform: Matrix4.identity()
+                          ..setEntry(3, 2, 0.0022)
+                          ..translate(
+                            relativePosition * -10,
+                            0.0,
+                            -distance * 72,
+                          )
+                          ..scaleByDouble(scale, scale, scale, 1)
+                          ..rotateY(relativePosition * 0.72),
+                        alignment: relativePosition >= 0
+                            ? Alignment.centerLeft
+                            : Alignment.centerRight,
+                        child: AlbumReflectiveArt(
+                          imageWidth: artWidth,
+                          reflectedImageHeight: 34,
+                          thumbnailPath: album.albumArtPath,
+                          isOnDevice: album.isOnDevice(),
+                          heroTag:
+                              'preview-${album.albumName}-${album.albumArtistName}',
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
+              Positioned(
+                left: 8,
+                right: 8,
+                bottom: 6,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 260),
+                  child: Column(
+                    key: ValueKey(
+                      '${selectedAlbum.albumName}-${selectedAlbum.albumArtistName}',
+                    ),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        selectedAlbum.albumName,
+                        maxLines: 1,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.appPrimaryTextColor,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        selectedAlbum.albumArtistName,
+                        maxLines: 1,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.appPrimaryTextColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),

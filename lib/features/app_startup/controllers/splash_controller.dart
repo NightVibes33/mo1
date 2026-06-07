@@ -20,9 +20,19 @@ final splashControllerProvider =
     );
 
 class SplashControllerNotifier extends AsyncNotifier<void> {
+  bool _hasCompletedLaunch = false;
+
+  bool get hasCompletedLaunch => _hasCompletedLaunch;
+
   @override
   Future<void> build() async {
     await requestStoragePermissions();
+  }
+
+  Future<void> refreshImportedLibrary() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(initializeApp);
+    _hasCompletedLaunch = !state.hasError;
   }
 
   Future<void> requestStoragePermissions() async {
@@ -45,6 +55,7 @@ class SplashControllerNotifier extends AsyncNotifier<void> {
 
       await initializeApp();
     });
+    _hasCompletedLaunch = !state.hasError;
   }
 
   Future<void> initializeApp() async {

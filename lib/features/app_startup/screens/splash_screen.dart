@@ -29,8 +29,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   void initState() {
-    _timer = Timer(const Duration(seconds: 5), _toggleScanningMusicText);
     super.initState();
+    _timer = Timer(const Duration(seconds: 5), _toggleScanningMusicText);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final splashController = ref.read(splashControllerProvider.notifier);
+      if (splashController.hasCompletedLaunch &&
+          !ref.read(splashControllerProvider).isLoading) {
+        unawaited(splashController.refreshImportedLibrary());
+      }
+    });
   }
 
   @override
