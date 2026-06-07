@@ -5,6 +5,7 @@ import 'package:classipod/features/settings/models/device_color.dart';
 import 'package:classipod/features/settings/models/equalizer_preset.dart';
 import 'package:classipod/features/settings/models/repeat_mode.dart';
 import 'package:classipod/features/settings/models/song_sort_order.dart';
+import 'package:classipod/features/settings/models/song_transition_style.dart';
 import 'package:classipod/features/settings/models/volume_mode.dart';
 
 class SettingsPreferencesModel {
@@ -19,6 +20,8 @@ class SettingsPreferencesModel {
   final VolumeMode volumeMode;
   final EqualizerPreset equalizerPreset;
   final SongSortOrder songSortOrder;
+  final SongTransitionStyle songTransitionStyle;
+  final int crossfadeDurationSeconds;
   final bool splitScreenEnabled;
   final bool immersiveMode;
   final bool fetchOnlineMusic;
@@ -36,6 +39,8 @@ class SettingsPreferencesModel {
     required this.volumeMode,
     required this.equalizerPreset,
     required this.songSortOrder,
+    required this.songTransitionStyle,
+    required this.crossfadeDurationSeconds,
     required this.splitScreenEnabled,
     required this.immersiveMode,
     required this.appTheme,
@@ -54,6 +59,8 @@ class SettingsPreferencesModel {
     VolumeMode? volumeMode,
     EqualizerPreset? equalizerPreset,
     SongSortOrder? songSortOrder,
+    SongTransitionStyle? songTransitionStyle,
+    int? crossfadeDurationSeconds,
     bool? splitScreenEnabled,
     bool? immersiveMode,
     bool? fetchOnlineMusic,
@@ -72,6 +79,10 @@ class SettingsPreferencesModel {
       volumeMode: volumeMode ?? this.volumeMode,
       equalizerPreset: equalizerPreset ?? this.equalizerPreset,
       songSortOrder: songSortOrder ?? this.songSortOrder,
+      songTransitionStyle:
+          songTransitionStyle ?? this.songTransitionStyle,
+      crossfadeDurationSeconds:
+          crossfadeDurationSeconds ?? this.crossfadeDurationSeconds,
       splitScreenEnabled: splitScreenEnabled ?? this.splitScreenEnabled,
       immersiveMode: immersiveMode ?? this.immersiveMode,
       appTheme: appTheme ?? this.appTheme,
@@ -93,6 +104,8 @@ class SettingsPreferencesModel {
         other.volumeMode == volumeMode &&
         other.equalizerPreset == equalizerPreset &&
         other.songSortOrder == songSortOrder &&
+        other.songTransitionStyle == songTransitionStyle &&
+        other.crossfadeDurationSeconds == crossfadeDurationSeconds &&
         other.splitScreenEnabled == splitScreenEnabled &&
         other.immersiveMode == immersiveMode &&
         other.fetchOnlineMusic == fetchOnlineMusic &&
@@ -112,6 +125,8 @@ class SettingsPreferencesModel {
     volumeMode,
     equalizerPreset,
     songSortOrder,
+    songTransitionStyle,
+    crossfadeDurationSeconds,
     splitScreenEnabled,
     immersiveMode,
     appTheme,

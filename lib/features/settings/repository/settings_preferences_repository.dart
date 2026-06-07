@@ -8,6 +8,7 @@ import 'package:classipod/features/settings/models/device_color.dart';
 import 'package:classipod/features/settings/models/equalizer_preset.dart';
 import 'package:classipod/features/settings/models/repeat_mode.dart';
 import 'package:classipod/features/settings/models/song_sort_order.dart';
+import 'package:classipod/features/settings/models/song_transition_style.dart';
 import 'package:classipod/features/settings/models/volume_mode.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -108,6 +109,21 @@ class SettingsPreferencesRepository {
         SongSortOrder.title.name;
   }
 
+  String getSongTransitionStyle() {
+    return _sharedPreferencesWithCache.getString(
+          SharedPreferencesKeys.songTransitionStyle.name,
+        ) ??
+        SongTransitionStyle.off.name;
+  }
+
+  int getCrossfadeDurationSeconds() {
+    final seconds = _sharedPreferencesWithCache.getInt(
+          SharedPreferencesKeys.crossfadeDurationSeconds.name,
+        ) ??
+        defaultCrossfadeDurationSeconds;
+    return normalizedCrossfadeDurationSeconds(seconds);
+  }
+
   String getAppTheme() {
     return _sharedPreferencesWithCache.getString(
           SharedPreferencesKeys.appTheme.name,
@@ -204,6 +220,22 @@ class SettingsPreferencesRepository {
     return _sharedPreferencesWithCache.setString(
       SharedPreferencesKeys.songSortOrder.name,
       songSortOrderName,
+    );
+  }
+
+  Future<void> setSongTransitionStyle({
+    required String songTransitionStyleName,
+  }) async {
+    return _sharedPreferencesWithCache.setString(
+      SharedPreferencesKeys.songTransitionStyle.name,
+      songTransitionStyleName,
+    );
+  }
+
+  Future<void> setCrossfadeDurationSeconds({required int seconds}) async {
+    return _sharedPreferencesWithCache.setInt(
+      SharedPreferencesKeys.crossfadeDurationSeconds.name,
+      normalizedCrossfadeDurationSeconds(seconds),
     );
   }
 

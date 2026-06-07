@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:classipod/core/services/debug_log_service.dart';
+import 'package:classipod/features/settings/models/song_transition_style.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,6 +72,8 @@ class AppleMusicPlaybackService {
   Future<bool> playCatalogQueue({
     required List<String> catalogIds,
     required String startCatalogId,
+    SongTransitionStyle? transitionStyle,
+    Duration? transitionDuration,
   }) async {
     final seenCatalogIds = <String>{};
     final cleanCatalogIds = catalogIds
@@ -99,6 +102,10 @@ class AppleMusicPlaybackService {
         {
           'catalogIds': queueCatalogIds,
           'startCatalogId': cleanStartCatalogId,
+          if (transitionStyle != null) 'transitionStyle': transitionStyle.name,
+          if (transitionDuration != null)
+            'transitionDurationSeconds':
+                transitionDuration.inMilliseconds / 1000,
         },
       );
       final didStart = isPlaying ?? false;
@@ -129,6 +136,46 @@ class AppleMusicPlaybackService {
         error: error,
         stackTrace: stackTrace,
         data: {'catalogId': cleanStartCatalogId},
+      );
+      return false;
+    }
+  }
+
+  Future<bool> setTransitionStyle(
+    SongTransitionStyle style,
+    Duration duration,
+  ) async {
+    if (!isSupported) {
+      return false;
+    }
+
+    try {
+      final didApply = await _channel.invokeMethod<bool>(
+        'setTransitionStyle',
+        {
+          'transitionStyle': style.name,
+          'transitionDurationSeconds': duration.inMilliseconds / 1000,
+        },
+      );
+      return didApply ?? false;
+    } on PlatformException catch (error, stackTrace) {
+      _debugLogService.error(
+        'apple_music',
+        'Apple Music transition setup failed.',
+        error: error,
+        stackTrace: stackTrace,
+        data: {
+          'transitionStyle': style.name,
+          'transitionDurationSeconds': duration.inSeconds,
+        },
+      );
+      return false;
+    } on MissingPluginException catch (error, stackTrace) {
+      _debugLogService.error(
+        'apple_music',
+        'Apple Music playback bridge is unavailable.',
+        error: error,
+        stackTrace: stackTrace,
       );
       return false;
     }

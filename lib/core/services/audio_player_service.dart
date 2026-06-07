@@ -5,11 +5,13 @@ import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
 import 'package:classipod/core/services/audio_equalizer_service.dart';
 import 'package:classipod/core/services/apple_music_playback_service.dart';
 import 'package:classipod/core/services/lyrics_lookup_service.dart';
+import 'package:classipod/core/services/song_transition_analysis_service.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:classipod/features/music/playlist/models/playlist_model.dart';
 import 'package:classipod/features/now_playing/models/now_playing_model.dart';
 import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
+import 'package:classipod/features/settings/models/song_transition_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -25,8 +27,40 @@ final audioPlayerServiceProvider =
 class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   AudioPlayerServiceNotifier() : super();
 
+  AudioPlayer? _transitionPlayer;
+  StreamSubscription<Duration>? _positionSubscription;
+  int? _transitionSourceIndex;
+  bool _isPreparingTransition = false;
+  bool _isTransitioning = false;
+  double _mainVolumeBeforeTransition = 1;
+
   @override
-  Future<void> build() async {}
+  Future<void> build() async {
+    final player = ref.read(audioPlayerProvider);
+    _positionSubscription = player.positionStream.listen((position) {
+      unawaited(_maybeStartSongTransition(position));
+    });
+    ref.onDispose(() {
+      unawaited(_positionSubscription?.cancel());
+      unawaited(_transitionPlayer?.dispose());
+    });
+    await syncSongTransitionStyle();
+  }
+
+  Future<void> syncSongTransitionStyle() async {
+    final settings = ref.read(settingsPreferencesControllerProvider);
+    await ref.read(appleMusicPlaybackServiceProvider).setTransitionStyle(
+          settings.songTransitionStyle,
+          Duration(seconds: settings.crossfadeDurationSeconds),
+        );
+    if (settings.songTransitionStyle == SongTransitionStyle.autoMix) {
+      unawaited(
+        ref
+            .read(songTransitionAnalysisServiceProvider)
+            .warmQueue(ref.read(nowPlayingDetailsProvider).metadataList),
+      );
+    }
+  }
 
   Future<void> play() async {
     final player = ref.read(audioPlayerProvider);
@@ -65,6 +99,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
 
     if (ref.read(audioPlayerProvider).playing) {
+      await _cancelSongTransition();
       await ref.read(audioPlayerProvider).pause();
     }
   }
@@ -126,6 +161,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       await _pauseAppleMusicPlaybackIfCurrent();
+      await _cancelSongTransition();
       final requestedMetadata = musicMetadataList.isEmpty
           ? null
           : musicMetadataList[
@@ -173,6 +209,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
             newMetadataList: localMetadataList,
             currentIndex: safeInitialIndex,
           );
+      _warmSongTransitionAnalysis(localMetadataList);
     });
   }
 
@@ -195,6 +232,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       );
       return;
     }
+    await _cancelSongTransition();
     await ref.read(audioPlayerProvider).seekToNext();
   }
 
@@ -221,8 +259,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       if (ref.read(audioPlayerProvider).position.inSeconds > 3) {
+        await _cancelSongTransition();
         await ref.read(audioPlayerProvider).seek(Duration.zero);
       } else {
+        await _cancelSongTransition();
         await ref.read(audioPlayerProvider).seekToPrevious();
       }
     });
@@ -293,6 +333,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       if (nowPlayingDetails.currentIndex == index) {
         return;
       } else {
+        await _cancelSongTransition();
         await ref.read(audioPlayerProvider).seek(Duration.zero, index: index);
         Future.delayed(const Duration(milliseconds: 100), play);
       }
@@ -374,6 +415,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         return;
       }
 
+      await _cancelSongTransition();
       await player.seek(Duration.zero, index: index);
       Future.delayed(const Duration(milliseconds: 200), play);
     });
@@ -480,11 +522,16 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         .map((entry) => entry.appleMusicCatalogId)
         .whereType<String>()
         .toList(growable: false);
+    final settings = ref.read(settingsPreferencesControllerProvider);
     final didStart = await ref
         .read(appleMusicPlaybackServiceProvider)
         .playCatalogQueue(
           catalogIds: catalogIds.isEmpty ? [catalogId] : catalogIds,
           startCatalogId: catalogId,
+          transitionStyle: settings.songTransitionStyle,
+          transitionDuration: Duration(
+            seconds: settings.crossfadeDurationSeconds,
+          ),
         );
     ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
           nowPlayingType: nowPlayingType,
@@ -529,6 +576,224 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       await ref.read(appleMusicPlaybackServiceProvider).pause();
       ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(false);
     }
+  }
+
+  void _warmSongTransitionAnalysis(List<MusicMetadata> metadataList) {
+    final settings = ref.read(settingsPreferencesControllerProvider);
+    if (settings.songTransitionStyle != SongTransitionStyle.autoMix) {
+      return;
+    }
+    unawaited(
+      ref.read(songTransitionAnalysisServiceProvider).warmQueue(metadataList),
+    );
+  }
+
+  Future<void> _maybeStartSongTransition(Duration position) async {
+    if (_isPreparingTransition || _isTransitioning) {
+      return;
+    }
+
+    final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+    final currentMetadata = nowPlayingDetails.currentMetadata;
+    if (currentMetadata == null ||
+        currentMetadata.isAppleMusicCatalogTrack ||
+        !nowPlayingDetails.isPlaying ||
+        nowPlayingDetails.metadataList.isEmpty) {
+      return;
+    }
+
+    final settings = ref.read(settingsPreferencesControllerProvider);
+    final style = settings.songTransitionStyle;
+    if (style == SongTransitionStyle.off) {
+      return;
+    }
+
+    final player = ref.read(audioPlayerProvider);
+    final duration = player.duration;
+    final currentIndex = player.currentIndex ?? nowPlayingDetails.currentIndex;
+    if (!player.playing ||
+        player.shuffleModeEnabled ||
+        nowPlayingDetails.loopMode == LoopMode.one ||
+        duration == null ||
+        duration <= const Duration(seconds: 4) ||
+        currentIndex < 0 ||
+        currentIndex >= nowPlayingDetails.metadataList.length) {
+      return;
+    }
+
+    final nextIndex = _nextTransitionIndex(nowPlayingDetails, currentIndex);
+    if (nextIndex == null || _transitionSourceIndex == currentIndex) {
+      return;
+    }
+
+    final nextMetadata = nowPlayingDetails.metadataList[nextIndex];
+    if (nextMetadata.isAppleMusicCatalogTrack) {
+      return;
+    }
+
+    final analysisService = ref.read(songTransitionAnalysisServiceProvider);
+    var currentProfile = analysisService.cachedProfileFor(currentMetadata);
+    var nextProfile = analysisService.cachedProfileFor(nextMetadata);
+    if (style == SongTransitionStyle.autoMix &&
+        (currentProfile == null || nextProfile == null)) {
+      _isPreparingTransition = true;
+      try {
+        currentProfile ??= await analysisService.profileFor(currentMetadata);
+        nextProfile ??= await analysisService.profileFor(nextMetadata);
+      } finally {
+        _isPreparingTransition = false;
+      }
+    }
+
+    final transitionDuration = _safeTransitionDuration(
+      duration,
+      style.transitionDuration(
+        nowPlayingType: nowPlayingDetails.nowPlayingType,
+        currentMetadata: currentMetadata,
+        crossfadeDurationSeconds: settings.crossfadeDurationSeconds,
+        nextMetadata: nextMetadata,
+        currentProfile: currentProfile,
+        nextProfile: nextProfile,
+      ),
+    );
+    if (transitionDuration == Duration.zero) {
+      return;
+    }
+
+    final startPosition = style == SongTransitionStyle.autoMix
+        ? autoMixStartPosition(
+            duration: duration,
+            transitionDuration: transitionDuration,
+            profile: currentProfile,
+          )
+        : duration - transitionDuration;
+    if (position < startPosition) {
+      return;
+    }
+
+    _transitionSourceIndex = currentIndex;
+    await _performLocalSongTransition(
+      nextIndex: nextIndex,
+      nextMetadata: nextMetadata,
+      transitionDuration: transitionDuration,
+    );
+  }
+
+  int? _nextTransitionIndex(
+    NowPlayingModel nowPlayingDetails,
+    int currentIndex,
+  ) {
+    final nextIndex = currentIndex + 1;
+    if (nextIndex < nowPlayingDetails.metadataList.length) {
+      return nextIndex;
+    }
+    if (nowPlayingDetails.loopMode == LoopMode.all &&
+        nowPlayingDetails.metadataList.length > 1) {
+      return 0;
+    }
+    return null;
+  }
+
+  Duration _safeTransitionDuration(Duration duration, Duration transition) {
+    if (transition <= Duration.zero) {
+      return Duration.zero;
+    }
+    final maxTransitionMs = ((duration.inMilliseconds - 3000) / 2).floor();
+    if (maxTransitionMs <= 0) {
+      return Duration.zero;
+    }
+    return Duration(
+      milliseconds: transition.inMilliseconds
+          .clamp(1000, maxTransitionMs)
+          .toInt(),
+    );
+  }
+
+  Future<void> _performLocalSongTransition({
+    required int nextIndex,
+    required MusicMetadata nextMetadata,
+    required Duration transitionDuration,
+  }) async {
+    if (_isTransitioning) {
+      return;
+    }
+
+    final mainPlayer = ref.read(audioPlayerProvider);
+    final transitionPlayer = AudioPlayer();
+    _transitionPlayer = transitionPlayer;
+    _mainVolumeBeforeTransition = mainPlayer.volume.clamp(0, 1).toDouble();
+    _isTransitioning = true;
+
+    try {
+      await transitionPlayer.setAudioSource(nextMetadata.toAudioSource());
+      await transitionPlayer.setVolume(0);
+      await transitionPlayer.play();
+      await _blendPlayers(
+        mainPlayer: mainPlayer,
+        transitionPlayer: transitionPlayer,
+        targetVolume: _mainVolumeBeforeTransition,
+        transitionDuration: transitionDuration,
+      );
+      if (!_isTransitioning) {
+        return;
+      }
+      await mainPlayer.seek(transitionDuration, index: nextIndex);
+      await mainPlayer.setVolume(_mainVolumeBeforeTransition);
+      if (!mainPlayer.playing) {
+        await mainPlayer.play();
+      }
+      ref.read(nowPlayingDetailsProvider.notifier).setCurrentIndex(nextIndex);
+    } catch (_) {
+      await mainPlayer.setVolume(_mainVolumeBeforeTransition);
+    } finally {
+      if (identical(_transitionPlayer, transitionPlayer)) {
+        _transitionPlayer = null;
+        await transitionPlayer.stop();
+        await transitionPlayer.dispose();
+      }
+      _isTransitioning = false;
+    }
+  }
+
+  Future<void> _blendPlayers({
+    required AudioPlayer mainPlayer,
+    required AudioPlayer transitionPlayer,
+    required double targetVolume,
+    required Duration transitionDuration,
+  }) async {
+    final steps = (transitionDuration.inMilliseconds / 120)
+        .ceil()
+        .clamp(8, 80)
+        .toInt();
+    final stepDelay = Duration(
+      milliseconds: (transitionDuration.inMilliseconds / steps).round(),
+    );
+    for (var step = 0; step <= steps; step++) {
+      if (!_isTransitioning) {
+        return;
+      }
+      final progress = step / steps;
+      await mainPlayer.setVolume(targetVolume * (1 - progress));
+      await transitionPlayer.setVolume(targetVolume * progress);
+      if (step < steps) {
+        await Future<void>.delayed(stepDelay);
+      }
+    }
+  }
+
+  Future<void> _cancelSongTransition() async {
+    if (!_isTransitioning && _transitionPlayer == null) {
+      return;
+    }
+    _isTransitioning = false;
+    final transitionPlayer = _transitionPlayer;
+    _transitionPlayer = null;
+    if (transitionPlayer != null) {
+      await transitionPlayer.stop();
+      await transitionPlayer.dispose();
+    }
+    _transitionSourceIndex = null;
+    await ref.read(audioPlayerProvider).setVolume(_mainVolumeBeforeTransition);
   }
 
   Future<void> _syncEqualizerPreset() async {
@@ -577,6 +842,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       final int maxDurationInSeconds =
           ref.read(audioPlayerProvider).duration?.inSeconds ?? 0;
       if (currentDurationInSeconds + 1 < maxDurationInSeconds) {
+        await _cancelSongTransition();
         await ref
             .read(audioPlayerProvider)
             .seek(
@@ -601,6 +867,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       final currentSeconds = ref.read(audioPlayerProvider).position.inSeconds;
       final targetSeconds = (currentSeconds - 1).clamp(0, currentSeconds).toInt();
+      await _cancelSongTransition();
       await ref.read(audioPlayerProvider).seek(Duration(seconds: targetSeconds));
     });
   }
@@ -621,6 +888,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       final clampedTarget = targetDurationInSeconds
           .clamp(0, maxDurationInSeconds)
           .toInt();
+      await _cancelSongTransition();
       await ref.read(audioPlayerProvider).seek(Duration(seconds: clampedTarget));
     });
   }

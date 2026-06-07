@@ -12,6 +12,8 @@ enum SplitScreenType {
   repeat,
   equalizer,
   songSortOrder,
+  songTransitions,
+  crossfadeDuration,
   vibrate,
   clickWheelSound,
   volumeMode,

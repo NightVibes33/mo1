@@ -65,6 +65,19 @@ private enum EqualizerChannel {
 }
 
 private enum AppleMusicLookupChannel {
+  private enum PlaybackBackend {
+    case mediaPlayer
+    case musicKit
+  }
+
+  private enum AppleMusicPlaybackError: Error {
+    case emptyQueue
+  }
+
+  private static var playbackBackend = PlaybackBackend.mediaPlayer
+  private static var transitionStyle = "off"
+  private static var transitionDurationSeconds: TimeInterval = 6
+
   static func register(with messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
       name: "mo1/apple_music",
@@ -95,7 +108,8 @@ private enum AppleMusicLookupChannel {
                     call.method == "playCatalogQueue" ||
                     call.method == "pausePlayback" ||
                     call.method == "resumePlayback" ||
-                    call.method == "seekToSeconds" {
+                    call.method == "seekToSeconds" ||
+                    call.method == "setTransitionStyle" {
           result(false)
         } else {
           result(FlutterMethodNotImplemented)
@@ -142,6 +156,7 @@ private enum AppleMusicLookupChannel {
           return
         }
 
+        updateTransitionConfiguration(arguments: arguments)
         authorizeAppleMusicThen(result: result) {
           playCatalogQueue(
             catalogIds: [catalogId],
@@ -163,6 +178,7 @@ private enum AppleMusicLookupChannel {
           return
         }
 
+        updateTransitionConfiguration(arguments: arguments)
         authorizeAppleMusicThen(result: result) {
           playCatalogQueue(
             catalogIds: rawCatalogIds,
@@ -170,10 +186,23 @@ private enum AppleMusicLookupChannel {
             result: result
           )
         }
+      case "setTransitionStyle":
+        let arguments = call.arguments as? [String: Any] ?? [:]
+        updateTransitionConfiguration(arguments: arguments)
+        result(applyCurrentMusicKitTransitionIfAvailable())
       case "pausePlayback":
+        if playbackBackend == .musicKit {
+          pauseMusicKitPlayback()
+          result(true)
+          return
+        }
         MPMusicPlayerController.applicationQueuePlayer.pause()
         result(true)
       case "resumePlayback":
+        if playbackBackend == .musicKit {
+          resumeMusicKitPlayback(result: result)
+          return
+        }
         let player = MPMusicPlayerController.applicationQueuePlayer
         guard player.nowPlayingItem != nil else {
           result(false)
@@ -313,6 +342,54 @@ private enum AppleMusicLookupChannel {
     startCatalogId: String,
     result: @escaping FlutterResult
   ) {
+    let cleanCatalogIds = normalizedCatalogIds(
+      catalogIds: catalogIds,
+      startCatalogId: startCatalogId
+    )
+    let cleanStartCatalogId = startCatalogId.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !cleanCatalogIds.isEmpty, !cleanStartCatalogId.isEmpty else {
+      result(FlutterError(
+        code: "APPLE_MUSIC_BAD_ARGUMENTS",
+        message: "Apple Music catalog queue is empty.",
+        details: nil
+      ))
+      return
+    }
+
+    if shouldUseMusicKitTransition() {
+      Task {
+        do {
+          try await playCatalogQueueWithMusicKit(
+            catalogIds: cleanCatalogIds,
+            startCatalogId: cleanStartCatalogId
+          )
+          await MainActor.run {
+            result(true)
+          }
+        } catch {
+          await MainActor.run {
+            playCatalogQueueWithMediaPlayer(
+              catalogIds: cleanCatalogIds,
+              startCatalogId: cleanStartCatalogId,
+              result: result
+            )
+          }
+        }
+      }
+      return
+    }
+
+    playCatalogQueueWithMediaPlayer(
+      catalogIds: cleanCatalogIds,
+      startCatalogId: cleanStartCatalogId,
+      result: result
+    )
+  }
+
+  private static func normalizedCatalogIds(
+    catalogIds: [String],
+    startCatalogId: String
+  ) -> [String] {
     var seenCatalogIds = Set<String>()
     var cleanCatalogIds: [String] = []
     for catalogId in catalogIds {
@@ -323,23 +400,26 @@ private enum AppleMusicLookupChannel {
       seenCatalogIds.insert(cleanCatalogId)
       cleanCatalogIds.append(cleanCatalogId)
     }
+
     let cleanStartCatalogId = startCatalogId.trimmingCharacters(in: .whitespacesAndNewlines)
     if !cleanStartCatalogId.isEmpty && !seenCatalogIds.contains(cleanStartCatalogId) {
       cleanCatalogIds.insert(cleanStartCatalogId, at: 0)
     }
-    guard !cleanCatalogIds.isEmpty, !cleanStartCatalogId.isEmpty else {
-      result(FlutterError(
-        code: "APPLE_MUSIC_BAD_ARGUMENTS",
-        message: "Apple Music catalog queue is empty.",
-        details: nil
-      ))
-      return
-    }
+    return cleanCatalogIds
+  }
 
+  private static func playCatalogQueueWithMediaPlayer(
+    catalogIds: [String],
+    startCatalogId: String,
+    result: @escaping FlutterResult
+  ) {
+    if #available(iOS 15.0, *) {
+      ApplicationMusicPlayer.shared.stop()
+    }
     let player = MPMusicPlayerController.applicationQueuePlayer
     if let mediaDescriptor = mediaItemQueueDescriptor(
-      catalogIds: cleanCatalogIds,
-      startCatalogId: cleanStartCatalogId
+      catalogIds: catalogIds,
+      startCatalogId: startCatalogId
     ) {
       player.setQueue(with: mediaDescriptor)
       player.prepareToPlay { error in
@@ -352,6 +432,7 @@ private enum AppleMusicLookupChannel {
             ))
             return
           }
+          playbackBackend = .mediaPlayer
           player.play()
           result(true)
         }
@@ -359,8 +440,8 @@ private enum AppleMusicLookupChannel {
       return
     }
 
-    let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: cleanCatalogIds)
-    descriptor.startItemID = cleanStartCatalogId
+    let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: catalogIds)
+    descriptor.startItemID = startCatalogId
     player.setQueue(with: descriptor)
     player.prepareToPlay { error in
       DispatchQueue.main.async {
@@ -372,13 +453,125 @@ private enum AppleMusicLookupChannel {
           ))
           return
         }
+        playbackBackend = .mediaPlayer
         player.play()
         result(true)
       }
     }
   }
 
+  @available(iOS 15.0, *)
+  @MainActor
+  private static func playCatalogQueueWithMusicKit(
+    catalogIds: [String],
+    startCatalogId: String
+  ) async throws {
+    let songs = try await catalogSongs(catalogIds: catalogIds)
+    guard !songs.isEmpty else {
+      throw AppleMusicPlaybackError.emptyQueue
+    }
+
+    let startSong = songs.first { song in
+      playParameterId(for: song) == startCatalogId || song.id.rawValue == startCatalogId
+    } ?? songs[0]
+
+    let player = ApplicationMusicPlayer.shared
+    MPMusicPlayerController.applicationQueuePlayer.stop()
+    applyCurrentMusicKitTransitionIfAvailable()
+    player.queue = ApplicationMusicPlayer.Queue(for: songs, startingAt: startSong)
+    try await player.prepareToPlay()
+    try await player.play()
+    playbackBackend = .musicKit
+  }
+
+  @available(iOS 15.0, *)
+  private static func catalogSongs(catalogIds: [String]) async throws -> [Song] {
+    let ids = catalogIds.map { MusicItemID($0) }
+    var request = MusicCatalogResourceRequest<Song>(matching: \.id, memberOf: ids)
+    request.limit = max(1, min(ids.count, 300))
+    let response = try await request.response()
+    let foundSongs = Array(response.items)
+    return catalogIds.compactMap { catalogId in
+      foundSongs.first { song in
+        playParameterId(for: song) == catalogId || song.id.rawValue == catalogId
+      }
+    }
+  }
+
+  private static func updateTransitionConfiguration(arguments: [String: Any]) {
+    if let style = arguments["transitionStyle"] as? String {
+      transitionStyle = style
+    }
+    if let seconds = arguments["transitionDurationSeconds"] as? Double,
+       seconds.isFinite {
+      transitionDurationSeconds = max(1, min(seconds, 12))
+    } else if let seconds = arguments["transitionDurationSeconds"] as? Int {
+      transitionDurationSeconds = TimeInterval(max(1, min(seconds, 12)))
+    }
+  }
+
+  private static func shouldUseMusicKitTransition() -> Bool {
+    guard transitionStyle != "off" else {
+      return false
+    }
+    if #available(iOS 18.0, *) {
+      return true
+    }
+    return false
+  }
+
+  @discardableResult
+  private static func applyCurrentMusicKitTransitionIfAvailable() -> Bool {
+    if #available(iOS 18.0, *) {
+      applyCurrentMusicKitTransition()
+      return true
+    }
+    return false
+  }
+
+  @available(iOS 18.0, *)
+  private static func applyCurrentMusicKitTransition() {
+    let player = ApplicationMusicPlayer.shared
+    switch transitionStyle {
+    case "crossfade":
+      player.transition = .crossfade(duration: transitionDurationSeconds)
+    case "autoMix":
+      player.transition = .crossfade(duration: nil)
+    default:
+      player.transition = .none
+    }
+  }
+
+  @available(iOS 15.0, *)
+  private static func pauseMusicKitPlayback() {
+    ApplicationMusicPlayer.shared.pause()
+  }
+
+  @available(iOS 15.0, *)
+  private static func resumeMusicKitPlayback(result: @escaping FlutterResult) {
+    Task {
+      do {
+        try await ApplicationMusicPlayer.shared.play()
+        await MainActor.run {
+          result(true)
+        }
+      } catch {
+        await MainActor.run {
+          result(FlutterError(
+            code: "APPLE_MUSIC_PLAYBACK_FAILED",
+            message: error.localizedDescription,
+            details: ["backend": "musicKit"]
+          ))
+        }
+      }
+    }
+  }
+
   private static func playbackSnapshot() -> [String: Any] {
+    if playbackBackend == .musicKit, #available(iOS 15.0, *) {
+      return musicKitPlaybackSnapshot()
+    }
+
     let player = MPMusicPlayerController.applicationQueuePlayer
     let duration = player.nowPlayingItem?.playbackDuration ?? 0
     let safeDuration = duration.isFinite && duration > 0 ? duration : 0
@@ -396,7 +589,42 @@ private enum AppleMusicLookupChannel {
     ]
   }
 
+  @available(iOS 15.0, *)
+  private static func musicKitPlaybackSnapshot() -> [String: Any] {
+    let player = ApplicationMusicPlayer.shared
+    let rawPosition = player.playbackTime
+    let position = rawPosition.isFinite && rawPosition > 0 ? rawPosition : 0
+    var duration: TimeInterval = 0
+    var catalogId = ""
+    if let currentEntry = player.queue.currentEntry {
+      switch currentEntry.item {
+      case .song(let song):
+        if let songDuration = song.duration, songDuration.isFinite && songDuration > 0 {
+          duration = songDuration
+        }
+        catalogId = playParameterId(for: song)
+      default:
+        break
+      }
+    }
+    let clampedPosition = duration > 0 ? min(position, duration) : position
+    let playbackStatus = player.state.playbackStatus
+
+    return [
+      "isSupported": true,
+      "positionSeconds": clampedPosition,
+      "durationSeconds": duration,
+      "isPlaying": playbackStatus == .playing,
+      "playbackState": String(describing: playbackStatus),
+      "catalogId": catalogId
+    ]
+  }
+
   private static func seekToSeconds(_ seconds: Double) -> Bool {
+    if playbackBackend == .musicKit, #available(iOS 15.0, *) {
+      return seekMusicKitToSeconds(seconds)
+    }
+
     let player = MPMusicPlayerController.applicationQueuePlayer
     guard player.nowPlayingItem != nil else {
       return false
@@ -406,6 +634,15 @@ private enum AppleMusicLookupChannel {
     let safeDuration = duration.isFinite && duration > 0 ? duration : seconds
     let safeSeconds = seconds.isFinite && seconds > 0 ? seconds : 0
     player.currentPlaybackTime = min(safeSeconds, safeDuration)
+    return true
+  }
+
+  @available(iOS 15.0, *)
+  private static func seekMusicKitToSeconds(_ seconds: Double) -> Bool {
+    guard ApplicationMusicPlayer.shared.queue.currentEntry != nil else {
+      return false
+    }
+    ApplicationMusicPlayer.shared.playbackTime = seconds.isFinite && seconds > 0 ? seconds : 0
     return true
   }
 

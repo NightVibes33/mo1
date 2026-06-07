@@ -10,6 +10,8 @@ enum SharedPreferencesKeys {
   volumeMode,
   equalizerPreset,
   songSortOrder,
+  songTransitionStyle,
+  crossfadeDurationSeconds,
   appTheme,
   splitScreenEnabled,
   immersiveMode,

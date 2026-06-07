@@ -23,6 +23,8 @@ enum _SettingsDisplayItems {
   repeat,
   equalizer,
   songSortOrder,
+  songTransitions,
+  crossfadeDuration,
   language,
   appTheme,
   deviceColor,
@@ -53,6 +55,10 @@ enum _SettingsDisplayItems {
         return 'EQ';
       case songSortOrder:
         return 'Sort By';
+      case songTransitions:
+        return 'Song Transitions';
+      case crossfadeDuration:
+        return 'Crossfade';
       case language:
         return context.localization.languageScreenTitle;
       case appTheme:
@@ -136,6 +142,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         await ref
             .read(settingsPreferencesControllerProvider.notifier)
             .toggleSongSortOrder();
+        break;
+      case _SettingsDisplayItems.songTransitions:
+        await ref
+            .read(settingsPreferencesControllerProvider.notifier)
+            .toggleSongTransitionStyle();
+        break;
+      case _SettingsDisplayItems.crossfadeDuration:
+        await ref
+            .read(settingsPreferencesControllerProvider.notifier)
+            .increaseCrossfadeDuration();
         break;
       case _SettingsDisplayItems.appTheme:
         await ref
@@ -281,6 +297,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         return settingsState.equalizerPreset.title;
       case _SettingsDisplayItems.songSortOrder:
         return settingsState.songSortOrder.titleText;
+      case _SettingsDisplayItems.songTransitions:
+        return settingsState.songTransitionStyle.titleText;
+      case _SettingsDisplayItems.crossfadeDuration:
+        return '${settingsState.crossfadeDurationSeconds}s';
       case _SettingsDisplayItems.volumeMode:
         return settingsState.volumeMode.title(context);
       default:
@@ -339,6 +359,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       case _SettingsDisplayItems.songSortOrder:
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
             SplitScreenType.songSortOrder;
+        break;
+      case _SettingsDisplayItems.songTransitions:
+        ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
+            SplitScreenType.songTransitions;
+        break;
+      case _SettingsDisplayItems.crossfadeDuration:
+        ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
+            SplitScreenType.crossfadeDuration;
         break;
       case _SettingsDisplayItems.vibrate:
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =

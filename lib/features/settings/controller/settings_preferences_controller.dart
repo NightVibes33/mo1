@@ -19,6 +19,7 @@ import 'package:classipod/features/settings/models/equalizer_preset.dart';
 import 'package:classipod/features/settings/models/repeat_mode.dart';
 import 'package:classipod/features/settings/models/settings_preferences_model.dart';
 import 'package:classipod/features/settings/models/song_sort_order.dart';
+import 'package:classipod/features/settings/models/song_transition_style.dart';
 import 'package:classipod/features/settings/models/volume_mode.dart';
 import 'package:classipod/features/settings/repository/settings_preferences_repository.dart';
 import 'package:classipod/features/tutorial/controller/tutorial_controller.dart';
@@ -73,6 +74,11 @@ class SettingsPreferencesControllerNotifier
       songSortOrder: SongSortOrder.fromName(
         settingsPreferencesRepository.getSongSortOrder(),
       ),
+      songTransitionStyle: SongTransitionStyle.fromName(
+        settingsPreferencesRepository.getSongTransitionStyle(),
+      ),
+      crossfadeDurationSeconds:
+          settingsPreferencesRepository.getCrossfadeDurationSeconds(),
       splitScreenEnabled: settingsPreferencesRepository.getSplitScreenEnabled(),
       immersiveMode: settingsPreferencesRepository.getImmersiveMode(),
       appTheme: AppTheme.fromName(settingsPreferencesRepository.getAppTheme()),
@@ -311,6 +317,31 @@ class SettingsPreferencesControllerNotifier
     state = state.copyWith(songSortOrder: updatedSortOrder);
   }
 
+  Future<void> toggleSongTransitionStyle() async {
+    final updatedStyle = state.songTransitionStyle.next;
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setSongTransitionStyle(songTransitionStyleName: updatedStyle.name);
+    state = state.copyWith(songTransitionStyle: updatedStyle);
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .syncSongTransitionStyle();
+  }
+
+  Future<void> increaseCrossfadeDuration() async {
+    final currentSeconds = state.crossfadeDurationSeconds;
+    final updatedSeconds = currentSeconds >= maxCrossfadeDurationSeconds
+        ? minCrossfadeDurationSeconds
+        : currentSeconds + 1;
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setCrossfadeDurationSeconds(seconds: updatedSeconds);
+    state = state.copyWith(crossfadeDurationSeconds: updatedSeconds);
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .syncSongTransitionStyle();
+  }
+
   Future<void> toggleSplitScreen() async {
     state = state.copyWith(splitScreenEnabled: !state.splitScreenEnabled);
     await ref
@@ -373,6 +404,16 @@ class SettingsPreferencesControllerNotifier
         .setSongSortOrder(songSortOrderName: SongSortOrder.title.name);
     await ref
         .read(settingsPreferencesRepositoryProvider)
+        .setSongTransitionStyle(
+          songTransitionStyleName: SongTransitionStyle.off.name,
+        );
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setCrossfadeDurationSeconds(
+          seconds: defaultCrossfadeDurationSeconds,
+        );
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
         .setSplitScreenEnabled(isSplitScreenEnabled: true);
     await ref
         .read(settingsPreferencesRepositoryProvider)
@@ -380,9 +421,14 @@ class SettingsPreferencesControllerNotifier
     await ref
         .read(settingsPreferencesRepositoryProvider)
         .setAppTheme(appThemeName: AppTheme.light.name);
+    state = state.copyWith(
+      songTransitionStyle: SongTransitionStyle.off,
+      crossfadeDurationSeconds: defaultCrossfadeDurationSeconds,
+    );
     await ref.read(audioEqualizerServiceProvider).applyPreset(
           EqualizerPreset.off,
         );
+    await ref.read(audioPlayerServiceProvider.notifier).syncSongTransitionStyle();
     ref.invalidateSelf();
   }
 

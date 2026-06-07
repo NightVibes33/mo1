@@ -34,6 +34,7 @@ dependencies:
   just_audio_media_kit: ^2.1.0
   media_kit_libs_linux: ^1.2.1
   media_kit_libs_windows_audio: ^1.0.9
+  music_feature_analyzer: ^1.0.3
   on_audio_query:
     git:
       url: https://github.com/adeeteya/on_audio_query.git
