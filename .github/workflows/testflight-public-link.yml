@@ -1,0 +1,31 @@
+name: TestFlight Public Link
+
+on:
+  workflow_dispatch:
+    inputs:
+      beta_group_name:
+        description: External TestFlight beta group name
+        required: true
+        default: "døPi Public Beta"
+
+permissions:
+  contents: read
+
+jobs:
+  public-link:
+    name: Create or print public TestFlight link
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create or print public TestFlight link
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          DOPI_APP_BUNDLE_ID: app.mo1.player.39A8Q3T3TR
+          DOPI_BETA_GROUP_NAME: ${{ inputs.beta_group_name }}
+        run: ruby tool/app_store_connect_public_link.rb
