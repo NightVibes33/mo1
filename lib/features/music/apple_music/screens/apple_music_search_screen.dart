@@ -6,18 +6,12 @@ import 'package:classipod/core/constants/assets.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/routes.dart';
-import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
 import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
+import 'package:classipod/core/services/imported_library_refresh_service.dart';
 import 'package:classipod/core/services/music_metadata_lookup_service.dart';
 import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
-import 'package:classipod/features/music/album/providers/album_details_provider.dart';
-import 'package:classipod/features/music/artists/providers/artist_names_provider.dart';
-import 'package:classipod/features/music/genres/providers/genres_provider.dart';
-import 'package:classipod/features/music/playlist/providers/playlists_provider.dart';
 import 'package:classipod/features/music/songs/models/music_metadata_match.dart';
-import 'package:classipod/features/music/songs/provider/songs_provider.dart';
-import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:classipod/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -203,52 +197,6 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
     });
   }
 
-  Future<void> _refreshLibraryAfterAppleMusicImport() async {
-    ref.invalidate(filteredAudioFilesProvider);
-    final metadataList = await ref
-        .read(filteredAudioFilesProvider.future)
-        .then((value) => value.toList());
-    if (!mounted) {
-      return;
-    }
-
-    ref.invalidate(albumDetailsProvider);
-    ref.invalidate(artistNamesProvider);
-    ref.invalidate(songsProvider);
-    ref.invalidate(genresProvider);
-    ref.invalidate(playlistsProvider);
-    ref.read(playlistsProvider.notifier).refreshProvider();
-
-    final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
-    final currentMetadata = nowPlayingDetails.currentMetadata;
-    final currentIndex = _currentMetadataIndex(metadataList, currentMetadata);
-    ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
-          nowPlayingType: nowPlayingDetails.nowPlayingType,
-          newMetadataList: metadataList,
-          currentIndex: currentIndex == -1
-              ? nowPlayingDetails.currentIndex
-              : currentIndex,
-          isPlaying: nowPlayingDetails.isPlaying,
-        );
-  }
-
-  int _currentMetadataIndex(
-    List<MusicMetadata> metadataList,
-    MusicMetadata? currentMetadata,
-  ) {
-    if (currentMetadata == null) {
-      return metadataList.isEmpty ? -1 : 0;
-    }
-
-    final currentPath = currentMetadata.filePath;
-    return metadataList.indexWhere((metadata) {
-      if (metadata.originalSongIndex == currentMetadata.originalSongIndex) {
-        return true;
-      }
-      return currentPath != null && metadata.filePath == currentPath;
-    });
-  }
-
   Future<void> _loadAppleMusicLibrary() async {
     if (_isSearching) {
       return;
@@ -303,7 +251,7 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
     if (!mounted) {
       return;
     }
-    await _refreshLibraryAfterAppleMusicImport();
+    await refreshImportedLibraryProviders(ref);
     if (!mounted) {
       return;
     }
