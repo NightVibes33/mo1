@@ -26,6 +26,7 @@ BETA_REVIEW_NOTES = ENV.fetch(
   'DOPI_BETA_REVIEW_NOTES',
   'No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, album carousel, and song transitions.'
 )
+USES_NON_EXEMPT_ENCRYPTION = ENV.fetch('DOPI_USES_NON_EXEMPT_ENCRYPTION', 'false').casecmp('true').zero?
 
 KEY_ID = ENV.fetch('APP_STORE_CONNECT_KEY_ID')
 ISSUER_ID = ENV.fetch('APP_STORE_CONNECT_ISSUER_ID')
@@ -330,6 +331,19 @@ end
 
 if latest_valid_build
   latest_attrs = attributes(latest_valid_build)
+  if latest_attrs['usesNonExemptEncryption'].nil?
+    puts "Setting export compliance on build #{latest_attrs['version']}: usesNonExemptEncryption=#{USES_NON_EXEMPT_ENCRYPTION}."
+    request(:patch, "/v1/builds/#{latest_valid_build.fetch('id')}", body: {
+      data: {
+        type: 'builds',
+        id: latest_valid_build.fetch('id'),
+        attributes: {
+          usesNonExemptEncryption: USES_NON_EXEMPT_ENCRYPTION
+        }
+      }
+    })
+    latest_attrs['usesNonExemptEncryption'] = USES_NON_EXEMPT_ENCRYPTION
+  end
   latest_detail = build_beta_detail(latest_valid_build.fetch('id'))
   puts "Latest valid beta detail: #{JSON.generate(latest_detail || {})}"
   submission_code, submission_attrs = beta_review_submission(latest_valid_build.fetch('id'))

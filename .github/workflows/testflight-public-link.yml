@@ -36,4 +36,5 @@ jobs:
           DOPI_BETA_REVIEW_NOTES: >-
             No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, album carousel, and song transitions.
           DOPI_PRIVACY_POLICY_URL: https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md
+          DOPI_USES_NON_EXEMPT_ENCRYPTION: "false"
         run: ruby tool/app_store_connect_public_link.rb
