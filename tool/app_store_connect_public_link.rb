@@ -264,13 +264,13 @@ end
 
 if latest_valid_build
   puts 'Adding latest valid build to beta group if not already attached.'
-  begin
-    request(:post, "/v1/betaGroups/#{group_id}/relationships/builds", body: {
-      data: [{ type: 'builds', id: latest_valid_build.fetch('id') }]
-    })
-  rescue SystemExit
-    warn 'Could not attach the build to the external group. This commonly means Beta App Review/export compliance/test info is still pending in App Store Connect.'
-    raise
+  code, response = request_optional(:post, "/v1/betaGroups/#{group_id}/relationships/builds", body: {
+    data: [{ type: 'builds', id: latest_valid_build.fetch('id') }]
+  })
+  unless code.between?(200, 299) || code == 409
+    warn "Could not attach the build to the external group. HTTP #{code}"
+    warn JSON.pretty_generate(response)
+    warn 'This usually means Beta App Review, export compliance, or TestFlight test information is still pending in App Store Connect.'
   end
 end
 
