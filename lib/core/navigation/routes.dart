@@ -2,7 +2,6 @@ import 'package:classipod/core/constants/keys.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/navigation/page_not_found_screen.dart';
-import 'package:classipod/features/app_startup/controllers/splash_controller.dart';
 import 'package:classipod/features/app_startup/screens/splash_screen.dart';
 import 'package:classipod/features/custom_screen_elements/custom_scroll_behavior.dart';
 import 'package:classipod/features/custom_screen_elements/options_modal_page.dart';
@@ -181,14 +180,8 @@ final routerProvider = Provider(
           GoRoute(
             path: Routes.splash.toString(),
             name: Routes.splash.name,
-            pageBuilder: (context, state) {
-              final launchMode = state.extra is SplashLaunchMode
-                  ? state.extra! as SplashLaunchMode
-                  : SplashLaunchMode.startup;
-              return CupertinoPage(
-                child: SplashScreen(launchMode: launchMode),
-              );
-            },
+            pageBuilder: (context, state) =>
+                const CupertinoPage(child: SplashScreen()),
           ),
           ShellRoute(
             parentNavigatorKey: rootNavigatorKey,

@@ -5,10 +5,10 @@ import 'package:classipod/core/constants/app_palette.dart';
 import 'package:classipod/core/constants/assets.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/navigation/routes.dart';
+import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
 import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/core/services/music_metadata_lookup_service.dart';
-import 'package:classipod/core/utils/music_library_refresh.dart';
 import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
 import 'package:classipod/features/music/songs/models/music_metadata_match.dart';
 import 'package:classipod/features/status_bar/widgets/status_bar.dart';
@@ -250,10 +250,7 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
     if (!mounted) {
       return;
     }
-    await refreshMusicLibraryAfterImport(ref);
-    if (!mounted) {
-      return;
-    }
+    ref.invalidate(filteredAudioFilesProvider);
 
     final String? playbackStatusText;
     if (subscriptionStatus.isSupported &&

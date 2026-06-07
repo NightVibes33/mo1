@@ -19,26 +19,10 @@ final splashControllerProvider =
       SplashControllerNotifier.new,
     );
 
-enum SplashLaunchMode { startup, libraryRefresh }
-
 class SplashControllerNotifier extends AsyncNotifier<void> {
   @override
-  Future<void> build() async {}
-
-  Future<void> launch(SplashLaunchMode launchMode) async {
-    switch (launchMode) {
-      case SplashLaunchMode.startup:
-        await requestStoragePermissions();
-        break;
-      case SplashLaunchMode.libraryRefresh:
-        await refreshImportedLibrary();
-        break;
-    }
-  }
-
-  Future<void> refreshImportedLibrary() async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(initializeApp);
+  Future<void> build() async {
+    await requestStoragePermissions();
   }
 
   Future<void> requestStoragePermissions() async {
