@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:classipod/core/constants/constants.dart';
-import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/features/settings/models/exclude_directory_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,35 +26,17 @@ class ExcludeDirectoryNotifier extends Notifier<List<ExcludeDirectoryModel>> {
         .toList();
   }
 
-  Future<void> createDefaultDirectories({
-    Iterable<MusicMetadata>? metadataList,
-  }) async {
-    final audioFilesState = ref.read(audioFilesServiceProvider);
-    final audioFiles = metadataList ??
-        (audioFilesState.hasValue
-            ? audioFilesState.requireValue
-            : const <MusicMetadata>[]);
-    final parentDirectoryPaths = _parentDirectoryPaths.toSet();
-
+  Future<void> createDefaultDirectories() async {
+    final audioFiles = ref.read(audioFilesServiceProvider).requireValue;
     for (final musicMetadata in audioFiles) {
-      if (!musicMetadata.isOnDevice || musicMetadata.isAppleMusicCatalogTrack) {
-        continue;
+      if (musicMetadata.parentDirectoryPath != null &&
+          !_parentDirectoryPaths.contains(musicMetadata.parentDirectoryPath)) {
+        final newExcludeDirectoryModel = ExcludeDirectoryModel(
+          directoryPath: musicMetadata.parentDirectoryPath!,
+          isExcluded: false,
+        );
+        await _excludeDirectoryBox.add(newExcludeDirectoryModel);
       }
-
-      final parentDirectoryPath = musicMetadata.parentDirectoryPath;
-      if (parentDirectoryPath == null || parentDirectoryPath.isEmpty) {
-        continue;
-      }
-      if (parentDirectoryPaths.contains(parentDirectoryPath)) {
-        continue;
-      }
-
-      final newExcludeDirectoryModel = ExcludeDirectoryModel(
-        directoryPath: parentDirectoryPath,
-        isExcluded: false,
-      );
-      await _excludeDirectoryBox.add(newExcludeDirectoryModel);
-      parentDirectoryPaths.add(parentDirectoryPath);
     }
     state = _excludeDirectoryBox.values.toList();
   }
