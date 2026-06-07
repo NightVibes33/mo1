@@ -32,6 +32,6 @@ jobs:
             døPi is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
           DOPI_REVIEW_NOTES: >-
             No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, album carousel, and song transitions.
-          DOPI_BETA_FEEDBACK_EMAIL: adeeteya@gmail.com
+          DOPI_BETA_FEEDBACK_EMAIL: bobbytatum12345@gmail.com
           DOPI_PRIVACY_POLICY_URL: https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md
         run: ruby tool/app_store_connect_update_wording.rb

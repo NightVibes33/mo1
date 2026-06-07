@@ -27,7 +27,7 @@ REVIEW_NOTES = ENV.fetch(
   'No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, album carousel, and song transitions.'
 )
 PRIVACY_POLICY_URL = ENV.fetch('DOPI_PRIVACY_POLICY_URL', 'https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md')
-BETA_FEEDBACK_EMAIL = ENV.fetch('DOPI_BETA_FEEDBACK_EMAIL', 'adeeteya@gmail.com')
+BETA_FEEDBACK_EMAIL = ENV.fetch('DOPI_BETA_FEEDBACK_EMAIL', 'bobbytatum12345@gmail.com')
 
 KEY_ID = ENV.fetch('APP_STORE_CONNECT_KEY_ID')
 ISSUER_ID = ENV.fetch('APP_STORE_CONNECT_ISSUER_ID')

@@ -16,7 +16,7 @@ BETA_DESCRIPTION = ENV.fetch(
   'DOPI_BETA_APP_DESCRIPTION',
   'døPi is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.'
 )
-BETA_FEEDBACK_EMAIL = ENV.fetch('DOPI_BETA_FEEDBACK_EMAIL', 'adeeteya@gmail.com')
+BETA_FEEDBACK_EMAIL = ENV.fetch('DOPI_BETA_FEEDBACK_EMAIL', 'bobbytatum12345@gmail.com')
 PRIVACY_POLICY_URL = ENV.fetch('DOPI_PRIVACY_POLICY_URL', 'https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md')
 BETA_CONTACT_FIRST_NAME = ENV['DOPI_BETA_CONTACT_FIRST_NAME']
 BETA_CONTACT_LAST_NAME = ENV['DOPI_BETA_CONTACT_LAST_NAME']
