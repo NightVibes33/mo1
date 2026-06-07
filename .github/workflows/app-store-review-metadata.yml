@@ -26,5 +26,11 @@ jobs:
           DOPI_PRIMARY_CATEGORY_ID: MUSIC
           DOPI_PRIVACY_POLICY_URL: https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md
           DOPI_COPYRIGHT: 2026 NightVibes33
+          DOPI_CONTENT_RIGHTS_DECLARATION: DOES_NOT_USE_THIRD_PARTY_CONTENT
+          DOPI_USES_NON_EXEMPT_ENCRYPTION: "false"
+          DOPI_APP_DESCRIPTION: >-
+            døPi is a retro music player for iPhone and iPad inspired by classic pocket music players. Import MP3 files, connect Apple Music, browse albums with Cover Flow, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.
+          DOPI_APP_KEYWORDS: music player,mp3,apple music,ipod,cover flow,lyrics,equalizer
+          DOPI_SUPPORT_URL: https://github.com/NightVibes33/mo1
           DOPI_SCREENSHOT_ROOT: app_store/screenshots/exports
         run: ruby tool/app_store_connect_review_metadata.rb

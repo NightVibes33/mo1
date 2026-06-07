@@ -15,6 +15,14 @@ LOCALE = ENV.fetch('DOPI_APP_LOCALE', 'en-US')
 PRIMARY_CATEGORY_ID = ENV.fetch('DOPI_PRIMARY_CATEGORY_ID', 'MUSIC')
 PRIVACY_POLICY_URL = ENV.fetch('DOPI_PRIVACY_POLICY_URL', 'https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md')
 COPYRIGHT_TEXT = ENV.fetch('DOPI_COPYRIGHT', '2026 NightVibes33')
+CONTENT_RIGHTS_DECLARATION = ENV.fetch('DOPI_CONTENT_RIGHTS_DECLARATION', 'DOES_NOT_USE_THIRD_PARTY_CONTENT')
+APP_DESCRIPTION = ENV.fetch(
+  'DOPI_APP_DESCRIPTION',
+  'døPi is a retro music player for iPhone and iPad inspired by classic pocket music players. Import MP3 files, connect Apple Music, browse albums with Cover Flow, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.'
+)
+APP_KEYWORDS = ENV.fetch('DOPI_APP_KEYWORDS', 'music player,mp3,apple music,ipod,cover flow,lyrics,equalizer')
+SUPPORT_URL = ENV.fetch('DOPI_SUPPORT_URL', 'https://github.com/NightVibes33/mo1')
+USES_NON_EXEMPT_ENCRYPTION = ENV.fetch('DOPI_USES_NON_EXEMPT_ENCRYPTION', 'false').casecmp('true').zero?
 SCREENSHOT_ROOT = ENV.fetch('DOPI_SCREENSHOT_ROOT', 'app_store/screenshots/exports')
 
 KEY_ID = ENV.fetch('APP_STORE_CONNECT_KEY_ID')
@@ -152,6 +160,17 @@ app_id = app.fetch('id')
 app_name = attributes(app)['name']
 puts "App: #{app_name} (#{BUNDLE_ID}) id=#{app_id}"
 
+puts "Setting content rights declaration to #{CONTENT_RIGHTS_DECLARATION}."
+api_request(:patch, "/v1/apps/#{app_id}", body: {
+  data: {
+    type: 'apps',
+    id: app_id,
+    attributes: {
+      contentRightsDeclaration: CONTENT_RIGHTS_DECLARATION
+    }
+  }
+})
+
 info_response = api_request(:get, "/v1/apps/#{app_id}/appInfos", query: {
   'include' => 'appInfoLocalizations,primaryCategory',
   'fields[appInfos]' => 'appStoreState,state,appInfoLocalizations,primaryCategory',
@@ -216,7 +235,7 @@ versions_response = api_request(:get, "/v1/apps/#{app_id}/appStoreVersions", que
   'include' => 'appStoreVersionLocalizations,build',
   'fields[appStoreVersions]' => 'platform,versionString,appStoreState,appVersionState,copyright,createdDate,appStoreVersionLocalizations,build',
   'fields[appStoreVersionLocalizations]' => 'locale,description,keywords,marketingUrl,promotionalText,supportUrl,whatsNew,appScreenshotSets',
-  'fields[builds]' => 'version,uploadedDate,processingState,expired',
+  'fields[builds]' => 'version,uploadedDate,processingState,expired,usesNonExemptEncryption',
   'limit' => '50'
 })
 versions = versions_response.fetch('data')
@@ -232,6 +251,31 @@ end
 version_id = version.fetch('id')
 version_attrs = attributes(version)
 puts "Using App Store version #{version_attrs['versionString']} state=#{version_attrs['appStoreState'] || version_attrs['appVersionState']} id=#{version_id}."
+
+build_id = version.dig('relationships', 'build', 'data', 'id')
+build = included(versions_response, 'builds').find { |item| item['id'] == build_id } || included(versions_response, 'builds').first
+unless build
+  build_response = api_request(:get, "/v1/appStoreVersions/#{version_id}/build", query: {
+    'fields[builds]' => 'version,uploadedDate,processingState,expired,usesNonExemptEncryption'
+  }, allow: [404])
+  build = build_response['data']
+end
+if build
+  build_id = build.fetch('id')
+  build_version = attributes(build)['version']
+  puts "Setting export compliance on build #{build_version || build_id}: usesNonExemptEncryption=#{USES_NON_EXEMPT_ENCRYPTION}."
+  api_request(:patch, "/v1/builds/#{build_id}", body: {
+    data: {
+      type: 'builds',
+      id: build_id,
+      attributes: {
+        usesNonExemptEncryption: USES_NON_EXEMPT_ENCRYPTION
+      }
+    }
+  })
+else
+  warn 'No build is attached to this App Store version; cannot set export compliance.'
+end
 
 puts "Setting copyright to #{COPYRIGHT_TEXT}."
 api_request(:patch, "/v1/appStoreVersions/#{version_id}", body: {
@@ -253,6 +297,19 @@ unless localization
 end
 localization_id = localization.fetch('id')
 puts "Using version localization #{attributes(localization)['locale'] || LOCALE} id=#{localization_id}."
+
+puts 'Setting English description, keywords, and support URL.'
+api_request(:patch, "/v1/appStoreVersionLocalizations/#{localization_id}", body: {
+  data: {
+    type: 'appStoreVersionLocalizations',
+    id: localization_id,
+    attributes: {
+      description: APP_DESCRIPTION,
+      keywords: APP_KEYWORDS,
+      supportUrl: SUPPORT_URL
+    }
+  }
+})
 
 sets_response = api_request(:get, "/v1/appStoreVersionLocalizations/#{localization_id}/appScreenshotSets", query: {
   'fields[appScreenshotSets]' => 'screenshotDisplayType,appScreenshots',
