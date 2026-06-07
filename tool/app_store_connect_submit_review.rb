@@ -19,6 +19,9 @@ REVIEW_NOTES = ENV.fetch(
   'DOPI_REVIEW_NOTES',
   'No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, album carousel, and song transitions.'
 )
+USE_LATEST_VALID_BUILD = ENV.fetch('DOPI_USE_LATEST_VALID_BUILD', 'true').casecmp('true').zero?
+TARGET_BUILD_VERSION = ENV['DOPI_TARGET_BUILD_VERSION']
+USES_NON_EXEMPT_ENCRYPTION = ENV.fetch('DOPI_USES_NON_EXEMPT_ENCRYPTION', 'false').casecmp('true').zero?
 
 KEY_ID = ENV.fetch('APP_STORE_CONNECT_KEY_ID')
 ISSUER_ID = ENV.fetch('APP_STORE_CONNECT_ISSUER_ID')
@@ -102,6 +105,70 @@ def present(value)
   value.to_s.strip.empty? ? nil : value
 end
 
+
+def active_submission_state?(state)
+  %w[READY_FOR_REVIEW WAITING_FOR_REVIEW IN_REVIEW UNRESOLVED_ISSUES].include?(state.to_s)
+end
+
+def cancellable_submission_state?(state)
+  %w[READY_FOR_REVIEW WAITING_FOR_REVIEW].include?(state.to_s)
+end
+
+def sorted_valid_builds(app_id)
+  response = api_request(:get, "/v1/apps/#{app_id}/builds", query: {
+    'fields[builds]' => 'version,uploadedDate,processingState,expired,usesNonExemptEncryption',
+    'limit' => '200'
+  })
+
+  response.fetch('data', []).select do |build|
+    attrs = attributes(build)
+    !attrs['expired'] && attrs['processingState'].to_s.upcase == 'VALID'
+  end.sort_by do |build|
+    Time.parse(attributes(build)['uploadedDate'].to_s) rescue Time.at(0)
+  end.reverse
+end
+
+def latest_review_submission(app_id, platform)
+  response = api_request(:get, '/v1/reviewSubmissions', query: {
+    'filter[app]' => app_id,
+    'filter[platform]' => platform,
+    'include' => 'items,appStoreVersionForReview',
+    'fields[reviewSubmissions]' => 'platform,submittedDate,state,items,appStoreVersionForReview',
+    'fields[reviewSubmissionItems]' => 'state,appStoreVersion',
+    'fields[appStoreVersions]' => 'versionString,appStoreState,appVersionState,platform',
+    'limit' => '50',
+    'limit[items]' => '50'
+  })
+  submissions = response.fetch('data', [])
+  active = submissions.find { |item| active_submission_state?(attributes(item)['state']) }
+  [active, response]
+end
+
+def cancel_app_store_version_submission(version, submission)
+  submission_id = submission.fetch('id')
+  state = attributes(submission)['state']
+  unless cancellable_submission_state?(state)
+    warn "Review submission #{submission_id} is state=#{state}; not safe to cancel automatically."
+    exit 1
+  end
+
+  app_store_version_submission_id = version.dig('relationships', 'appStoreVersionSubmission', 'data', 'id')
+  unless present(app_store_version_submission_id)
+    warn "No appStoreVersionSubmission relationship found for App Store version #{version.fetch('id')}."
+    exit 1
+  end
+
+  puts "Deleting App Store version submission #{app_store_version_submission_id} to remove version from review."
+  response = api_request(:delete, "/v1/appStoreVersionSubmissions/#{app_store_version_submission_id}", allow: [403, 404, 409])
+  return if response.empty?
+
+  errors = response['errors'] || []
+  return if errors.empty?
+
+  warn "App Store version submission delete failed: #{JSON.generate(errors)}"
+  exit 1
+end
+
 app_response = api_request(:get, '/v1/apps', query: {
   'filter[bundleId]' => BUNDLE_ID,
   'fields[apps]' => 'name,bundleId,sku,primaryLocale',
@@ -117,15 +184,15 @@ puts "App: #{attributes(app)['name']} (#{BUNDLE_ID}) id=#{app_id}"
 
 version_response = api_request(:get, "/v1/apps/#{app_id}/appStoreVersions", query: {
   'filter[platform]' => PLATFORM,
-  'include' => 'build,appStoreReviewDetail,appStoreVersionLocalizations',
-  'fields[appStoreVersions]' => 'platform,versionString,appStoreState,appVersionState,createdDate,build,appStoreReviewDetail,appStoreVersionLocalizations',
+  'include' => 'build,appStoreReviewDetail,appStoreVersionLocalizations,appStoreVersionSubmission',
+  'fields[appStoreVersions]' => 'platform,versionString,appStoreState,appVersionState,createdDate,build,appStoreReviewDetail,appStoreVersionLocalizations,appStoreVersionSubmission',
   'fields[builds]' => 'version,uploadedDate,processingState,expired,usesNonExemptEncryption',
   'fields[appStoreReviewDetails]' => 'contactFirstName,contactLastName,contactPhone,contactEmail,demoAccountRequired,notes',
   'fields[appStoreVersionLocalizations]' => 'locale,description,keywords,supportUrl',
   'limit' => '50'
 })
 versions = version_response.fetch('data', [])
-preferred_states = %w[PREPARE_FOR_SUBMISSION READY_FOR_REVIEW DEVELOPER_REJECTED REJECTED METADATA_REJECTED]
+preferred_states = %w[PREPARE_FOR_SUBMISSION READY_FOR_REVIEW WAITING_FOR_REVIEW DEVELOPER_REJECTED REJECTED METADATA_REJECTED]
 version = versions.find do |candidate|
   attrs = attributes(candidate)
   preferred_states.include?(attrs['appStoreState'].to_s) || preferred_states.include?(attrs['appVersionState'].to_s)
@@ -145,6 +212,69 @@ if build
   puts "Attached build: #{attributes(build)['version']} processing=#{attributes(build)['processingState']} encryption=#{attributes(build)['usesNonExemptEncryption'].inspect}."
 else
   warn 'No build is attached to the selected App Store version.'
+end
+
+
+target_build = nil
+if USE_LATEST_VALID_BUILD
+  valid_builds = sorted_valid_builds(app_id)
+  puts 'Recent valid builds:'
+  valid_builds.take(8).each do |candidate|
+    attrs = attributes(candidate)
+    puts "- #{attrs['version']} uploaded #{attrs['uploadedDate']} encryption=#{attrs['usesNonExemptEncryption'].inspect}"
+  end
+
+  target_build = if present(TARGET_BUILD_VERSION)
+                   valid_builds.find { |candidate| attributes(candidate)['version'].to_s == TARGET_BUILD_VERSION.to_s }
+                 else
+                   valid_builds.first
+                 end
+
+  unless target_build
+    warn "No valid build found#{TARGET_BUILD_VERSION ? " for #{TARGET_BUILD_VERSION}" : ''}."
+    exit 1
+  end
+
+  target_attrs = attributes(target_build)
+  current_build_version = build ? attributes(build)['version'].to_s : nil
+  puts "Target App Store build: #{target_attrs['version']} uploaded #{target_attrs['uploadedDate']}."
+
+  if current_build_version != target_attrs['version'].to_s
+    submission, = latest_review_submission(app_id, PLATFORM)
+    if submission && active_submission_state?(attributes(submission)['state'])
+      cancel_app_store_version_submission(version, submission)
+      sleep 5
+    end
+
+    puts "Setting export compliance on target build #{target_attrs['version']}: usesNonExemptEncryption=#{USES_NON_EXEMPT_ENCRYPTION}."
+    compliance_response = api_request(:patch, "/v1/builds/#{target_build.fetch('id')}", body: {
+      data: {
+        type: 'builds',
+        id: target_build.fetch('id'),
+        attributes: {
+          usesNonExemptEncryption: USES_NON_EXEMPT_ENCRYPTION
+        }
+      }
+    }, allow: [409])
+    compliance_errors = compliance_response['errors'] || []
+    unless compliance_errors.empty? || compliance_errors.all? { |error| error['detail'].to_s.include?('already set') }
+      warn "Export compliance update failed: #{JSON.generate(compliance_errors)}"
+      exit 1
+    end
+
+    puts "Attaching build #{target_attrs['version']} to App Store version #{version_attrs['versionString']}."
+    api_request(:patch, "/v1/appStoreVersions/#{version_id}/relationships/build", body: {
+      data: {
+        type: 'builds',
+        id: target_build.fetch('id')
+      }
+    })
+
+    build = target_build
+    build_id = target_build.fetch('id')
+  else
+    puts "App Store version already has target build #{current_build_version} attached."
+  end
 end
 
 beta_response = api_request(:get, '/v1/betaAppReviewDetails', query: {
@@ -200,19 +330,7 @@ else
   })
 end
 
-submissions_response = api_request(:get, '/v1/reviewSubmissions', query: {
-  'filter[app]' => app_id,
-  'filter[platform]' => PLATFORM,
-  'include' => 'items,appStoreVersionForReview',
-  'fields[reviewSubmissions]' => 'platform,submittedDate,state,items,appStoreVersionForReview',
-  'fields[reviewSubmissionItems]' => 'state,appStoreVersion',
-  'fields[appStoreVersions]' => 'versionString,appStoreState,appVersionState,platform',
-  'limit' => '50',
-  'limit[items]' => '50'
-})
-submissions = submissions_response.fetch('data', [])
-active_states = %w[READY_FOR_REVIEW WAITING_FOR_REVIEW IN_REVIEW UNRESOLVED_ISSUES]
-submission = submissions.find { |item| active_states.include?(attributes(item)['state'].to_s) }
+submission, submissions_response = latest_review_submission(app_id, PLATFORM)
 
 if submission
   submission_id = submission.fetch('id')
@@ -272,7 +390,7 @@ else
     data: {
       type: 'reviewSubmissions',
       id: submission_id,
-      attributes: { isSubmitted: true }
+      attributes: { submitted: true }
     }
   }).fetch('data')
   puts "DONE App Store review submission state=#{attributes(submitted)['state']} submittedDate=#{attributes(submitted)['submittedDate']}."
