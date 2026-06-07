@@ -18,6 +18,14 @@ BETA_DESCRIPTION = ENV.fetch(
 )
 BETA_FEEDBACK_EMAIL = ENV.fetch('DOPI_BETA_FEEDBACK_EMAIL', 'adeeteya@gmail.com')
 PRIVACY_POLICY_URL = ENV.fetch('DOPI_PRIVACY_POLICY_URL', 'https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md')
+BETA_CONTACT_FIRST_NAME = ENV['DOPI_BETA_CONTACT_FIRST_NAME']
+BETA_CONTACT_LAST_NAME = ENV['DOPI_BETA_CONTACT_LAST_NAME']
+BETA_CONTACT_EMAIL = ENV['DOPI_BETA_CONTACT_EMAIL'] || BETA_FEEDBACK_EMAIL
+BETA_CONTACT_PHONE = ENV['DOPI_BETA_CONTACT_PHONE']
+BETA_REVIEW_NOTES = ENV.fetch(
+  'DOPI_BETA_REVIEW_NOTES',
+  'No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, Cover Flow, and song transitions.'
+)
 
 KEY_ID = ENV.fetch('APP_STORE_CONNECT_KEY_ID')
 ISSUER_ID = ENV.fetch('APP_STORE_CONNECT_ISSUER_ID')
@@ -111,6 +119,14 @@ def attributes(record)
   record.fetch('attributes', {}) || {}
 end
 
+def included(response, type)
+  response.fetch('included', []).select { |item| item['type'] == type }
+end
+
+def present(value)
+  value.to_s.strip.empty? ? nil : value
+end
+
 apps = request(:get, '/v1/apps', query: {
   'filter[bundleId]' => BUNDLE_ID,
   'fields[apps]' => 'name,bundleId,sku',
@@ -124,6 +140,48 @@ end
 app_id = app.fetch('id')
 app_attrs = attributes(app)
 puts "App: #{app_attrs['name'] || '(unknown)'} (#{BUNDLE_ID})"
+
+app_store_versions_for_review = request(:get, "/v1/apps/#{app_id}/appStoreVersions", query: {
+  'filter[platform]' => 'IOS',
+  'include' => 'appStoreReviewDetail',
+  'fields[appStoreVersions]' => 'platform,versionString,appStoreState,appVersionState,createdDate,appStoreReviewDetail',
+  'fields[appStoreReviewDetails]' => 'contactFirstName,contactLastName,contactPhone,contactEmail,demoAccountRequired,notes',
+  'limit' => '20'
+})
+app_store_review_attrs = attributes(included(app_store_versions_for_review, 'appStoreReviewDetails').first || {})
+
+beta_review_details = request(:get, '/v1/betaAppReviewDetails', query: {
+  'filter[app]' => app_id,
+  'fields[betaAppReviewDetails]' => 'contactFirstName,contactLastName,contactPhone,contactEmail,demoAccountRequired,notes,app',
+  'limit' => '1'
+})
+beta_review_detail = beta_review_details.fetch('data', []).first
+if beta_review_detail
+  current_beta_review_attrs = attributes(beta_review_detail)
+  review_attrs = {
+    contactFirstName: present(BETA_CONTACT_FIRST_NAME) || present(current_beta_review_attrs['contactFirstName']) || present(app_store_review_attrs['contactFirstName']) || 'Aditya',
+    contactLastName: present(BETA_CONTACT_LAST_NAME) || present(current_beta_review_attrs['contactLastName']) || present(app_store_review_attrs['contactLastName']) || 'R',
+    contactEmail: present(BETA_CONTACT_EMAIL) || present(current_beta_review_attrs['contactEmail']) || present(app_store_review_attrs['contactEmail']),
+    contactPhone: present(BETA_CONTACT_PHONE) || present(current_beta_review_attrs['contactPhone']) || present(app_store_review_attrs['contactPhone']),
+    demoAccountRequired: false,
+    notes: BETA_REVIEW_NOTES
+  }
+  missing = %i[contactFirstName contactLastName contactEmail contactPhone].select { |key| review_attrs[key].nil? }
+  if missing.empty?
+    puts 'Setting Beta App Review contact details.'
+    request(:patch, "/v1/betaAppReviewDetails/#{beta_review_detail.fetch('id')}", body: {
+      data: {
+        type: 'betaAppReviewDetails',
+        id: beta_review_detail.fetch('id'),
+        attributes: review_attrs
+      }
+    })
+  else
+    warn "Beta App Review contact details still missing: #{missing.join(', ')}. Set DOPI_BETA_CONTACT_* workflow env values."
+  end
+else
+  warn 'No Beta App Review detail resource found for this app.'
+end
 
 beta_localizations = request(:get, "/v1/apps/#{app_id}/betaAppLocalizations", query: {
   'fields[betaAppLocalizations]' => 'feedbackEmail,marketingUrl,privacyPolicyUrl,tvOsPrivacyPolicy,description,locale,app',
