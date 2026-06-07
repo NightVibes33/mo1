@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>døPi uses Apple Music access to search and play catalog songs, and to match local song metadata and artwork.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>døPi uses the camera only if you choose to take a photo to use as custom album artwork.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>døPi lets you choose local album artwork for imported songs.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
