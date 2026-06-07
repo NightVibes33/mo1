@@ -1,0 +1,29 @@
+name: App Store Submit Review
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  submit-review:
+    name: Submit App Store version for review
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Submit App Store version for review
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          DOPI_APP_BUNDLE_ID: app.mo1.player.39A8Q3T3TR
+          DOPI_PLATFORM: IOS
+          DOPI_REVIEW_CONTACT_EMAIL: adeeteya@gmail.com
+          DOPI_REVIEW_NOTES: >-
+            No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, Cover Flow, and song transitions.
+        run: ruby tool/app_store_connect_submit_review.rb
