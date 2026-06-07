@@ -18,9 +18,9 @@ COPYRIGHT_TEXT = ENV.fetch('DOPI_COPYRIGHT', '2026 NightVibes33')
 CONTENT_RIGHTS_DECLARATION = ENV.fetch('DOPI_CONTENT_RIGHTS_DECLARATION', 'DOES_NOT_USE_THIRD_PARTY_CONTENT')
 APP_DESCRIPTION = ENV.fetch(
   'DOPI_APP_DESCRIPTION',
-  'døPi is a retro music player for iPhone and iPad inspired by classic pocket music players. Import MP3 files, connect Apple Music, browse albums with Cover Flow, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.'
+  'døPi is a retro music player for iPhone and iPad built for personal music libraries. Import MP3 files, connect Apple Music, browse albums with a visual carousel, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.'
 )
-APP_KEYWORDS = ENV.fetch('DOPI_APP_KEYWORDS', 'music player,mp3,apple music,ipod,cover flow,lyrics,equalizer')
+APP_KEYWORDS = ENV.fetch('DOPI_APP_KEYWORDS', 'music player,mp3,apple music,album carousel,lyrics,equalizer,audio player')
 SUPPORT_URL = ENV.fetch('DOPI_SUPPORT_URL', 'https://github.com/NightVibes33/mo1')
 USES_NON_EXEMPT_ENCRYPTION = ENV.fetch('DOPI_USES_NON_EXEMPT_ENCRYPTION', 'false').casecmp('true').zero?
 SCREENSHOT_ROOT = ENV.fetch('DOPI_SCREENSHOT_ROOT', 'app_store/screenshots/exports')

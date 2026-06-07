@@ -17,7 +17,7 @@ REVIEW_CONTACT_EMAIL = ENV['DOPI_REVIEW_CONTACT_EMAIL'] || ENV['DOPI_BETA_CONTAC
 REVIEW_CONTACT_PHONE = ENV['DOPI_REVIEW_CONTACT_PHONE'] || ENV['DOPI_BETA_CONTACT_PHONE']
 REVIEW_NOTES = ENV.fetch(
   'DOPI_REVIEW_NOTES',
-  'No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, Cover Flow, and song transitions.'
+  'No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, album carousel, and song transitions.'
 )
 
 KEY_ID = ENV.fetch('APP_STORE_CONNECT_KEY_ID')
