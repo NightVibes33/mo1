@@ -1,0 +1,37 @@
+name: App Store Update Wording
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-wording:
+    name: Update App Store wording only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update wording only
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          DOPI_APP_BUNDLE_ID: app.mo1.player.39A8Q3T3TR
+          DOPI_PLATFORM: IOS
+          DOPI_APP_LOCALE: en-US
+          DOPI_APP_DESCRIPTION: >-
+            døPi is a retro music player for iPhone and iPad built for personal music libraries. Import MP3 files, connect Apple Music, browse albums with a visual carousel, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.
+          DOPI_APP_KEYWORDS: music player,mp3,apple music,album carousel,lyrics,equalizer,audio player
+          DOPI_SUPPORT_URL: https://github.com/NightVibes33/mo1
+          DOPI_BETA_APP_DESCRIPTION: >-
+            døPi is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
+          DOPI_REVIEW_NOTES: >-
+            No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, album carousel, and song transitions.
+          DOPI_BETA_FEEDBACK_EMAIL: adeeteya@gmail.com
+          DOPI_PRIVACY_POLICY_URL: https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md
+        run: ruby tool/app_store_connect_update_wording.rb
