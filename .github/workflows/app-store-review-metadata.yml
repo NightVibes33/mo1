@@ -1,0 +1,30 @@
+name: App Store Review Metadata
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    name: Set App Store review metadata
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set metadata and upload screenshots
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          DOPI_APP_BUNDLE_ID: app.mo1.player.39A8Q3T3TR
+          DOPI_APP_LOCALE: en-US
+          DOPI_PRIMARY_CATEGORY_ID: MUSIC
+          DOPI_PRIVACY_POLICY_URL: https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md
+          DOPI_COPYRIGHT: 2026 NightVibes33
+          DOPI_SCREENSHOT_ROOT: app_store/screenshots/exports
+        run: ruby tool/app_store_connect_review_metadata.rb

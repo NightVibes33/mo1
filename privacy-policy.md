@@ -1,31 +1,37 @@
-**Privacy Policy**
+# døPi Privacy Policy
 
-Aditya built the døPi app as an Open Source app. This SERVICE is provided by Aditya at no cost and is intended for use as is.
+Effective date: June 7, 2026
 
-This page is used to inform visitors regarding my policies with the collection, use, and disclosure of Personal Information if anyone decided to use my Service.
+døPi is a paid music player app for iOS. It is designed to play music from files you import and, when you choose to connect Apple Music, music available through your Apple Music subscription.
 
-If you choose to use my Service, then you agree to the collection and use of information in relation to this policy. The Personal Information that I collect is used for providing and improving the Service. I will not use or share your information with anyone except as described in this Privacy Policy.
+## Information We Collect
 
-The terms used in this Privacy Policy have the same meanings as in our Terms and Conditions, which are accessible at døPi unless otherwise defined in this Privacy Policy.
+døPi does not create user accounts and does not collect, sell, rent, or share personal information with the developer.
 
-**Information Collection and Use**
+Music files, playlists, metadata edits, artwork, lyrics, equalizer settings, and app preferences are stored locally on your device. If you import MP3 files or connect Apple Music, that information is used inside the app to provide playback, browsing, artwork, lyrics, and library features.
 
-For a better experience, while using our Service, I may require you to provide us with certain personally identifiable information, including but not limited to Audio Files in the system. The information that I request will be retained on your device and is not collected by me in any way.
+## Apple Music
 
-**Security**
+If you choose to connect Apple Music, Apple may handle authorization, subscription status, catalog lookup, and playback according to Apple's own terms and privacy policies. døPi uses Apple Music access only to let you browse and play music in the app.
 
-I value your trust in providing us your Personal Information, thus we are striving to use commercially acceptable means of protecting it. But remember that no method of transmission over the internet, or method of electronic storage is 100% secure and reliable, and I cannot guarantee its absolute security.
+## Tracking and Advertising
 
-**Links to Other Sites**
+døPi does not display ads, does not use third-party advertising identifiers, and does not track you across apps or websites.
 
-This Service may contain links to other sites. If you click on a third-party link, you will be directed to that site. Note that these external sites are not operated by me. Therefore, I strongly advise you to review the Privacy Policy of these websites. I have no control over and assume no responsibility for the content, privacy policies, or practices of any third-party sites or services.
+## Analytics and Diagnostics
 
-**Changes to This Privacy Policy**
+døPi does not send analytics, diagnostics, crash reports, or listening history to the developer. Apple may separately provide aggregated App Store or TestFlight information to developers under Apple's own policies.
 
-I may update our Privacy Policy from time to time. Thus, you are advised to review this page periodically for any changes. I will notify you of any changes by posting the new Privacy Policy on this page.
+## Data Security
 
-This policy is effective as of 2025-01-21
+Because døPi keeps your music library information on your device, protecting access to your device helps protect the information stored by the app. No method of storage is guaranteed to be completely secure.
 
-**Contact Me**
+## Changes to This Policy
 
-If you have any questions or suggestions about my Privacy Policy, do not hesitate to contact me at adeeteya@gmail.com.
+This policy may be updated from time to time. Updates will be posted at this same URL.
+
+## Contact
+
+Questions about this privacy policy can be sent through the GitHub repository for døPi:
+
+https://github.com/NightVibes33/mo1

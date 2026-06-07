@@ -30,6 +30,10 @@ IPHONE_SIZES = [
     ("iphone-6.1", 1125, 2436),
 ]
 
+IPAD_SIZES = [
+    ("ipad-13", 2064, 2752),
+]
+
 
 def crop_to_aspect(image: Image.Image, width: int, height: int) -> Image.Image:
     target = width / height
@@ -69,7 +73,7 @@ def main() -> None:
         image = Image.open(cells[key]).convert("RGB")
         image.save(RAW_DIR / f"{name}.png", optimize=True)
 
-    for folder, width, height in IPHONE_SIZES:
+    for folder, width, height in [*IPHONE_SIZES, *IPAD_SIZES]:
         out_dir = EXPORT_DIR / folder
         out_dir.mkdir(parents=True, exist_ok=True)
         for name, _ in SELECTED:
