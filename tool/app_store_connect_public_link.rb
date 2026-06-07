@@ -11,6 +11,13 @@ require 'uri'
 API_HOST = 'api.appstoreconnect.apple.com'
 BUNDLE_ID = ENV.fetch('DOPI_APP_BUNDLE_ID', 'app.mo1.player.39A8Q3T3TR')
 GROUP_NAME = ENV.fetch('DOPI_BETA_GROUP_NAME', 'døPi Public Beta')
+LOCALE = ENV.fetch('DOPI_APP_LOCALE', 'en-US')
+BETA_DESCRIPTION = ENV.fetch(
+  'DOPI_BETA_APP_DESCRIPTION',
+  'døPi is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, Cover Flow, lyrics, equalizer controls, song transitions, and the classic click-wheel interface.'
+)
+BETA_FEEDBACK_EMAIL = ENV.fetch('DOPI_BETA_FEEDBACK_EMAIL', 'adeeteya@gmail.com')
+PRIVACY_POLICY_URL = ENV.fetch('DOPI_PRIVACY_POLICY_URL', 'https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md')
 
 KEY_ID = ENV.fetch('APP_STORE_CONNECT_KEY_ID')
 ISSUER_ID = ENV.fetch('APP_STORE_CONNECT_ISSUER_ID')
@@ -41,9 +48,9 @@ def jwt
   header = { alg: 'ES256', kid: KEY_ID, typ: 'JWT' }
   payload = { iss: ISSUER_ID, iat: now, exp: now + (20 * 60), aud: 'appstoreconnect-v1' }
   signing_input = [b64url(JSON.generate(header)), b64url(JSON.generate(payload))].join('.')
-  key = OpenSSL::PKey.read(PRIVATE_KEY)
-  digest = OpenSSL::Digest::SHA256.digest(signing_input)
-  signature = der_signature_to_raw(key.dsa_sign_asn1(digest))
+  key = OpenSSL::PKey.read(PRIVATE_KEY.gsub('\\n', "\n"))
+  signature_der = key.sign(OpenSSL::Digest.new('SHA256'), signing_input)
+  signature = der_signature_to_raw(signature_der)
   "#{signing_input}.#{b64url(signature)}"
 end
 
@@ -117,6 +124,40 @@ end
 app_id = app.fetch('id')
 app_attrs = attributes(app)
 puts "App: #{app_attrs['name'] || '(unknown)'} (#{BUNDLE_ID})"
+
+beta_localizations = request(:get, "/v1/apps/#{app_id}/betaAppLocalizations", query: {
+  'fields[betaAppLocalizations]' => 'feedbackEmail,marketingUrl,privacyPolicyUrl,tvOsPrivacyPolicy,description,locale,app',
+  'limit' => '200'
+})
+beta_localization = beta_localizations.fetch('data', []).find { |item| attributes(item)['locale'] == LOCALE } || beta_localizations.fetch('data', []).first
+beta_attrs = {
+  description: BETA_DESCRIPTION,
+  feedbackEmail: BETA_FEEDBACK_EMAIL,
+  privacyPolicyUrl: PRIVACY_POLICY_URL
+}
+if beta_localization
+  puts "Setting TestFlight beta app description for #{attributes(beta_localization)['locale'] || LOCALE}."
+  request(:patch, "/v1/betaAppLocalizations/#{beta_localization.fetch('id')}", body: {
+    data: {
+      type: 'betaAppLocalizations',
+      id: beta_localization.fetch('id'),
+      attributes: beta_attrs
+    }
+  })
+else
+  puts "Creating TestFlight beta app localization #{LOCALE}."
+  request(:post, '/v1/betaAppLocalizations', body: {
+    data: {
+      type: 'betaAppLocalizations',
+      attributes: beta_attrs.merge(locale: LOCALE),
+      relationships: {
+        app: {
+          data: { type: 'apps', id: app_id }
+        }
+      }
+    }
+  })
+end
 
 builds = request(:get, "/v1/apps/#{app_id}/builds", query: {
   'limit' => '200'

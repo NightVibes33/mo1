@@ -27,5 +27,10 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           DOPI_APP_BUNDLE_ID: app.mo1.player.39A8Q3T3TR
+          DOPI_APP_LOCALE: en-US
           DOPI_BETA_GROUP_NAME: ${{ inputs.beta_group_name }}
+          DOPI_BETA_APP_DESCRIPTION: >-
+            døPi is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, Cover Flow, lyrics, equalizer controls, song transitions, and the classic click-wheel interface.
+          DOPI_BETA_FEEDBACK_EMAIL: adeeteya@gmail.com
+          DOPI_PRIVACY_POLICY_URL: https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md
         run: ruby tool/app_store_connect_public_link.rb
