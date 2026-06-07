@@ -4,19 +4,15 @@ import 'dart:io';
 
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:classipod/core/models/music_metadata.dart';
-import 'package:classipod/core/providers/device_directory_provider.dart';
+import 'package:classipod/core/services/app_documents_service.dart';
 import 'package:classipod/core/services/debug_log_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final metadataReaderRepositoryProvider =
     Provider.autoDispose<MetadataReaderRepository>((ref) {
-      final documentsDirectory = ref
-          .read(deviceDirectoryProvider)
-          .requireValue
-          .documentsDirectory;
-      final thumbnailsDirectoryPath =
-          '${documentsDirectory.path}/ClassiPod/thumbnails';
+      final appDocumentsService = ref.read(appDocumentsServiceProvider);
+      final thumbnailsDirectoryPath = appDocumentsService.thumbnailsDirectoryPath;
       Directory(thumbnailsDirectoryPath).createSync(recursive: true);
       return MetadataReaderRepository(
         thumbnailsDirectoryPath,

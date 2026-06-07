@@ -153,6 +153,20 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     });
   }
 
+  Future<void> stopPlaybackAndClearQueue() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await ref.read(appleMusicPlaybackServiceProvider).pause();
+      await _cancelSongTransition();
+      await ref.read(audioPlayerProvider).stop();
+      ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
+            nowPlayingType: NowPlayingType.songs,
+            newMetadataList: const [],
+            isPlaying: false,
+          );
+    });
+  }
+
   Future<void> setAudioSource({
     NowPlayingType nowPlayingType = NowPlayingType.songs,
     required List<MusicMetadata> musicMetadataList,

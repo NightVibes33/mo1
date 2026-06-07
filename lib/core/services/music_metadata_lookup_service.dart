@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:classipod/core/constants/constants.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/features/music/songs/models/music_metadata_match.dart';
 import 'package:flutter/foundation.dart';
@@ -190,7 +191,7 @@ class MusicMetadataLookupService {
 
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final artworkDirectory = Directory(
-      '${documentsDirectory.path}/ClassiPod/artwork',
+      '${documentsDirectory.path}/${Constants.appDocumentsFolderName}/${Constants.artworkDirectoryName}',
     );
     await artworkDirectory.create(recursive: true);
 

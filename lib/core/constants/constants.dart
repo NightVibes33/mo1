@@ -5,6 +5,12 @@ class Constants {
   static const String metadataBoxName = "metadata_box";
   static const String playlistBoxName = "playlist_box";
   static const String excludedDirectoriesBoxName = "excluded_directories_box";
+  static const String appDocumentsFolderName = "døPi";
+  static const String legacyAppDocumentsFolderName = "ClassiPod";
+  static const String importsDirectoryName = "imports";
+  static const String artworkDirectoryName = "artwork";
+  static const String thumbnailsDirectoryName = "thumbnails";
+  static const String appleMusicArtworkDirectoryName = "AppleMusicArtwork";
 
   static const String defaultLanguageLocaleCode = "en";
   static const String androidDefaultMusicFolderPath =
@@ -36,4 +42,12 @@ class Constants {
 
   static const double inputTextAlphabetContainerWidth = 180;
   static const double inputTextAlphabetSize = 15;
+
+  static bool isAppSubdirectoryPath(String path, String subdirectoryName) {
+    final normalizedPath = path.replaceAll('\\', '/');
+    return normalizedPath.contains('/$appDocumentsFolderName/$subdirectoryName/') ||
+        normalizedPath.contains(
+          '/$legacyAppDocumentsFolderName/$subdirectoryName/',
+        );
+  }
 }

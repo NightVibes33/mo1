@@ -6,6 +6,7 @@ import 'package:classipod/core/constants/constants.dart';
 import 'package:classipod/core/constants/online_audio_files_metadata.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/providers/device_directory_provider.dart';
+import 'package:classipod/core/services/app_documents_service.dart';
 import 'package:classipod/core/repositories/metadata_reader_repository.dart';
 import 'package:classipod/core/services/debug_log_service.dart';
 import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
@@ -108,6 +109,10 @@ class AudioFilesServiceNotifier
     return getAudioFilesMetadata();
   }
 
+  void clearLibraryState() {
+    state = AsyncData(UnmodifiableListView<MusicMetadata>(const []));
+  }
+
   Future<UnmodifiableListView<MusicMetadata>> getAudioFilesMetadata() async {
     state = const AsyncLoading();
     try {
@@ -140,8 +145,7 @@ class AudioFilesServiceNotifier
               return UnmodifiableListView([]);
             }
           } else if (Platform.isIOS) {
-            await importLocalAudioFiles(updateState: false);
-            return _storedMetadata(metadataBox);
+            return UnmodifiableListView([]);
           } else {
             final OnAudioQuery audioQuery = OnAudioQuery();
             final queriedSongs = await audioQuery.querySongs();
@@ -327,7 +331,10 @@ class AudioFilesServiceNotifier
   }
 
   bool _isUserManagedArtworkPath(String path) {
-    return path.contains('/ClassiPod/artwork/');
+    return Constants.isAppSubdirectoryPath(
+      path,
+      Constants.artworkDirectoryName,
+    );
   }
 
   Future<ImportLocalAudioResult> importLocalAudioFiles({
@@ -385,12 +392,8 @@ class AudioFilesServiceNotifier
       data: {'count': pickedFiles.files.length},
     );
 
-    final documentsDirectory = ref
-        .read(deviceDirectoryProvider)
-        .requireValue
-        .documentsDirectory;
     final importsDirectory = Directory(
-      '${documentsDirectory.path}/ClassiPod/imports',
+      ref.read(appDocumentsServiceProvider).importsDirectoryPath,
     );
     importsDirectory.createSync(recursive: true);
 

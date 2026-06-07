@@ -254,6 +254,12 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
           icon: CupertinoIcons.doc_text,
           contentText: 'Import and playback diagnostics',
         );
+      } else if (splitScreenType == SplitScreenType.resetDatabase) {
+        splitScreenWidget = const IconPreviewWidget(
+          titleText: 'Reset Database',
+          icon: CupertinoIcons.trash,
+          contentText: 'Clear songs, playlists, artwork, and logs',
+        );
       } else if (splitScreenType == SplitScreenType.resetSettings) {
         splitScreenWidget = IconPreviewWidget(
           titleText: context.localization.resetSettingsTitle,

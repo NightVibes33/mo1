@@ -26,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>døPi uses Apple Music access to search and play catalog songs, and to match local song metadata and artwork.</string>
 	<key>NSCameraUsageDescription</key>
@@ -33,6 +35,8 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>døPi lets you choose local album artwork for imported songs.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>UIBackgroundModes</key>
 	<array>

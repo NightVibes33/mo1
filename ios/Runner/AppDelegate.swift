@@ -863,7 +863,7 @@ private enum AppleMusicLookupChannel {
         create: true
       )
       let artworkDirectory = documentsDirectory.appendingPathComponent(
-        "ClassiPod/AppleMusicArtwork",
+        "døPi/AppleMusicArtwork",
         isDirectory: true
       )
       try FileManager.default.createDirectory(

@@ -5,6 +5,7 @@ import 'package:classipod/core/navigation/routes.dart';
 import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/services/imported_library_refresh_service.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
+import 'package:classipod/core/services/app_data_reset_service.dart';
 import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
 import 'package:classipod/features/menu/controller/split_screen_controller.dart';
 import 'package:classipod/features/menu/models/split_screen_type.dart';
@@ -41,6 +42,7 @@ enum _SettingsDisplayItems {
   rescanMusicFiles,
   excludeDirectories,
   debugLogs,
+  resetDatabase,
   resetSettings;
 
   String title(BuildContext context) {
@@ -91,6 +93,8 @@ enum _SettingsDisplayItems {
         return context.localization.excludeDirectoriesScreenTitle;
       case debugLogs:
         return 'Debug Logs';
+      case resetDatabase:
+        return 'Reset Database';
       case resetSettings:
         return context.localization.resetSettingsTitle;
     }
@@ -228,6 +232,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       case _SettingsDisplayItems.debugLogs:
         context.goNamed(Routes.debugLogs.name);
         break;
+      case _SettingsDisplayItems.resetDatabase:
+        final shouldReset = await _confirmResetDatabase();
+        if (!shouldReset || !mounted) {
+          return;
+        }
+        await ref.read(appDataResetServiceProvider).resetDatabase();
+        if (mounted) {
+          await _showResetDatabaseComplete();
+        }
+        break;
       case _SettingsDisplayItems.resetSettings:
         await ref
             .read(settingsPreferencesControllerProvider.notifier)
@@ -245,6 +259,52 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       builder: (context) => CupertinoAlertDialog(
         title: Text(result.title),
         content: Text(result.message),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirmResetDatabase() async {
+    if (!mounted) {
+      return false;
+    }
+    final shouldReset = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Reset Database?'),
+        content: const Text(
+          'This deletes imported songs, Apple Music library entries, playlists, album artwork, thumbnails, excluded folders, and debug logs.',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    return shouldReset ?? false;
+  }
+
+  Future<void> _showResetDatabaseComplete() async {
+    if (!mounted) {
+      return;
+    }
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Database Reset'),
+        content: const Text('Your local library data has been cleared.'),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.of(context).pop(),
@@ -403,6 +463,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       case _SettingsDisplayItems.debugLogs:
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
             SplitScreenType.debugLogs;
+        break;
+      case _SettingsDisplayItems.resetDatabase:
+        ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
+            SplitScreenType.resetDatabase;
         break;
       case _SettingsDisplayItems.resetSettings:
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =

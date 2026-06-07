@@ -159,6 +159,7 @@ String? _parentFolderName(String path) {
 
   const ignoredParents = {
     'classipod',
+    'døpi',
     'documents',
     'downloads',
     'files',
@@ -222,7 +223,10 @@ class _MetadataFallback {
     final sourceName = fallbackFileName ?? path;
     final shouldStripImportCollisionSuffix =
         fallbackFileName == null &&
-        path.replaceAll('\\', '/').contains('/ClassiPod/imports/');
+        Constants.isAppSubdirectoryPath(
+          path,
+          Constants.importsDirectoryName,
+        );
     final cleanedStem = _cleanFileStem(_fileNameWithoutExtension(sourceName));
     final artistTitle = _MetadataFallback.fromArtistTitleText(
       cleanedStem,

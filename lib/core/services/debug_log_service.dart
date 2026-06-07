@@ -1,16 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:classipod/core/providers/device_directory_provider.dart';
+import 'package:classipod/core/services/app_documents_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final debugLogServiceProvider = Provider<DebugLogService>((ref) {
-  final documentsDirectory = ref
-      .read(deviceDirectoryProvider)
-      .requireValue
-      .documentsDirectory;
-  return DebugLogService('${documentsDirectory.path}/ClassiPod/debug.log');
+  return DebugLogService(ref.read(appDocumentsServiceProvider).debugLogPath);
 });
 
 class DebugLogService {

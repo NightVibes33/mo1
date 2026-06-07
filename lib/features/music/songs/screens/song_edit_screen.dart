@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:classipod/core/constants/assets.dart';
+import 'package:classipod/core/constants/constants.dart';
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/utils/metadata_artwork.dart';
@@ -213,7 +214,7 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
 
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final artworkDirectory = Directory(
-      '${documentsDirectory.path}/ClassiPod/artwork',
+      '${documentsDirectory.path}/${Constants.appDocumentsFolderName}/${Constants.artworkDirectoryName}',
     );
     await artworkDirectory.create(recursive: true);
 

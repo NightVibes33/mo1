@@ -1,3 +1,4 @@
+import 'package:classipod/core/constants/constants.dart';
 import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,5 +72,8 @@ String? _preferredAlbumArtPath(String? currentPath, String? candidatePath) {
 }
 
 bool _isUserManagedArtworkPath(String path) {
-  return path.contains('/ClassiPod/artwork/');
+  return Constants.isAppSubdirectoryPath(
+    path,
+    Constants.artworkDirectoryName,
+  );
 }
