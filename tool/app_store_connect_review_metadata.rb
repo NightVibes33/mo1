@@ -264,7 +264,7 @@ if build
   build_id = build.fetch('id')
   build_version = attributes(build)['version']
   puts "Setting export compliance on build #{build_version || build_id}: usesNonExemptEncryption=#{USES_NON_EXEMPT_ENCRYPTION}."
-  api_request(:patch, "/v1/builds/#{build_id}", body: {
+  compliance_response = api_request(:patch, "/v1/builds/#{build_id}", body: {
     data: {
       type: 'builds',
       id: build_id,
@@ -272,7 +272,12 @@ if build
         usesNonExemptEncryption: USES_NON_EXEMPT_ENCRYPTION
       }
     }
-  })
+  }, allow: [409])
+  compliance_errors = compliance_response['errors'] || []
+  unless compliance_errors.empty? || compliance_errors.all? { |error| error['detail'].to_s.include?('already set') }
+    warn "Export compliance update failed: #{JSON.generate(compliance_errors)}"
+    exit 1
+  end
 else
   warn 'No build is attached to this App Store version; cannot set export compliance.'
 end
