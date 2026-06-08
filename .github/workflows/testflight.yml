@@ -161,3 +161,24 @@ jobs:
           fi
           export IPA_PATH
           .github/scripts/upload_to_testflight.sh
+
+      - name: Finalize TestFlight build metadata
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          DOPI_APP_BUNDLE_ID: app.mo1.player.39A8Q3T3TR
+          DOPI_APP_LOCALE: en-US
+          DOPI_BETA_GROUP_NAME: døPi Public Beta
+          DOPI_BETA_APP_DESCRIPTION: >-
+            døPi is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
+          DOPI_BETA_FEEDBACK_EMAIL: bobbytatum12345@gmail.com
+          DOPI_BETA_CONTACT_EMAIL: bobbytatum12345@gmail.com
+          DOPI_BETA_REVIEW_NOTES: >-
+            No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, album carousel, and song transitions.
+          DOPI_PRIVACY_POLICY_URL: https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md
+          DOPI_USES_NON_EXEMPT_ENCRYPTION: "false"
+        run: |
+          set -euo pipefail
+          export DOPI_TARGET_BUILD_VERSION="$((5000 + GITHUB_RUN_NUMBER))"
+          ruby tool/app_store_connect_public_link.rb

@@ -10,6 +10,7 @@ require 'uri'
 
 API_HOST = 'api.appstoreconnect.apple.com'
 BUNDLE_ID = ENV.fetch('DOPI_APP_BUNDLE_ID', 'app.mo1.player.39A8Q3T3TR')
+TARGET_BUILD_VERSION = ENV['DOPI_TARGET_BUILD_VERSION']&.strip
 GROUP_NAME = ENV.fetch('DOPI_BETA_GROUP_NAME', 'døPi Public Beta')
 LOCALE = ENV.fetch('DOPI_APP_LOCALE', 'en-US')
 BETA_DESCRIPTION = ENV.fetch(
@@ -218,12 +219,46 @@ else
   })
 end
 
-builds = request(:get, "/v1/apps/#{app_id}/builds", query: {
-  'limit' => '200'
-})
-sorted_builds = builds.fetch('data', []).sort_by do |build|
-  Time.parse(attributes(build)['uploadedDate'].to_s) rescue Time.at(0)
-end.reverse
+def sorted_builds_for(app_id)
+  builds = request(:get, "/v1/apps/#{app_id}/builds", query: {
+    'limit' => '200'
+  })
+  builds.fetch('data', []).sort_by do |build|
+    Time.parse(attributes(build)['uploadedDate'].to_s) rescue Time.at(0)
+  end.reverse
+end
+
+sorted_builds = sorted_builds_for(app_id)
+target_build = nil
+if present(TARGET_BUILD_VERSION)
+  puts "Waiting for target build #{TARGET_BUILD_VERSION} to become VALID."
+  24.times do |attempt|
+    sorted_builds = sorted_builds_for(app_id)
+    target_build = sorted_builds.find { |build| attributes(build)['version'].to_s == TARGET_BUILD_VERSION }
+    target_attrs = target_build ? attributes(target_build) : {}
+    target_state = target_attrs['processingState'].to_s.upcase
+    target_compliance = target_attrs['usesNonExemptEncryption']
+
+    if target_build && target_compliance.nil?
+      puts "Setting export compliance on target build #{TARGET_BUILD_VERSION}: usesNonExemptEncryption=#{USES_NON_EXEMPT_ENCRYPTION}."
+      request(:patch, "/v1/builds/#{target_build.fetch('id')}", body: {
+        data: {
+          type: 'builds',
+          id: target_build.fetch('id'),
+          attributes: {
+            usesNonExemptEncryption: USES_NON_EXEMPT_ENCRYPTION
+          }
+        }
+      })
+      target_attrs['usesNonExemptEncryption'] = USES_NON_EXEMPT_ENCRYPTION
+    end
+
+    break if target_build && target_state == 'VALID'
+
+    puts "Target build #{TARGET_BUILD_VERSION} not ready yet (attempt #{attempt + 1}/24, state=#{target_state.empty? ? 'missing' : target_state})."
+    sleep 30
+  end
+end
 
 puts 'Recent builds:'
 sorted_builds.take(8).each do |build|
@@ -241,10 +276,14 @@ sorted_builds.take(8).each do |build|
   puts "- #{JSON.generate(summary)}"
 end
 
-latest_valid_build = sorted_builds.find do |build|
-  attrs = attributes(build)
-  !attrs['expired'] && attrs['processingState'].to_s.upcase == 'VALID'
-end
+latest_valid_build = if target_build && attributes(target_build)['processingState'].to_s.upcase == 'VALID'
+                       target_build
+                     else
+                       sorted_builds.find do |build|
+                         attrs = attributes(build)
+                         !attrs['expired'] && attrs['processingState'].to_s.upcase == 'VALID'
+                       end
+                     end
 if latest_valid_build
   battrs = attributes(latest_valid_build)
   puts "Latest valid build: #{battrs['version']} uploaded #{battrs['uploadedDate']}"
