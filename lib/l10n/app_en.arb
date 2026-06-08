@@ -263,6 +263,22 @@
   "@blackDeviceColor": {
     "description": "The name of the black device color"
   },
+  "whiteDeviceColor": "White",
+  "@whiteDeviceColor": {
+    "description": "The name of the white device color"
+  },
+  "starlightDeviceColor": "Starlight",
+  "@starlightDeviceColor": {
+    "description": "The name of the starlight device color"
+  },
+  "graphiteDeviceColor": "Graphite",
+  "@graphiteDeviceColor": {
+    "description": "The name of the graphite device color"
+  },
+  "midnightDeviceColor": "Midnight",
+  "@midnightDeviceColor": {
+    "description": "The name of the midnight device color"
+  },
   "lightThemeTitle": "Light",
   "@lightThemeTitle": {
     "description": "Label for the light theme option"
@@ -283,6 +299,10 @@
   "@goldDeviceColor": {
     "description": "The name of the gold device color"
   },
+  "roseGoldDeviceColor": "Rose Gold",
+  "@roseGoldDeviceColor": {
+    "description": "The name of the rose gold device color"
+  },
   "purpleDeviceColor": "Purple",
   "@purpleDeviceColor": {
     "description": "The name of the purple device color"
@@ -302,6 +322,18 @@
   "blueDeviceColor": "Blue",
   "@blueDeviceColor": {
     "description": "The name of the blue device color"
+  },
+  "tealDeviceColor": "Teal",
+  "@tealDeviceColor": {
+    "description": "The name of the teal device color"
+  },
+  "cyanDeviceColor": "Cyan",
+  "@cyanDeviceColor": {
+    "description": "The name of the cyan device color"
+  },
+  "magentaDeviceColor": "Magenta",
+  "@magentaDeviceColor": {
+    "description": "The name of the magenta device color"
   },
   "limeDeviceColor": "Lime",
   "@limeDeviceColor": {

@@ -27,20 +27,50 @@ class DeviceColorStyle {
 
 enum DeviceColor {
   silver,
+  white,
+  starlight,
   black,
+  graphite,
+  midnight,
   red,
   orange,
   yellow,
   gold,
+  roseGold,
   lime,
   green,
+  teal,
+  cyan,
   blue,
   pink,
+  magenta,
   purple,
   brown;
 
   static DeviceColor fromName(String raw) {
     switch (raw) {
+      case 'white':
+        return DeviceColor.white;
+      case 'starlight':
+      case 'cream':
+        return DeviceColor.starlight;
+      case 'spaceGray':
+      case 'spaceGrey':
+      case 'graphite':
+        return DeviceColor.graphite;
+      case 'midnight':
+      case 'midnightBlue':
+        return DeviceColor.midnight;
+      case 'rose':
+      case 'roseGold':
+        return DeviceColor.roseGold;
+      case 'teal':
+        return DeviceColor.teal;
+      case 'cyan':
+      case 'aqua':
+        return DeviceColor.cyan;
+      case 'magenta':
+        return DeviceColor.magenta;
       case 'lightRed':
       case 'darkRed':
       case 'red':
@@ -72,8 +102,16 @@ enum DeviceColor {
     switch (this) {
       case silver:
         return context.localization.silverDeviceColor;
+      case white:
+        return context.localization.whiteDeviceColor;
+      case starlight:
+        return context.localization.starlightDeviceColor;
       case black:
         return context.localization.blackDeviceColor;
+      case graphite:
+        return context.localization.graphiteDeviceColor;
+      case midnight:
+        return context.localization.midnightDeviceColor;
       case red:
         return context.localization.redDeviceColor;
       case orange:
@@ -82,14 +120,22 @@ enum DeviceColor {
         return context.localization.yellowDeviceColor;
       case gold:
         return context.localization.goldDeviceColor;
+      case roseGold:
+        return context.localization.roseGoldDeviceColor;
       case lime:
         return context.localization.limeDeviceColor;
       case green:
         return context.localization.greenDeviceColor;
+      case teal:
+        return context.localization.tealDeviceColor;
+      case cyan:
+        return context.localization.cyanDeviceColor;
       case blue:
         return context.localization.blueDeviceColor;
       case pink:
         return context.localization.pinkDeviceColor;
+      case magenta:
+        return context.localization.magentaDeviceColor;
       case purple:
         return context.localization.purpleDeviceColor;
       case brown:
@@ -116,6 +162,40 @@ enum DeviceColor {
           buttonIconColor: AppPalette.lightDeviceButtonColor,
           isDark: false,
         );
+      case DeviceColor.white:
+        return const DeviceColorStyle(
+          noiseOpacity: 1,
+          frameGradientColors: [
+            AppPalette.whiteDeviceFrameGradientColor1,
+            AppPalette.whiteDeviceFrameGradientColor2,
+          ],
+          controlBackgroundColor: CupertinoColors.white,
+          controlBorderColor: AppPalette.whiteDeviceControlBorderColor,
+          innerButtonGradientColors: [
+            AppPalette.whiteDeviceControlInnerButtonGradientColor1,
+            AppPalette.whiteDeviceControlInnerButtonGradientColor2,
+          ],
+          buttonAccentColor: AppPalette.whiteDeviceButtonColor,
+          buttonIconColor: AppPalette.whiteDeviceButtonColor,
+          isDark: false,
+        );
+      case DeviceColor.starlight:
+        return const DeviceColorStyle(
+          noiseOpacity: 1,
+          frameGradientColors: [
+            AppPalette.starlightDeviceFrameGradientColor1,
+            AppPalette.starlightDeviceFrameGradientColor2,
+          ],
+          controlBackgroundColor: CupertinoColors.white,
+          controlBorderColor: AppPalette.starlightDeviceControlBorderColor,
+          innerButtonGradientColors: [
+            AppPalette.starlightDeviceControlInnerButtonGradientColor1,
+            AppPalette.starlightDeviceControlInnerButtonGradientColor2,
+          ],
+          buttonAccentColor: AppPalette.starlightDeviceButtonColor,
+          buttonIconColor: AppPalette.starlightDeviceButtonColor,
+          isDark: false,
+        );
       case DeviceColor.black:
         return const DeviceColorStyle(
           noiseOpacity: 0.3,
@@ -131,6 +211,40 @@ enum DeviceColor {
           ],
           buttonAccentColor: CupertinoColors.white,
           buttonIconColor: CupertinoColors.white,
+          isDark: true,
+        );
+      case DeviceColor.graphite:
+        return const DeviceColorStyle(
+          noiseOpacity: 0.45,
+          frameGradientColors: [
+            AppPalette.graphiteDeviceFrameGradientColor1,
+            AppPalette.graphiteDeviceFrameGradientColor2,
+          ],
+          controlBackgroundColor: AppPalette.graphiteDeviceControlBackgroundColor,
+          controlBorderColor: AppPalette.graphiteDeviceControlBorderColor,
+          innerButtonGradientColors: [
+            AppPalette.graphiteDeviceControlInnerButtonGradientColor1,
+            AppPalette.graphiteDeviceControlInnerButtonGradientColor2,
+          ],
+          buttonAccentColor: CupertinoColors.white,
+          buttonIconColor: CupertinoColors.white,
+          isDark: true,
+        );
+      case DeviceColor.midnight:
+        return const DeviceColorStyle(
+          noiseOpacity: 0.45,
+          frameGradientColors: [
+            AppPalette.midnightDeviceFrameGradientColor1,
+            AppPalette.midnightDeviceFrameGradientColor2,
+          ],
+          controlBackgroundColor: AppPalette.midnightDeviceControlBackgroundColor,
+          controlBorderColor: AppPalette.midnightDeviceControlBorderColor,
+          innerButtonGradientColors: [
+            AppPalette.midnightDeviceControlInnerButtonGradientColor1,
+            AppPalette.midnightDeviceControlInnerButtonGradientColor2,
+          ],
+          buttonAccentColor: AppPalette.midnightDeviceButtonAccentColor,
+          buttonIconColor: AppPalette.midnightDeviceButtonAccentColor,
           isDark: true,
         );
       case DeviceColor.red:
@@ -201,6 +315,23 @@ enum DeviceColor {
           buttonIconColor: AppPalette.goldDeviceButtonColor,
           isDark: false,
         );
+      case DeviceColor.roseGold:
+        return const DeviceColorStyle(
+          noiseOpacity: 1,
+          frameGradientColors: [
+            AppPalette.roseGoldDeviceFrameGradientColor1,
+            AppPalette.roseGoldDeviceFrameGradientColor2,
+          ],
+          controlBackgroundColor: CupertinoColors.white,
+          controlBorderColor: AppPalette.roseGoldDeviceControlBorderColor,
+          innerButtonGradientColors: [
+            AppPalette.roseGoldDeviceControlInnerButtonGradientColor1,
+            AppPalette.roseGoldDeviceControlInnerButtonGradientColor2,
+          ],
+          buttonAccentColor: AppPalette.roseGoldDeviceButtonColor,
+          buttonIconColor: AppPalette.roseGoldDeviceButtonColor,
+          isDark: false,
+        );
       case DeviceColor.lime:
         return const DeviceColorStyle(
           noiseOpacity: 1,
@@ -235,6 +366,40 @@ enum DeviceColor {
           buttonIconColor: AppPalette.greenDeviceButtonAccentColor,
           isDark: true,
         );
+      case DeviceColor.teal:
+        return const DeviceColorStyle(
+          noiseOpacity: 0.7,
+          frameGradientColors: [
+            AppPalette.tealDeviceFrameGradientColor1,
+            AppPalette.tealDeviceFrameGradientColor2,
+          ],
+          controlBackgroundColor: AppPalette.tealDeviceControlBackgroundColor,
+          controlBorderColor: AppPalette.tealDeviceControlBorderColor,
+          innerButtonGradientColors: [
+            AppPalette.tealDeviceControlInnerButtonGradientColor1,
+            AppPalette.tealDeviceControlInnerButtonGradientColor2,
+          ],
+          buttonAccentColor: AppPalette.tealDeviceButtonAccentColor,
+          buttonIconColor: AppPalette.tealDeviceButtonAccentColor,
+          isDark: true,
+        );
+      case DeviceColor.cyan:
+        return const DeviceColorStyle(
+          noiseOpacity: 1,
+          frameGradientColors: [
+            AppPalette.cyanDeviceFrameGradientColor1,
+            AppPalette.cyanDeviceFrameGradientColor2,
+          ],
+          controlBackgroundColor: CupertinoColors.white,
+          controlBorderColor: AppPalette.cyanDeviceControlBorderColor,
+          innerButtonGradientColors: [
+            AppPalette.cyanDeviceControlInnerButtonGradientColor1,
+            AppPalette.cyanDeviceControlInnerButtonGradientColor2,
+          ],
+          buttonAccentColor: AppPalette.cyanDeviceButtonColor,
+          buttonIconColor: AppPalette.cyanDeviceButtonColor,
+          isDark: false,
+        );
       case DeviceColor.blue:
         return const DeviceColorStyle(
           noiseOpacity: 0.8,
@@ -267,6 +432,23 @@ enum DeviceColor {
           ],
           buttonAccentColor: AppPalette.pinkDeviceButtonColor,
           buttonIconColor: AppPalette.pinkDeviceButtonColor,
+          isDark: false,
+        );
+      case DeviceColor.magenta:
+        return const DeviceColorStyle(
+          noiseOpacity: 1,
+          frameGradientColors: [
+            AppPalette.magentaDeviceFrameGradientColor1,
+            AppPalette.magentaDeviceFrameGradientColor2,
+          ],
+          controlBackgroundColor: AppPalette.magentaDeviceControlBackgroundColor,
+          controlBorderColor: AppPalette.magentaDeviceControlBorderColor,
+          innerButtonGradientColors: [
+            AppPalette.magentaDeviceControlInnerButtonGradientColor1,
+            AppPalette.magentaDeviceControlInnerButtonGradientColor2,
+          ],
+          buttonAccentColor: AppPalette.magentaDeviceButtonAccentColor,
+          buttonIconColor: AppPalette.magentaDeviceButtonAccentColor,
           isDark: false,
         );
       case DeviceColor.purple:
