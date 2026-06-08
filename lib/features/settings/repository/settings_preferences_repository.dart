@@ -1,6 +1,7 @@
 import 'package:classipod/core/constants/constants.dart';
 import 'package:classipod/core/models/shared_preference_keys.dart';
 import 'package:classipod/core/providers/shared_preferences_with_cache_provider.dart';
+import 'package:classipod/features/settings/models/app_text_size.dart';
 import 'package:classipod/features/settings/models/app_theme.dart';
 import 'package:classipod/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:classipod/features/settings/models/click_wheel_size.dart';
@@ -131,6 +132,13 @@ class SettingsPreferencesRepository {
         AppTheme.light.name;
   }
 
+  String getTextSize() {
+    return _sharedPreferencesWithCache.getString(
+          SharedPreferencesKeys.textSize.name,
+        ) ??
+        AppTextSize.medium.name;
+  }
+
   bool getImmersiveMode() {
     return _sharedPreferencesWithCache.getBool(
           SharedPreferencesKeys.immersiveMode.name,
@@ -243,6 +251,13 @@ class SettingsPreferencesRepository {
     return _sharedPreferencesWithCache.setString(
       SharedPreferencesKeys.appTheme.name,
       appThemeName,
+    );
+  }
+
+  Future<void> setTextSize({required String textSizeName}) async {
+    return _sharedPreferencesWithCache.setString(
+      SharedPreferencesKeys.textSize.name,
+      textSizeName,
     );
   }
 

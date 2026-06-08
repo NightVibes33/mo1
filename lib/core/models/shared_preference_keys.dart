@@ -13,6 +13,7 @@ enum SharedPreferencesKeys {
   songTransitionStyle,
   crossfadeDurationSeconds,
   appTheme,
+  textSize,
   splitScreenEnabled,
   immersiveMode,
   isMenuFirstTime,

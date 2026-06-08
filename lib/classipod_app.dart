@@ -18,6 +18,11 @@ class ClassipodApp extends ConsumerWidget {
     final appTheme = ref.watch(
       settingsPreferencesControllerProvider.select((value) => value.appTheme),
     );
+    final appTextSize = ref.watch(
+      settingsPreferencesControllerProvider.select(
+        (value) => value.appTextSize,
+      ),
+    );
     final router = ref.watch(routerProvider);
     return CupertinoApp.router(
       onGenerateTitle: (context) => context.localization.appTitle,
@@ -27,6 +32,16 @@ class ClassipodApp extends ConsumerWidget {
       routerConfig: router,
       locale: Locale(languageLocaleCode),
       theme: appTheme.toCupertinoTheme(),
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        final systemScale = mediaQuery.textScaler.scale(1);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(systemScale * appTextSize.scale),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 }

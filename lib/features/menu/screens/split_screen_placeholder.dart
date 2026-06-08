@@ -136,6 +136,12 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
           icon: CupertinoIcons.moon_stars,
           contentText: currentSettings.appTheme.title(context),
         );
+      } else if (splitScreenType == SplitScreenType.textSize) {
+        splitScreenWidget = IconPreviewWidget(
+          titleText: 'Text Size',
+          icon: CupertinoIcons.textformat_size,
+          contentText: currentSettings.appTextSize.title,
+        );
       } else if (splitScreenType == SplitScreenType.deviceColor) {
         splitScreenWidget = IconPreviewWidget(
           titleText: context.localization.deviceColorSettingTitle,

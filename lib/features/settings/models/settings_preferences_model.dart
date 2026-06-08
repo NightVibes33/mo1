@@ -1,3 +1,4 @@
+import 'package:classipod/features/settings/models/app_text_size.dart';
 import 'package:classipod/features/settings/models/app_theme.dart';
 import 'package:classipod/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:classipod/features/settings/models/click_wheel_size.dart';
@@ -22,6 +23,7 @@ class SettingsPreferencesModel {
   final SongSortOrder songSortOrder;
   final SongTransitionStyle songTransitionStyle;
   final int crossfadeDurationSeconds;
+  final AppTextSize appTextSize;
   final bool splitScreenEnabled;
   final bool immersiveMode;
   final bool fetchOnlineMusic;
@@ -41,6 +43,7 @@ class SettingsPreferencesModel {
     required this.songSortOrder,
     required this.songTransitionStyle,
     required this.crossfadeDurationSeconds,
+    required this.appTextSize,
     required this.splitScreenEnabled,
     required this.immersiveMode,
     required this.appTheme,
@@ -61,6 +64,7 @@ class SettingsPreferencesModel {
     SongSortOrder? songSortOrder,
     SongTransitionStyle? songTransitionStyle,
     int? crossfadeDurationSeconds,
+    AppTextSize? appTextSize,
     bool? splitScreenEnabled,
     bool? immersiveMode,
     bool? fetchOnlineMusic,
@@ -83,6 +87,7 @@ class SettingsPreferencesModel {
           songTransitionStyle ?? this.songTransitionStyle,
       crossfadeDurationSeconds:
           crossfadeDurationSeconds ?? this.crossfadeDurationSeconds,
+      appTextSize: appTextSize ?? this.appTextSize,
       splitScreenEnabled: splitScreenEnabled ?? this.splitScreenEnabled,
       immersiveMode: immersiveMode ?? this.immersiveMode,
       appTheme: appTheme ?? this.appTheme,
@@ -106,6 +111,7 @@ class SettingsPreferencesModel {
         other.songSortOrder == songSortOrder &&
         other.songTransitionStyle == songTransitionStyle &&
         other.crossfadeDurationSeconds == crossfadeDurationSeconds &&
+        other.appTextSize == appTextSize &&
         other.splitScreenEnabled == splitScreenEnabled &&
         other.immersiveMode == immersiveMode &&
         other.fetchOnlineMusic == fetchOnlineMusic &&
@@ -127,6 +133,7 @@ class SettingsPreferencesModel {
     songSortOrder,
     songTransitionStyle,
     crossfadeDurationSeconds,
+    appTextSize,
     splitScreenEnabled,
     immersiveMode,
     appTheme,

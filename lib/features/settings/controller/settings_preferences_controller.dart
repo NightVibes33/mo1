@@ -11,6 +11,7 @@ import 'package:classipod/core/services/audio_equalizer_service.dart';
 import 'package:classipod/core/services/audio_files_service.dart';
 import 'package:classipod/core/services/audio_player_service.dart';
 import 'package:classipod/features/music/playlist/models/playlist_model.dart';
+import 'package:classipod/features/settings/models/app_text_size.dart';
 import 'package:classipod/features/settings/models/app_theme.dart';
 import 'package:classipod/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:classipod/features/settings/models/click_wheel_size.dart';
@@ -79,6 +80,9 @@ class SettingsPreferencesControllerNotifier
       ),
       crossfadeDurationSeconds:
           settingsPreferencesRepository.getCrossfadeDurationSeconds(),
+      appTextSize: AppTextSize.fromName(
+        settingsPreferencesRepository.getTextSize(),
+      ),
       splitScreenEnabled: settingsPreferencesRepository.getSplitScreenEnabled(),
       immersiveMode: settingsPreferencesRepository.getImmersiveMode(),
       appTheme: AppTheme.fromName(settingsPreferencesRepository.getAppTheme()),
@@ -359,6 +363,14 @@ class SettingsPreferencesControllerNotifier
         .setAppTheme(appThemeName: updatedTheme.name);
   }
 
+  Future<void> toggleTextSize() async {
+    final updatedTextSize = state.appTextSize.next;
+    state = state.copyWith(appTextSize: updatedTextSize);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setTextSize(textSizeName: updatedTextSize.name);
+  }
+
   Future<void> toggleImmersiveMode() async {
     state = state.copyWith(immersiveMode: !state.immersiveMode);
     await ref
@@ -412,6 +424,10 @@ class SettingsPreferencesControllerNotifier
         .setCrossfadeDurationSeconds(
           seconds: defaultCrossfadeDurationSeconds,
         );
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setTextSize(textSizeName: AppTextSize.medium.name);
+    state = state.copyWith(appTextSize: AppTextSize.medium);
     await ref
         .read(settingsPreferencesRepositoryProvider)
         .setSplitScreenEnabled(isSplitScreenEnabled: true);

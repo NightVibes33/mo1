@@ -28,6 +28,7 @@ enum _SettingsDisplayItems {
   crossfadeDuration,
   language,
   appTheme,
+  textSize,
   deviceColor,
   clickWheelSize,
   clickWheelSensitivity,
@@ -65,6 +66,8 @@ enum _SettingsDisplayItems {
         return context.localization.languageScreenTitle;
       case appTheme:
         return context.localization.themeSettingTitle;
+      case textSize:
+        return 'Text Size';
       case isTouchScreenEnabled:
         return context.localization.touchScreenSettingTitle;
       case deviceColor:
@@ -161,6 +164,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         await ref
             .read(settingsPreferencesControllerProvider.notifier)
             .toggleAppTheme();
+        break;
+      case _SettingsDisplayItems.textSize:
+        await ref
+            .read(settingsPreferencesControllerProvider.notifier)
+            .toggleTextSize();
         break;
       case _SettingsDisplayItems.deviceColor:
         context.goNamed(Routes.deviceColor.name);
@@ -350,6 +358,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         return settingsState.clickWheelSensitivity.title(context);
       case _SettingsDisplayItems.appTheme:
         return settingsState.appTheme.title(context);
+      case _SettingsDisplayItems.textSize:
+        return settingsState.appTextSize.title;
       case _SettingsDisplayItems.repeat:
         return settingsState.repeatMode.title(context);
       case _SettingsDisplayItems.equalizer:
@@ -390,6 +400,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       case _SettingsDisplayItems.appTheme:
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
             SplitScreenType.appTheme;
+        break;
+      case _SettingsDisplayItems.textSize:
+        ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
+            SplitScreenType.textSize;
         break;
       case _SettingsDisplayItems.clickWheelSize:
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
