@@ -50,6 +50,21 @@ class AppPalette {
     0xFFFFF7E8,
   );
 
+  static const Color auroraIceDeviceFrameGradientColor1 = Color(0xFFFFFEFA);
+  static const Color auroraIceDeviceFrameGradientColor2 = Color(0xFFD7F3F5);
+  static const Color auroraIceDeviceFrameHighlightColor1 = Color(0xFF9DFDF2);
+  static const Color auroraIceDeviceFrameHighlightColor2 = Color(0xFFC2FFE5);
+  static const Color auroraIceDeviceFrameHighlightColor3 = Color(0xFFD9C4FF);
+  static const Color auroraIceDeviceControlBackgroundColor = Color(0xFFF9FEFF);
+  static const Color auroraIceDeviceControlBorderColor = Color(0xFFAEDCE3);
+  static const Color auroraIceDeviceButtonColor = Color(0xFF63A5B6);
+  static const Color auroraIceDeviceControlInnerButtonGradientColor1 = Color(
+    0xFFFFFFFF,
+  );
+  static const Color auroraIceDeviceControlInnerButtonGradientColor2 = Color(
+    0xFFC7EDF2,
+  );
+
   static const Color graphiteDeviceFrameGradientColor1 = Color(0xFF767980);
   static const Color graphiteDeviceFrameGradientColor2 = Color(0xFF202226);
   static const Color graphiteDeviceControlBackgroundColor = Color(0xFF161719);

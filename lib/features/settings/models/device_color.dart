@@ -12,6 +12,8 @@ class DeviceColorStyle {
   final Color buttonAccentColor;
   final Color buttonIconColor;
   final bool isDark;
+  final List<Color> frameHighlightColors;
+  final bool animateFrameHighlights;
 
   const DeviceColorStyle({
     required this.noiseOpacity,
@@ -22,6 +24,8 @@ class DeviceColorStyle {
     required this.buttonAccentColor,
     required this.buttonIconColor,
     required this.isDark,
+    this.frameHighlightColors = const [],
+    this.animateFrameHighlights = false,
   });
 }
 
@@ -29,6 +33,7 @@ enum DeviceColor {
   silver,
   white,
   starlight,
+  auroraIce,
   black,
   graphite,
   midnight,
@@ -54,6 +59,11 @@ enum DeviceColor {
       case 'starlight':
       case 'cream':
         return DeviceColor.starlight;
+      case 'aurora':
+      case 'auroraIce':
+      case 'ice':
+      case 'pearl':
+        return DeviceColor.auroraIce;
       case 'spaceGray':
       case 'spaceGrey':
       case 'graphite':
@@ -106,6 +116,8 @@ enum DeviceColor {
         return context.localization.whiteDeviceColor;
       case starlight:
         return context.localization.starlightDeviceColor;
+      case auroraIce:
+        return context.localization.auroraIceDeviceColor;
       case black:
         return context.localization.blackDeviceColor;
       case graphite:
@@ -194,6 +206,30 @@ enum DeviceColor {
           ],
           buttonAccentColor: AppPalette.starlightDeviceButtonColor,
           buttonIconColor: AppPalette.starlightDeviceButtonColor,
+          isDark: false,
+        );
+      case DeviceColor.auroraIce:
+        return const DeviceColorStyle(
+          noiseOpacity: 0.42,
+          frameGradientColors: [
+            AppPalette.auroraIceDeviceFrameGradientColor1,
+            AppPalette.auroraIceDeviceFrameGradientColor2,
+          ],
+          frameHighlightColors: [
+            AppPalette.auroraIceDeviceFrameHighlightColor1,
+            AppPalette.auroraIceDeviceFrameHighlightColor2,
+            AppPalette.auroraIceDeviceFrameHighlightColor3,
+          ],
+          animateFrameHighlights: true,
+          controlBackgroundColor:
+              AppPalette.auroraIceDeviceControlBackgroundColor,
+          controlBorderColor: AppPalette.auroraIceDeviceControlBorderColor,
+          innerButtonGradientColors: [
+            AppPalette.auroraIceDeviceControlInnerButtonGradientColor1,
+            AppPalette.auroraIceDeviceControlInnerButtonGradientColor2,
+          ],
+          buttonAccentColor: AppPalette.auroraIceDeviceButtonColor,
+          buttonIconColor: AppPalette.auroraIceDeviceButtonColor,
           isDark: false,
         );
       case DeviceColor.black:

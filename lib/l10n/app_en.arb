@@ -271,6 +271,10 @@
   "@starlightDeviceColor": {
     "description": "The name of the starlight device color"
   },
+  "auroraIceDeviceColor": "Aurora Ice",
+  "@auroraIceDeviceColor": {
+    "description": "The name of the aurora ice device color"
+  },
   "graphiteDeviceColor": "Graphite",
   "@graphiteDeviceColor": {
     "description": "The name of the graphite device color"
