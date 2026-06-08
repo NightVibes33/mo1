@@ -4,6 +4,7 @@ import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
 import 'package:classipod/core/services/audio_equalizer_service.dart';
 import 'package:classipod/core/services/apple_music_playback_service.dart';
+import 'package:classipod/core/services/crash_log_service.dart';
 import 'package:classipod/core/services/lyrics_lookup_service.dart';
 import 'package:classipod/core/services/song_transition_analysis_service.dart';
 import 'package:classipod/features/music/album/models/album_model.dart';
@@ -29,6 +30,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
   AudioPlayer? _transitionPlayer;
   StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+  StreamSubscription<PlaybackEvent>? _playbackEventSubscription;
+  Timer? _playbackCrashHeartbeatTimer;
+  ProcessingState? _lastLoggedProcessingState;
   int? _transitionSourceIndex;
   bool _isPreparingTransition = false;
   bool _isTransitioning = false;
@@ -40,11 +45,120 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     _positionSubscription = player.positionStream.listen((position) {
       unawaited(_maybeStartSongTransition(position));
     });
+    _installPlaybackCrashLogging(player);
     ref.onDispose(() {
+      _playbackCrashHeartbeatTimer?.cancel();
       unawaited(_positionSubscription?.cancel());
+      unawaited(_playerStateSubscription?.cancel());
+      unawaited(_playbackEventSubscription?.cancel());
       unawaited(_transitionPlayer?.dispose());
     });
     await syncSongTransitionStyle();
+  }
+
+  void _installPlaybackCrashLogging(AudioPlayer player) {
+    final crashLogService = ref.read(crashLogServiceProvider);
+    _playerStateSubscription = player.playerStateStream.listen(
+      (playerState) {
+        crashLogService.recordPlaybackBreadcrumb(
+          'Player state changed',
+          data: _playbackCrashData(
+            extra: {
+              'playerStatePlaying': playerState.playing,
+              'playerStateProcessing': playerState.processingState.name,
+            },
+          ),
+        );
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        crashLogService.recordPlaybackError(
+          'Player state stream failed',
+          error: error,
+          stackTrace: stackTrace,
+          data: _playbackCrashData(),
+        );
+      },
+    );
+    _playbackEventSubscription = player.playbackEventStream.listen(
+      (event) {
+        if (event.processingState == _lastLoggedProcessingState) {
+          return;
+        }
+        _lastLoggedProcessingState = event.processingState;
+        crashLogService.recordPlaybackBreadcrumb(
+          'Playback processing state changed',
+          data: _playbackCrashData(
+            extra: {
+              'eventProcessingState': event.processingState.name,
+              'eventCurrentIndex': event.currentIndex,
+              'eventUpdatePositionSeconds': event.updatePosition.inSeconds,
+              'eventBufferedPositionSeconds': event.bufferedPosition.inSeconds,
+              'eventDurationSeconds': event.duration?.inSeconds,
+            },
+          ),
+        );
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        crashLogService.recordPlaybackError(
+          'Playback event stream failed',
+          error: error,
+          stackTrace: stackTrace,
+          data: _playbackCrashData(),
+        );
+      },
+    );
+    _playbackCrashHeartbeatTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _recordPlaybackCrashHeartbeat(),
+    );
+  }
+
+  void _recordPlaybackCrashHeartbeat() {
+    try {
+      final player = ref.read(audioPlayerProvider);
+      final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+      if (!player.playing && nowPlayingDetails.currentMetadata == null) {
+        return;
+      }
+      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+            'Playback heartbeat',
+            data: _playbackCrashData(),
+            appendToCrashLog: false,
+          );
+    } catch (_) {
+      // Crash logging must never be able to crash playback.
+    }
+  }
+
+  Map<String, Object?> _playbackCrashData({
+    Map<String, Object?> extra = const {},
+  }) {
+    final player = ref.read(audioPlayerProvider);
+    final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+    final metadata = nowPlayingDetails.currentMetadata;
+    final settings = ref.read(settingsPreferencesControllerProvider);
+    return {
+      'playing': player.playing,
+      'processingState': player.processingState.name,
+      'positionSeconds': player.position.inSeconds,
+      'durationSeconds': player.duration?.inSeconds,
+      'playerCurrentIndex': player.currentIndex,
+      'nowPlayingIndex': nowPlayingDetails.currentIndex,
+      'queueLength': nowPlayingDetails.metadataList.length,
+      'nowPlayingType': nowPlayingDetails.nowPlayingType.name,
+      'trackName': metadata?.trackName,
+      'artist': metadata?.getTrackArtistNames,
+      'albumName': metadata?.albumName,
+      'filePath': metadata?.filePath,
+      'isOnDevice': metadata?.isOnDevice,
+      'isAppleMusic': metadata?.isAppleMusicCatalogTrack,
+      'transitionStyle': settings.songTransitionStyle.name,
+      'crossfadeSeconds': settings.crossfadeDurationSeconds,
+      'isPreparingTransition': _isPreparingTransition,
+      'isTransitioning': _isTransitioning,
+      'transitionSourceIndex': _transitionSourceIndex,
+      ...extra,
+    };
   }
 
   Future<void> syncSongTransitionStyle() async {
@@ -53,13 +167,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           settings.songTransitionStyle,
           Duration(seconds: settings.crossfadeDurationSeconds),
         );
-    if (settings.songTransitionStyle == SongTransitionStyle.autoMix) {
-      unawaited(
-        ref
-            .read(songTransitionAnalysisServiceProvider)
-            .warmQueue(ref.read(nowPlayingDetailsProvider).metadataList),
-      );
-    }
   }
 
   Future<void> play() async {
@@ -82,6 +189,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     if (player.playing) {
       return;
     }
+    ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+          'Local playback requested',
+          data: _playbackCrashData(),
+        );
     if (player.currentIndex == null && metadata != null) {
       await playSongFromOriginalList(metadata.originalSongIndex);
       return;
@@ -99,6 +210,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
 
     if (ref.read(audioPlayerProvider).playing) {
+      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+            'Local playback pause requested',
+            data: _playbackCrashData(),
+          );
       await _cancelSongTransition();
       await ref.read(audioPlayerProvider).pause();
     }
@@ -176,6 +291,14 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       await _pauseAppleMusicPlaybackIfCurrent();
       await _cancelSongTransition();
+      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+            'Setting local audio source',
+            data: {
+              'requestedCount': musicMetadataList.length,
+              'initialIndex': initialIndex,
+              'nowPlayingType': nowPlayingType.name,
+            },
+          );
       final requestedMetadata = musicMetadataList.isEmpty
           ? null
           : musicMetadataList[
@@ -192,6 +315,13 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       } catch (_) {}
 
       if (songSourcePlaylist.isEmpty) {
+        ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+              'Local audio source was empty',
+              data: {
+                'requestedCount': musicMetadataList.length,
+                'localCount': localMetadataList.length,
+              },
+            );
         await ref.read(audioPlayerProvider).stop();
         ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
               nowPlayingType: nowPlayingType,
@@ -215,6 +345,15 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
             initialPosition: Duration.zero,
             shuffleOrder: DefaultShuffleOrder(),
           );
+      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+            'Local audio source loaded',
+            data: {
+              'localCount': localMetadataList.length,
+              'safeInitialIndex': safeInitialIndex,
+              'requestedTrack': requestedMetadata?.trackName,
+              'requestedPath': requestedMetadata?.filePath,
+            },
+          );
 
       await _syncEqualizerPreset();
 
@@ -223,7 +362,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
             newMetadataList: localMetadataList,
             currentIndex: safeInitialIndex,
           );
-      _warmSongTransitionAnalysis(localMetadataList);
     });
   }
 
@@ -592,16 +730,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
   }
 
-  void _warmSongTransitionAnalysis(List<MusicMetadata> metadataList) {
-    final settings = ref.read(settingsPreferencesControllerProvider);
-    if (settings.songTransitionStyle != SongTransitionStyle.autoMix) {
-      return;
-    }
-    unawaited(
-      ref.read(songTransitionAnalysisServiceProvider).warmQueue(metadataList),
-    );
-  }
-
   Future<void> _maybeStartSongTransition(Duration position) async {
     if (_isPreparingTransition || _isTransitioning) {
       return;
@@ -646,18 +774,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
 
     final analysisService = ref.read(songTransitionAnalysisServiceProvider);
-    var currentProfile = analysisService.cachedProfileFor(currentMetadata);
-    var nextProfile = analysisService.cachedProfileFor(nextMetadata);
-    if (style == SongTransitionStyle.autoMix &&
-        (currentProfile == null || nextProfile == null)) {
-      _isPreparingTransition = true;
-      try {
-        currentProfile ??= await analysisService.profileFor(currentMetadata);
-        nextProfile ??= await analysisService.profileFor(nextMetadata);
-      } finally {
-        _isPreparingTransition = false;
-      }
-    }
+    final currentProfile = analysisService.cachedProfileFor(currentMetadata);
+    final nextProfile = analysisService.cachedProfileFor(nextMetadata);
 
     final transitionDuration = _safeTransitionDuration(
       duration,
@@ -686,6 +804,17 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
 
     _transitionSourceIndex = currentIndex;
+    ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+          'Starting local song transition',
+          data: _playbackCrashData(
+            extra: {
+              'nextIndex': nextIndex,
+              'nextTrackName': nextMetadata.trackName,
+              'transitionDurationMs': transitionDuration.inMilliseconds,
+              'transitionStartSeconds': startPosition.inSeconds,
+            },
+          ),
+        );
     await _performLocalSongTransition(
       nextIndex: nextIndex,
       nextMetadata: nextMetadata,
@@ -757,7 +886,29 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         await mainPlayer.play();
       }
       ref.read(nowPlayingDetailsProvider.notifier).setCurrentIndex(nextIndex);
-    } catch (_) {
+      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+            'Local song transition complete',
+            data: _playbackCrashData(
+              extra: {
+                'nextIndex': nextIndex,
+                'nextTrackName': nextMetadata.trackName,
+                'transitionDurationMs': transitionDuration.inMilliseconds,
+              },
+            ),
+          );
+    } catch (error, stackTrace) {
+      ref.read(crashLogServiceProvider).recordPlaybackError(
+            'Local song transition failed',
+            error: error,
+            stackTrace: stackTrace,
+            data: _playbackCrashData(
+              extra: {
+                'nextIndex': nextIndex,
+                'nextTrackName': nextMetadata.trackName,
+                'transitionDurationMs': transitionDuration.inMilliseconds,
+              },
+            ),
+          );
       await mainPlayer.setVolume(_mainVolumeBeforeTransition);
     } finally {
       if (identical(_transitionPlayer, transitionPlayer)) {

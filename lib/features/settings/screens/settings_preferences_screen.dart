@@ -278,7 +278,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Reset Database?'),
         content: const Text(
-          'This deletes imported songs, Apple Music library entries, playlists, album artwork, thumbnails, excluded folders, and debug logs.',
+          'This deletes imported songs, Apple Music library entries, playlists, album artwork, thumbnails, excluded folders, debug logs, and crash logs.',
         ),
         actions: [
           CupertinoDialogAction(

@@ -1,6 +1,7 @@
 import 'package:classipod/core/extensions/build_context_extensions.dart';
 import 'package:classipod/core/extensions/go_router_extensions.dart';
 import 'package:classipod/core/navigation/routes.dart';
+import 'package:classipod/core/services/crash_log_service.dart';
 import 'package:classipod/core/services/debug_log_service.dart';
 import 'package:classipod/features/device/models/device_action.dart';
 import 'package:classipod/features/device/services/device_buttons_service_provider.dart';
@@ -34,8 +35,10 @@ class _DebugLogsScreenState extends ConsumerState<DebugLogsScreen> {
     super.dispose();
   }
 
-  Future<String> _readLogs() {
-    return ref.read(debugLogServiceProvider).readLogs();
+  Future<String> _readLogs() async {
+    final debugLogs = await ref.read(debugLogServiceProvider).readLogs();
+    final crashLogs = await ref.read(crashLogServiceProvider).readCrashLogs();
+    return '== debug.log ==\n$debugLogs\n\n== crash.log ==\n$crashLogs';
   }
 
   void _refreshLogs() {
@@ -51,7 +54,7 @@ class _DebugLogsScreenState extends ConsumerState<DebugLogsScreen> {
       context: context,
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Copied'),
-        content: const Text('Debug logs copied to clipboard.'),
+        content: const Text('Logs copied to clipboard.'),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.of(context).pop(),
@@ -64,6 +67,7 @@ class _DebugLogsScreenState extends ConsumerState<DebugLogsScreen> {
 
   Future<void> _clearLogs() async {
     await ref.read(debugLogServiceProvider).clear();
+    await ref.read(crashLogServiceProvider).clear();
     _refreshLogs();
   }
 

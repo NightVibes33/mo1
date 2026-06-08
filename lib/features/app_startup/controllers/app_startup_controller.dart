@@ -6,6 +6,7 @@ import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/providers/device_directory_provider.dart';
 import 'package:classipod/core/providers/shared_preferences_with_cache_provider.dart';
 import 'package:classipod/core/services/app_documents_service.dart';
+import 'package:classipod/core/services/crash_log_service.dart';
 import 'package:classipod/features/music/playlist/models/playlist_model.dart';
 import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
 import 'package:classipod/features/settings/models/exclude_directory_model.dart';
@@ -38,6 +39,9 @@ final appStartupControllerProvider = FutureProvider<void>((ref) async {
   ]);
   if (!kIsWeb) {
     await ref.read(appDocumentsServiceProvider).migrateLegacyStorage();
+    final crashLogService = ref.read(crashLogServiceProvider);
+    await crashLogService.initialize();
+    crashLogService.installFlutterErrorHandlers();
   }
   await Hive.initFlutter(Constants.appDocumentsFolderName);
   Hive.registerAdapters();

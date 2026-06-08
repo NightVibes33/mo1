@@ -29,6 +29,8 @@ class AppDocumentsService {
   String get appleMusicArtworkDirectoryPath =>
       _subdirectoryPath(Constants.appleMusicArtworkDirectoryName);
   String get debugLogPath => _join(appDirectory.path, 'debug.log');
+  String get crashLogPath => _join(appDirectory.path, 'crash.log');
+  String get sessionStatePath => _join(appDirectory.path, 'last-session.json');
 
   Future<void> migrateLegacyStorage() async {
     final legacyDirectory = legacyAppDirectory;
@@ -78,9 +80,15 @@ class AppDocumentsService {
       }
     }
 
-    final debugLog = File(debugLogPath);
-    if (await debugLog.exists()) {
-      await debugLog.delete();
+    for (final path in [
+      debugLogPath,
+      crashLogPath,
+      sessionStatePath,
+    ]) {
+      final file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
     }
 
     final legacyDirectory = legacyAppDirectory;

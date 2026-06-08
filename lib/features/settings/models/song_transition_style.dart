@@ -30,7 +30,7 @@ enum SongTransitionStyle {
       case SongTransitionStyle.off:
         return 'Songs play without blending.';
       case SongTransitionStyle.autoMix:
-        return 'Automatic timing based on tempo, beat, energy, and genre.';
+        return 'Automatic smart timing based on genre and cached track info.';
       case SongTransitionStyle.crossfade:
         return 'Simple timed blend between songs.';
     }

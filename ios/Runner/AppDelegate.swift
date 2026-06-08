@@ -10,6 +10,8 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    NativeCrashLogWriter.install()
+
     do {
       try AVAudioSession.sharedInstance().setCategory(
         .playback,
@@ -938,5 +940,78 @@ private enum AppleMusicLookupChannel {
       return song.id.rawValue
     }
     return id
+  }
+}
+
+
+private enum NativeCrashLogWriter {
+  private static let appFolderName = "døPi"
+
+  static func install() {
+    NSSetUncaughtExceptionHandler { exception in
+      NativeCrashLogWriter.writeException(exception)
+    }
+    write(
+      level: "INFO",
+      category: "native",
+      message: "AppDelegate launched",
+      data: [:]
+    )
+  }
+
+  private static func writeException(_ exception: NSException) {
+    write(
+      level: "ERROR",
+      category: "native_exception",
+      message: exception.name.rawValue,
+      data: [
+        "reason": exception.reason ?? "",
+        "callStackSymbols": exception.callStackSymbols.joined(separator: "\\n")
+      ]
+    )
+  }
+
+  private static func write(
+    level: String,
+    category: String,
+    message: String,
+    data: [String: Any]
+  ) {
+    guard let documentsDirectory = FileManager.default.urls(
+      for: .documentDirectory,
+      in: .userDomainMask
+    ).first else {
+      return
+    }
+
+    let appDirectory = documentsDirectory.appendingPathComponent(appFolderName)
+    let crashLog = appDirectory.appendingPathComponent("crash.log")
+    do {
+      try FileManager.default.createDirectory(
+        at: appDirectory,
+        withIntermediateDirectories: true
+      )
+      let timestamp = ISO8601DateFormatter().string(from: Date())
+      let dataText = data
+        .map { (key: $0.key, value: String(describing: $0.value)) }
+        .filter { !$0.value.isEmpty }
+        .map { "\($0.key)=\($0.value)" }
+        .joined(separator: " | ")
+      let line = dataText.isEmpty
+        ? "[\(timestamp)][\(level)][\(category)] \(message)\n"
+        : "[\(timestamp)][\(level)][\(category)] \(message) | \(dataText)\n"
+      if let bytes = line.data(using: .utf8) {
+        if FileManager.default.fileExists(atPath: crashLog.path) {
+          let handle = try FileHandle(forWritingTo: crashLog)
+          handle.seekToEndOfFile()
+          handle.write(bytes)
+          handle.closeFile()
+        } else {
+          try bytes.write(to: crashLog)
+        }
+      }
+    } catch {
+      NSLog("døPi native crash log write failed: \(error.localizedDescription)")
+    }
   }
 }

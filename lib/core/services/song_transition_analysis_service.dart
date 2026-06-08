@@ -2,17 +2,13 @@ import 'dart:convert';
 
 import 'package:classipod/core/models/music_metadata.dart';
 import 'package:classipod/core/providers/shared_preferences_with_cache_provider.dart';
-import 'package:classipod/core/services/debug_log_service.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_feature_analyzer/music_feature_analyzer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final songTransitionAnalysisServiceProvider =
     Provider<SongTransitionAnalysisService>((ref) {
   return SongTransitionAnalysisService(
     ref.read(sharedPreferencesWithCacheProvider).requireValue,
-    ref.read(debugLogServiceProvider),
   );
 });
 
@@ -20,11 +16,8 @@ class SongTransitionAnalysisService {
   static const _cacheKey = 'songTransitionAnalysisCache.v1';
 
   final SharedPreferencesWithCache _preferences;
-  final DebugLogService _debugLogService;
-  bool _isInitialized = false;
-  Future<void>? _warmupFuture;
 
-  SongTransitionAnalysisService(this._preferences, this._debugLogService);
+  SongTransitionAnalysisService(this._preferences);
 
   SongTransitionProfile? cachedProfileFor(MusicMetadata metadata) {
     final path = metadata.filePath;
@@ -35,109 +28,13 @@ class SongTransitionAnalysisService {
   }
 
   Future<SongTransitionProfile?> profileFor(MusicMetadata metadata) async {
-    final cached = cachedProfileFor(metadata);
-    if (cached != null) {
-      return cached;
-    }
-    return analyze(metadata);
+    return cachedProfileFor(metadata);
   }
 
   Future<void> warmQueue(List<MusicMetadata> metadataList) async {
-    if (_warmupFuture != null) {
-      return _warmupFuture;
-    }
-
-    final localTracks = metadataList
-        .where((metadata) =>
-            metadata.filePath != null &&
-            metadata.filePath!.isNotEmpty &&
-            !metadata.isAppleMusicCatalogTrack &&
-            cachedProfileFor(metadata) == null)
-        .take(24)
-        .toList(growable: false);
-    if (localTracks.isEmpty) {
-      return;
-    }
-
-    _warmupFuture = _warmTracks(localTracks).whenComplete(() {
-      _warmupFuture = null;
-    });
-    return _warmupFuture;
-  }
-
-  Future<void> _warmTracks(List<MusicMetadata> metadataList) async {
-    for (final metadata in metadataList) {
-      await analyze(metadata);
-    }
-  }
-
-  Future<SongTransitionProfile?> analyze(MusicMetadata metadata) async {
-    final path = metadata.filePath;
-    if (path == null || path.isEmpty || metadata.isAppleMusicCatalogTrack) {
-      return null;
-    }
-
-    try {
-      await _ensureInitialized();
-      final song = _songModelFromMetadata(metadata);
-      final features = await MusicFeatureAnalyzer.analyzeSong(song);
-      if (features == null) {
-        return null;
-      }
-
-      final profile = SongTransitionProfile(
-        filePath: path,
-        tempoBpm: _validBpm(features.tempoBpm),
-        beatStrength: _safeUnit(features.beatStrength),
-        signalEnergy: _safeUnit(features.signalEnergy),
-        danceability: _safeUnit(features.danceability),
-        overallEnergy: _safeUnit(features.overallEnergy),
-        intensity: _safeUnit(features.intensity),
-        valence: _safeUnit(features.valence),
-        arousal: _safeUnit(features.arousal),
-        confidence: _safeUnit(features.confidence),
-        estimatedGenre: _emptyToNull(features.estimatedGenre),
-        mood: _emptyToNull(features.mood),
-        analyzedAt: DateTime.now(),
-      );
-      await _writeProfile(profile);
-      return profile;
-    } catch (error, stackTrace) {
-      _debugLogService.error(
-        'song_transitions',
-        'AutoMix analysis failed.',
-        error: error,
-        stackTrace: stackTrace,
-        data: {'path': path},
-      );
-      return null;
-    }
-  }
-
-  Future<void> _ensureInitialized() async {
-    if (_isInitialized || kIsWeb) {
-      return;
-    }
-    _isInitialized = await MusicFeatureAnalyzer.initialize();
-  }
-
-  SongModel _songModelFromMetadata(MusicMetadata metadata) {
-    return SongModel(
-      id: metadata.filePath ?? metadata.originalSongIndex.toString(),
-      title: metadata.getTrackName,
-      artist: metadata.getTrackArtistNames ?? 'Unknown Artist',
-      album: metadata.getAlbumName,
-      duration: metadata.trackDuration ?? 0,
-      filePath: metadata.filePath ?? '',
-      albumArt: metadata.thumbnailPath,
-      year: metadata.year,
-      genre: metadata.genres.isEmpty ? null : metadata.genres.join(', '),
-      trackNumber: metadata.trackNumber,
-      discNumber: metadata.discNumber,
-      albumArtist: metadata.albumArtistName,
-      bitrate: metadata.bitrate,
-      mimeType: metadata.mimeType,
-    );
+    // Runtime analysis was intentionally disabled on iOS. The analyzer can
+    // destabilize long MP3 playback, while cached/metadata AutoMix timing is
+    // enough to keep the feature distinct from simple Crossfade.
   }
 
   Map<String, SongTransitionProfile> _readCache() {
@@ -162,24 +59,6 @@ class SongTransitionAnalysisService {
     } catch (_) {
       return {};
     }
-  }
-
-  Future<void> _writeProfile(SongTransitionProfile profile) async {
-    final cache = _readCache();
-    cache[profile.filePath] = profile;
-    if (cache.length > 600) {
-      final sorted = cache.values.toList()
-        ..sort((a, b) => b.analyzedAt.compareTo(a.analyzedAt));
-      cache
-        ..clear()
-        ..addEntries(
-          sorted.take(500).map((profile) => MapEntry(profile.filePath, profile)),
-        );
-    }
-    await _preferences.setString(
-      _cacheKey,
-      jsonEncode(cache.map((key, value) => MapEntry(key, value.toJson()))),
-    );
   }
 }
 
@@ -250,13 +129,6 @@ class SongTransitionProfile {
       };
 }
 
-double? _validBpm(double? bpm) {
-  if (bpm == null || bpm.isNaN || bpm.isInfinite || bpm < 45 || bpm > 220) {
-    return null;
-  }
-  return bpm;
-}
-
 double _safeUnit(double? value) {
   if (value == null || value.isNaN || value.isInfinite) {
     return 0;
@@ -269,9 +141,4 @@ double? _doubleOrNull(Object? value) {
     return value.toDouble();
   }
   return null;
-}
-
-String? _emptyToNull(String? value) {
-  final trimmed = value?.trim();
-  return trimmed == null || trimmed.isEmpty ? null : trimmed;
 }
