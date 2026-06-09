@@ -1,6 +1,6 @@
 # døPi Privacy Policy
 
-Effective date: June 7, 2026
+Effective date: June 9, 2026
 
 døPi is a paid music player app for iOS. It is designed to play music from files you import and, when you choose to connect Apple Music, music available through your Apple Music subscription.
 
