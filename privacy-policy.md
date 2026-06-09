@@ -29,9 +29,3 @@ Because døPi keeps your music library information on your device, protecting ac
 ## Changes to This Policy
 
 This policy may be updated from time to time. Updates will be posted at this same URL.
-
-## Contact
-
-Questions about this privacy policy can be sent through the GitHub repository for døPi:
-
-https://github.com/NightVibes33/mo1
