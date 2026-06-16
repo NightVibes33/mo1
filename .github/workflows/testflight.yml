@@ -174,7 +174,7 @@ jobs:
           DOPI_APP_LOCALE: en-US
           DOPI_BETA_GROUP_NAME: døPe Public Beta
           DOPI_BETA_APP_DESCRIPTION: >-
-            døPe is a retro music player for iPhone and iPad. Test local MP3 import, optional Apple Music browsing for devices signed into an active Apple Music subscription, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
+            døPe is a retro music player for iPhone. Test local MP3 import, optional Apple Music browsing for devices signed into an active Apple Music subscription, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
           DOPI_BETA_FEEDBACK_EMAIL: bobbytatum12345@gmail.com
           DOPI_BETA_CONTACT_EMAIL: bobbytatum12345@gmail.com
           DOPI_BETA_REVIEW_NOTES: >-

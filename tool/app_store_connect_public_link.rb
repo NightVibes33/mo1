@@ -15,7 +15,7 @@ GROUP_NAME = ENV.fetch('DOPI_BETA_GROUP_NAME', 'døPi Public Beta')
 LOCALE = ENV.fetch('DOPI_APP_LOCALE', 'en-US')
 BETA_DESCRIPTION = ENV.fetch(
   'DOPI_BETA_APP_DESCRIPTION',
-  'døPe is a retro music player for iPhone and iPad. Test local MP3 import, optional Apple Music browsing for devices signed into an active Apple Music subscription, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.'
+  'døPe is a retro music player for iPhone. Test local MP3 import, optional Apple Music browsing for devices signed into an active Apple Music subscription, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.'
 )
 BETA_FEEDBACK_EMAIL = ENV.fetch('DOPI_BETA_FEEDBACK_EMAIL', 'bobbytatum12345@gmail.com')
 PRIVACY_POLICY_URL = ENV.fetch('DOPI_PRIVACY_POLICY_URL', 'https://cdn.jsdelivr.net/gh/NightVibes33/mo1@main/privacy-policy.html')

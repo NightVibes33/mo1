@@ -18,7 +18,7 @@ COPYRIGHT_TEXT = ENV.fetch('DOPI_COPYRIGHT', '2026 NightVibes33')
 CONTENT_RIGHTS_DECLARATION = ENV.fetch('DOPI_CONTENT_RIGHTS_DECLARATION', 'USES_THIRD_PARTY_CONTENT')
 APP_DESCRIPTION = ENV.fetch(
   'DOPI_APP_DESCRIPTION',
-  'døPe is a retro music player for iPhone and iPad built for personal music libraries. Import your own MP3 files, optionally connect your own Apple Music subscription, browse albums with a visual carousel, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.'
+  'døPe is a retro music player for iPhone built for personal music libraries. Import your own MP3 files, optionally connect your own Apple Music subscription, browse albums with a visual carousel, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.'
 )
 APP_KEYWORDS = ENV.fetch('DOPI_APP_KEYWORDS', 'music player,mp3,apple music,album carousel,lyrics,equalizer,audio player')
 SUPPORT_URL = ENV.fetch('DOPI_SUPPORT_URL', 'https://github.com/NightVibes33/mo1')
@@ -30,8 +30,7 @@ ISSUER_ID = ENV.fetch('APP_STORE_CONNECT_ISSUER_ID')
 PRIVATE_KEY = ENV.fetch('APP_STORE_CONNECT_API_KEY_P8')
 
 SCREENSHOT_SETS = {
-  'APP_IPHONE_65' => File.join(SCREENSHOT_ROOT, 'iphone-6.5'),
-  'APP_IPAD_PRO_3GEN_129' => File.join(SCREENSHOT_ROOT, 'ipad-13')
+  'APP_IPHONE_65' => File.join(SCREENSHOT_ROOT, 'iphone-6.5')
 }.freeze
 
 if PRIVATE_KEY.strip.empty? || KEY_ID.strip.empty? || ISSUER_ID.strip.empty?
