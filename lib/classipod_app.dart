@@ -5,8 +5,8 @@ import 'package:dope/l10n/generated/app_localizations.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class DopiApp extends ConsumerWidget {
-  const DopiApp({super.key});
+class ClassipodApp extends ConsumerWidget {
+  const ClassipodApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
