@@ -25,13 +25,13 @@ jobs:
           DOPI_PLATFORM: IOS
           DOPI_APP_LOCALE: en-US
           DOPI_APP_DESCRIPTION: >-
-            døPe is a retro music player for iPhone and iPad built for personal music libraries. Import MP3 files, connect Apple Music, browse albums with a visual carousel, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.
+            døPe is a retro music player for iPhone and iPad built for personal music libraries. Import your own MP3 files, optionally connect your own Apple Music subscription, browse albums with a visual carousel, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.
           DOPI_APP_KEYWORDS: music player,mp3,apple music,album carousel,lyrics,equalizer,audio player
           DOPI_SUPPORT_URL: https://github.com/NightVibes33/mo1
           DOPI_BETA_APP_DESCRIPTION: >-
-            døPe is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
+            døPe is a retro music player for iPhone and iPad. Test local MP3 import, optional Apple Music browsing for devices signed into an active Apple Music subscription, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
           DOPI_REVIEW_NOTES: >-
-            No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, album carousel, and song transitions.
+            No demo account is required. Reviewers can fully test local MP3 import and on-device playback without signing in. Apple Music features are optional and require a device signed into an active Apple Music subscription. Camera and photo library access are only used if the reviewer chooses custom album artwork.
           DOPI_BETA_FEEDBACK_EMAIL: bobbytatum12345@gmail.com
-          DOPI_PRIVACY_POLICY_URL: https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md
+          DOPI_PRIVACY_POLICY_URL: https://cdn.jsdelivr.net/gh/NightVibes33/mo1@main/privacy-policy.html
         run: ruby tool/app_store_connect_update_wording.rb

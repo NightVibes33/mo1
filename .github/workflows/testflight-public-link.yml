@@ -30,11 +30,11 @@ jobs:
           DOPI_APP_LOCALE: en-US
           DOPI_BETA_GROUP_NAME: ${{ inputs.beta_group_name }}
           DOPI_BETA_APP_DESCRIPTION: >-
-            døPe is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
+            døPe is a retro music player for iPhone and iPad. Test local MP3 import, optional Apple Music browsing for devices signed into an active Apple Music subscription, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
           DOPI_BETA_FEEDBACK_EMAIL: bobbytatum12345@gmail.com
           DOPI_BETA_CONTACT_EMAIL: bobbytatum12345@gmail.com
           DOPI_BETA_REVIEW_NOTES: >-
-            No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, album carousel, and song transitions.
-          DOPI_PRIVACY_POLICY_URL: https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md
+            No demo account is required. Reviewers can fully test local MP3 import and on-device playback without signing in. Apple Music features are optional and require a device signed into an active Apple Music subscription. Camera and photo library access are only used if the reviewer chooses custom album artwork.
+          DOPI_PRIVACY_POLICY_URL: https://cdn.jsdelivr.net/gh/NightVibes33/mo1@main/privacy-policy.html
           DOPI_USES_NON_EXEMPT_ENCRYPTION: "false"
         run: ruby tool/app_store_connect_public_link.rb

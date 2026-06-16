@@ -15,17 +15,17 @@ GROUP_NAME = ENV.fetch('DOPI_BETA_GROUP_NAME', 'døPi Public Beta')
 LOCALE = ENV.fetch('DOPI_APP_LOCALE', 'en-US')
 BETA_DESCRIPTION = ENV.fetch(
   'DOPI_BETA_APP_DESCRIPTION',
-  'døPi is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.'
+  'døPe is a retro music player for iPhone and iPad. Test local MP3 import, optional Apple Music browsing for devices signed into an active Apple Music subscription, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.'
 )
 BETA_FEEDBACK_EMAIL = ENV.fetch('DOPI_BETA_FEEDBACK_EMAIL', 'bobbytatum12345@gmail.com')
-PRIVACY_POLICY_URL = ENV.fetch('DOPI_PRIVACY_POLICY_URL', 'https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md')
+PRIVACY_POLICY_URL = ENV.fetch('DOPI_PRIVACY_POLICY_URL', 'https://cdn.jsdelivr.net/gh/NightVibes33/mo1@main/privacy-policy.html')
 BETA_CONTACT_FIRST_NAME = ENV['DOPI_BETA_CONTACT_FIRST_NAME']
 BETA_CONTACT_LAST_NAME = ENV['DOPI_BETA_CONTACT_LAST_NAME']
 BETA_CONTACT_EMAIL = ENV['DOPI_BETA_CONTACT_EMAIL'] || BETA_FEEDBACK_EMAIL
 BETA_CONTACT_PHONE = ENV['DOPI_BETA_CONTACT_PHONE']
 BETA_REVIEW_NOTES = ENV.fetch(
   'DOPI_BETA_REVIEW_NOTES',
-  'No demo account is required. Please test local MP3 import, Apple Music connection, playback, lyrics, equalizer, album carousel, and song transitions.'
+  'No demo account is required. Reviewers can fully test local MP3 import and on-device playback without signing in. Apple Music features are optional and require a device signed into an active Apple Music subscription. Camera and photo library access are only used if the reviewer chooses custom album artwork.'
 )
 USES_NON_EXEMPT_ENCRYPTION = ENV.fetch('DOPI_USES_NON_EXEMPT_ENCRYPTION', 'false').casecmp('true').zero?
 

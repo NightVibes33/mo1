@@ -29,3 +29,7 @@ Because døPe keeps your music library information on your device, protecting ac
 ## Changes to This Policy
 
 This policy may be updated from time to time. Updates will be posted at this same URL.
+
+## Contact
+
+Questions about this policy can be sent to bobbytatum12345@gmail.com.
