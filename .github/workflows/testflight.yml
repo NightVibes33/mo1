@@ -76,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
           TESTFLIGHT_BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
-          echo "Building døPi TestFlight build ${TESTFLIGHT_BUILD_NUMBER}"
+          echo "Building døPe TestFlight build ${TESTFLIGHT_BUILD_NUMBER}"
           flutter build ios --release --no-codesign --no-pub --build-number="${TESTFLIGHT_BUILD_NUMBER}"
 
       - name: Write App Store Connect key
@@ -99,7 +99,7 @@ jobs:
             -scheme Runner \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath build/dopi.xcarchive \
+            -archivePath build/dope.xcarchive \
             DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
             CURRENT_PROJECT_VERSION="${TESTFLIGHT_BUILD_NUMBER}" \
             CODE_SIGNING_ALLOWED=NO \
@@ -121,7 +121,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :teamID string ${APPLE_TEAM_ID}" build/ExportOptions.generated.plist
           xcodebuild \
             -exportArchive \
-            -archivePath build/dopi.xcarchive \
+            -archivePath build/dope.xcarchive \
             -exportOptionsPlist build/ExportOptions.generated.plist \
             -exportPath build/export \
             -allowProvisioningUpdates \
@@ -139,7 +139,7 @@ jobs:
       - name: Upload TestFlight IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: døPi-testflight-ipa-${{ github.run_number }}
+          name: døPe-testflight-ipa-${{ github.run_number }}
           path: |
             build/export/*.ipa
             build/export/ipa.sha256
@@ -169,9 +169,9 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           DOPI_APP_BUNDLE_ID: app.mo1.player.39A8Q3T3TR
           DOPI_APP_LOCALE: en-US
-          DOPI_BETA_GROUP_NAME: døPi Public Beta
+          DOPI_BETA_GROUP_NAME: døPe Public Beta
           DOPI_BETA_APP_DESCRIPTION: >-
-            døPi is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
+            døPe is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
           DOPI_BETA_FEEDBACK_EMAIL: bobbytatum12345@gmail.com
           DOPI_BETA_CONTACT_EMAIL: bobbytatum12345@gmail.com
           DOPI_BETA_REVIEW_NOTES: >-
