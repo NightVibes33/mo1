@@ -37,16 +37,19 @@ jobs:
             exit 1
           fi
 
-      - name: Select latest Xcode 26
+      - name: Select Xcode
         run: |
           set -euo pipefail
-          XCODE_PATH="$(ls -1d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)"
+          XCODE_PATH="$(find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' | sort -V | tail -1 || true)"
           if [ -z "${XCODE_PATH}" ]; then
-            echo "No Xcode 26 app found under /Applications" >&2
-            ls -la /Applications | grep Xcode || true
-            exit 1
+            XCODE_PATH="$(find /Applications -maxdepth 1 -type d -name 'Xcode*.app' | sort -V | tail -1 || true)"
           fi
-          sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
+          if [ -n "${XCODE_PATH}" ]; then
+            sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
+          else
+            echo "No Xcode app bundle found under /Applications; using the runner default selection" >&2
+            xcode-select -p || true
+          fi
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
 
