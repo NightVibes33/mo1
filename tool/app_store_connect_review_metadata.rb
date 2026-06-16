@@ -30,7 +30,8 @@ ISSUER_ID = ENV.fetch('APP_STORE_CONNECT_ISSUER_ID')
 PRIVATE_KEY = ENV.fetch('APP_STORE_CONNECT_API_KEY_P8')
 
 SCREENSHOT_SETS = {
-  'APP_IPHONE_65' => File.join(SCREENSHOT_ROOT, 'iphone-6.5')
+  'APP_IPHONE_65' => File.join(SCREENSHOT_ROOT, 'iphone-6.5'),
+  'APP_IPAD_PRO_3GEN_129' => File.join(SCREENSHOT_ROOT, 'ipad-13')
 }.freeze
 
 if PRIVATE_KEY.strip.empty? || KEY_ID.strip.empty? || ISSUER_ID.strip.empty?
