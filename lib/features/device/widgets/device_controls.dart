@@ -1,19 +1,19 @@
 import 'dart:async';
 
-import 'package:classipod/core/constants/assets.dart';
-import 'package:classipod/core/constants/constants.dart';
-import 'package:classipod/core/constants/keys.dart';
-import 'package:classipod/core/custom_painter/next_button_custom_painter.dart';
-import 'package:classipod/core/custom_painter/play_pause_button_custom_painter.dart';
-import 'package:classipod/core/custom_painter/previous_button_custom_painter.dart';
-import 'package:classipod/core/extensions/build_context_extensions.dart';
-import 'package:classipod/core/navigation/routes.dart';
-import 'package:classipod/features/device/models/device_action.dart';
-import 'package:classipod/features/device/services/device_buttons_service_provider.dart';
-import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
-import 'package:classipod/features/settings/models/click_wheel_sensitivity.dart';
-import 'package:classipod/features/settings/models/click_wheel_size.dart';
-import 'package:classipod/features/settings/models/device_color.dart';
+import 'package:dopi/core/constants/assets.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/constants/keys.dart';
+import 'package:dopi/core/custom_painter/next_button_custom_painter.dart';
+import 'package:dopi/core/custom_painter/play_pause_button_custom_painter.dart';
+import 'package:dopi/core/custom_painter/previous_button_custom_painter.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/features/device/models/device_action.dart';
+import 'package:dopi/features/device/services/device_buttons_service_provider.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/features/settings/models/click_wheel_sensitivity.dart';
+import 'package:dopi/features/settings/models/click_wheel_size.dart';
+import 'package:dopi/features/settings/models/device_color.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -220,14 +220,11 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                       color: deviceColorStyle.controlBackgroundColor,
                       child: Align(
                         alignment: Alignment.topCenter,
-                        child: Text(
-                          context.localization.menuButtonText,
+                        child: Icon(
+                          CupertinoIcons.back,
                           key: menuButtonGlobalKey,
-                          style: TextStyle(
-                            color: deviceColorStyle.buttonAccentColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          color: deviceColorStyle.buttonAccentColor,
+                          size: 20,
                         ),
                       ),
                     ),

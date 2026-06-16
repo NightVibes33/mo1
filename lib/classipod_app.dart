@@ -1,12 +1,12 @@
-import 'package:classipod/core/extensions/build_context_extensions.dart';
-import 'package:classipod/core/navigation/routes.dart';
-import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
-import 'package:classipod/l10n/generated/app_localizations.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/l10n/generated/app_localizations.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ClassipodApp extends ConsumerWidget {
-  const ClassipodApp({super.key});
+class DopiApp extends ConsumerWidget {
+  const DopiApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
