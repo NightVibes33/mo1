@@ -1,7 +1,7 @@
 {
   "@@locale": "pag",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Say Audio ya Permisyon na Permisyon ya Inkaukolan .",
   "audioAccessPermissionContent": "Ipangasin ikdan kayo na audio file pian makapantogtog kami na saray file na musika yo.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Audio Ausoen ya Insindag na Permisyon",

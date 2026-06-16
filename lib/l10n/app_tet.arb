@@ -1,7 +1,7 @@
 {
   "@@locale": "tet",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Permisaun Asesu ba Audio ne’ebé presiza .",
   "audioAccessPermissionContent": "Favor ida fo asesu file audio atu permite ami atu toka ita nia file muzika.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Lisensa Asesu ba Audio nega",

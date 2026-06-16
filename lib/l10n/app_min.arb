@@ -1,7 +1,7 @@
 {
   "@@locale": "min",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Izin Akses Audio Diparalukan",
   "audioAccessPermissionContent": "Silakan agiah file audio akses untuak mamungkinkan kami untuak mamainkan file musik Sanak.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Izin Akses Audio Disarahkan",

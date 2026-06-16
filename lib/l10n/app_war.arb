@@ -1,7 +1,7 @@
 {
   "@@locale": "war",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Kinahanglan an Pagtugot ha Audio",
   "audioAccessPermissionContent": "Alayon paghatag hin audio nga mga file nga makasulod para makatugot kami nga magtokar han iyo mga file han musika.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Audio Access Pagtugot Gindidiwara",

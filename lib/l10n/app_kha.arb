@@ -1,7 +1,7 @@
 {
   "@@locale": "kha",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Ka Jing lah ban wan rung .",
   "audioAccessPermissionContent": "Sngewbha ai ia ki file audio ban ailad ia ngi ban tem ia ki file jingrwai jong phi.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Ka Jing lah ban wan.",

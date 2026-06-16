@@ -1,7 +1,7 @@
 {
   "@@locale": "ban",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Izin Akses Audio Sane Kaperluang",
   "audioAccessPermissionContent": "Ngiring ngicenin file audio mangda prasida titiang muter file musik semetone.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Izin Akses Audio Kaceritayang",

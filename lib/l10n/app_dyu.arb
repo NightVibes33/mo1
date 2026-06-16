@@ -1,7 +1,7 @@
 {
   "@@locale": "dyu",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Audio Saali ka kan ka kɛ .",
   "audioAccessPermissionContent": "Aw k’a to an ka se ka ordinatɛri ka sɛbɛw sɔrɔ walisa k’a to an ka se k’aw ka dɔnkiliw fɔ.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Audio sɔrɔli ka kan ka kɛ .",
@@ -92,7 +92,7 @@
   "savePlaylist": "I ka tulonw mara",
   "clearPlaylist": "Tulonkɛla gwɛnin",
   "rescanMusicFilesSettingTitle": "Rescan miziki filɛri",
-  "deviceControlMenuTutorialText": "I bolokunnaden ta dɔɔni dɔɔni i ka Click Wheel lamini walisa ka se ka taga yɔrɔ nin na .",
+  "deviceControlMenuTutorialText": "I bolokunnaden ta dɔɔni dɔɔni i ka Control Ring lamini walisa ka se ka taga yɔrɔ nin na .",
   "centerButtonMenuTutorialText": "I ka yɔrɔ cɛmancɛ butɔn digi walisa ka yɔrɔ min yira, o sugandi .",
   "playPauseMenuTutorialText": "Aw ye nin butɔn digi ka dɔnkili dɔ fɔ wala k’a lalɔ .",
   "nextButtonMenuTutorialText": "Aw ye nin butɔn digi ka tɛmɛ dɔnkili nata kan .",

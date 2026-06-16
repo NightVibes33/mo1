@@ -1,7 +1,7 @@
 {
   "@@locale": "da",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Tilladelse af lydadgang krævet",
   "audioAccessPermissionContent": "Giv lydfiler adgang til at give os mulighed for at afspille dine musikfiler.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Tilladelse af lydadgang afvist",

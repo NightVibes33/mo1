@@ -1,7 +1,7 @@
 {
   "@@locale": "fy",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "AUDIO Tagong tastimming fereaske",
   "audioAccessPermissionContent": "GRAGJE AUDIO BESLAAPT TAYS TO FERGESE OM FILL OM JOU MUSIEBILDS SPELLEN.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Audio tagongsrjochten wegere",

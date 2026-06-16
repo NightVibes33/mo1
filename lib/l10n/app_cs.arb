@@ -1,7 +1,7 @@
 {
   "@@locale": "cs",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Vyžaduje se povolení k přístupu zvuku",
   "audioAccessPermissionContent": "Udělejte zvukové soubory přístup, abyste nám mohli přehrávat vaše hudební soubory.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Oprávnění přístupu zvuku odepřeno",

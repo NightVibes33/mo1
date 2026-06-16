@@ -1,7 +1,7 @@
 {
   "@@locale": "vec",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Permesso de Audio Accesso Accesso Recusa.",
   "audioAccessPermissionContent": "Te prego, concesion audio el permeter de far el so file de ła muxica.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Accesso Acesso Accesso Accesso Denito",

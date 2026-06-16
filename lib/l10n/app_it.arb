@@ -1,7 +1,7 @@
 {
   "@@locale": "it",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Autorizzazione dell'accesso audio richiesto",
   "audioAccessPermissionContent": "Si prega di concedere l'accesso ai file audio per consentirci di riprodurre i tuoi file musicali.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Autorizzazione dell'accesso audio negato",

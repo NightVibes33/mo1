@@ -1,7 +1,7 @@
 {
   "@@locale": "nl",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Audio Access -toestemming vereist",
   "audioAccessPermissionContent": "Geef audiobestanden toegang om ons in staat te stellen uw muziekbestanden te spelen.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Audio Access -toestemming geweigerd",

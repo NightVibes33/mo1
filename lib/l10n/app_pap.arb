@@ -1,7 +1,7 @@
 {
   "@@locale": "pap",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Permiso di Acceso di Audio Rekeri",
   "audioAccessPermissionContent": "Por fabor duna audio archivonan di akseso pa permití nos toka bo archivonan di músika.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Permiso di Acceso di Audio Nenga",

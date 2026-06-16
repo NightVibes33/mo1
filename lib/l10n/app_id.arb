@@ -1,7 +1,7 @@
 {
   "@@locale": "id",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Izin akses audio diperlukan",
   "audioAccessPermissionContent": "Harap berikan akses file audio untuk memungkinkan kami memutar file musik Anda.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Izin akses audio ditolak",

@@ -3,7 +3,7 @@
   "@appTitle": {
     "description": "The title of the application"
   },
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "@menuButtonText": {
     "description": "The text of the menu button"
   },
@@ -119,7 +119,7 @@
   "@vibrateSettingTitle": {
     "description": "The title of the vibrate setting"
   },
-  "clickWheelSettingTitle": "Click Wheel Sounds",
+  "clickWheelSettingTitle": "Control Ring Sounds",
   "@clickWheelSettingTitle": {
     "description": "The title of the control ring sound setting"
   },
@@ -403,7 +403,7 @@
   "@rescanMusicFilesSettingTitle": {
     "description": "The text of the rescan music files settings tile"
   },
-  "deviceControlMenuTutorialText": "Move your thumb lightly around the Click Wheel to navigate the menu",
+  "deviceControlMenuTutorialText": "Move your thumb lightly around the Control Ring to navigate the menu",
   "@deviceControlMenuTutorialText": {
     "description": "The tutorial text for the device controls when user opens menu for the first time"
   },
@@ -431,7 +431,7 @@
   "@deviceScreenMenuTutorialText": {
     "description": "The tutorial text for the device screen when user opens menu for the first time"
   },
-  "deviceControlNowPlayingTutorialText": "Move your thumb around the Click Wheel to adjust the volume",
+  "deviceControlNowPlayingTutorialText": "Move your thumb around the Control Ring to adjust the volume",
   "@deviceControlNowPlayingTutorialText": {
     "description": "The tutorial text for the device controls when user is in now playing screen for the first time"
   },
@@ -479,7 +479,7 @@
   "@saveChangesButton": {
     "description": "Label for the button that saves edited song metadata"
   },
-  "clickWheelInputTextBarTutorialText": "Move your thumb lightly around the Click Wheel to highlight a alphabet",
+  "clickWheelInputTextBarTutorialText": "Move your thumb lightly around the Control Ring to highlight a alphabet",
   "@clickWheelInputTextBarTutorialText": {
     "description": "The tutorial text for the control ring when user is in input text bar screen for the first time"
   },
@@ -503,11 +503,11 @@
   "@allSongs": {
     "description": "The text for selecting all songs"
   },
-  "clickWheelSizeSettingTitle": "Click Wheel Size",
+  "clickWheelSizeSettingTitle": "Control Ring Size",
   "@clickWheelSizeSettingTitle": {
     "description": "The title of the control ring size setting"
   },
-  "clickWheelSensitivitySettingTitle": "Click Wheel Sensitivity",
+  "clickWheelSensitivitySettingTitle": "Control Ring Sensitivity",
   "@clickWheelSensitivitySettingTitle": {
     "description": "The title of the control ring sensitivity setting"
   },

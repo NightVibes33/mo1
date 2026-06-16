@@ -1,7 +1,7 @@
 {
   "@@locale": "luo",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Dwaro mar Audio Dwaro",
   "audioAccessPermissionContent": "Omiyo, ng’e ni fainde mag dwol nyalo miyo wabed gi thuolo mar goyo fainde mag thum.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Audio Arimo mar Chiwo Gik Mowinjore",

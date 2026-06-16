@@ -1,7 +1,7 @@
 {
   "@@locale": "iba",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Pemendar Akses Audio Diguna",
   "audioAccessPermissionContent": "Minta nuan meri akses fail audio ngambika kami ulih bemain fail muzik nuan.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Pemendar Akses Audio Ditangguh",

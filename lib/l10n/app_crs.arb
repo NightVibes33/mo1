@@ -1,7 +1,7 @@
 {
   "@@locale": "crs",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Permisyon Akse Odyo ki ganny demande",
   "audioAccessPermissionContent": "Silvouple donn bann dosye odyo akse pour permet nou zwe ou bann dosye lanmizik.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Permisyon Akse Odyo Denye",

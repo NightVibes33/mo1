@@ -1,7 +1,7 @@
 {
   "@@locale": "bts",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Audio Akses Ijin na ihaporluhon .",
   "audioAccessPermissionContent": "Patugah ma file audio ase boi masuk hu file musikmu.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Audio Akses Ijin na Ihaporsayai .",

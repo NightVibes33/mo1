@@ -1,7 +1,7 @@
 {
   "@@locale": "bik",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Kaipuhan an Pagtugot sa Audio",
   "audioAccessPermissionContent": "Tabi magtao nin access nin audio file tanganing tugutan kaming magtugtog kan saindong mga file nin musika.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Pag-abot sa Audio Pagtugot sa Pag-akò .",

@@ -1,7 +1,7 @@
 {
   "@@locale": "fur",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Ricuistâ l’acès audio Recuisît",
   "audioAccessPermissionContent": "Par plasê dâ l’acès ai file audio par permeti di sunâ i file di musiche.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Audio di acès Denins di acè",

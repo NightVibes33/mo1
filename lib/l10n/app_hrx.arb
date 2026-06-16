@@ -1,7 +1,7 @@
 {
   "@@locale": "hrx",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Audio Access Erlaupnis ferlangt",
   "audioAccessPermissionContent": "Tuu khanst aach ti autio-file fine fer uns erlaupe tayn musik fiile se xpiile.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Audio Akses Erlaupnis Denied",

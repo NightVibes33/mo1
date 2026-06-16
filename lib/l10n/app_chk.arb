@@ -1,7 +1,7 @@
 {
   "@@locale": "chk",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Ekkewe Chon Angei Ra Angei",
   "audioAccessPermissionContent": "Kopwe ngeni ekkewe chon fiti ewe mwich pwe repwe tongeni mut ngeni kich ach sipwe fiti om kewe mwich.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Ewe Chon Apungupung A Angei",

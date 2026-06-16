@@ -1,7 +1,7 @@
 {
   "@@locale": "btx",
   "appTitle": "døPe",
-  "menuButtonText": "MENU",
+  "menuButtonText": "←",
   "audioAccessPermissionTitle": "Akses Audio Iperluken .",
   "audioAccessPermissionContent": "Tolong berekenndu akses file audio gelah banci kami mutarken file musikndu.",
   "audioAccessPermissionPermanentlyDeniedTitle": "Akses Audio si I Denied .",
