@@ -1,5 +1,5 @@
 {
-  "appTitle": "døPi",
+  "appTitle": "døPe",
   "@appTitle": {
     "description": "The title of the application"
   },
@@ -121,7 +121,7 @@
   },
   "clickWheelSettingTitle": "Click Wheel Sounds",
   "@clickWheelSettingTitle": {
-    "description": "The title of the click wheel sound setting"
+    "description": "The title of the control ring sound setting"
   },
   "splitScreenSettingTitle": "Split Screen Mode",
   "@splitScreenSettingTitle": {
@@ -131,7 +131,7 @@
   "@touchSoundsDialogTitle": {
     "description": "The title of the touch sounds dialog"
   },
-  "touchSoundsDialogContent": "Please Enable Touch Sounds from System Settings to hear the click wheel sounds",
+  "touchSoundsDialogContent": "Please Enable Touch Sounds from System Settings to hear the control ring sounds",
   "@touchSoundsDialogContent": {
     "description": "The contents of the touch sounds dialog"
   },
@@ -481,7 +481,7 @@
   },
   "clickWheelInputTextBarTutorialText": "Move your thumb lightly around the Click Wheel to highlight a alphabet",
   "@clickWheelInputTextBarTutorialText": {
-    "description": "The tutorial text for the click wheel when user is in input text bar screen for the first time"
+    "description": "The tutorial text for the control ring when user is in input text bar screen for the first time"
   },
   "centerButtonInputTextBarScreenTutorialText": "Press the center button to select the highlighted alphabet",
   "@centerButtonInputTextBarScreenTutorialText": {
@@ -505,35 +505,35 @@
   },
   "clickWheelSizeSettingTitle": "Click Wheel Size",
   "@clickWheelSizeSettingTitle": {
-    "description": "The title of the click wheel size setting"
+    "description": "The title of the control ring size setting"
   },
   "clickWheelSensitivitySettingTitle": "Click Wheel Sensitivity",
   "@clickWheelSensitivitySettingTitle": {
-    "description": "The title of the click wheel sensitivity setting"
+    "description": "The title of the control ring sensitivity setting"
   },
   "small": "Small",
   "@small": {
-    "description": "The text for small click wheel size"
+    "description": "The text for small control ring size"
   },
   "medium": "Medium",
   "@medium": {
-    "description": "The text for medium click wheel size and sensitivity"
+    "description": "The text for medium control ring size and sensitivity"
   },
   "large": "Large",
   "@large": {
-    "description": "The text for large click wheel size"
+    "description": "The text for large control ring size"
   },
   "veryLow": "Very Low",
   "@veryLow": {
-    "description": "The text for very low click wheel sensitivity"
+    "description": "The text for very low control ring sensitivity"
   },
   "low": "Low",
   "@low": {
-    "description": "The text for low click wheel sensitivity"
+    "description": "The text for low control ring sensitivity"
   },
   "high": "High",
   "@high": {
-    "description": "The text for high click wheel sensitivity"
+    "description": "The text for high control ring sensitivity"
   },
   "volumeModeSettingTitle": "Volume Mode",
   "@volumeModeSettingTitle": {

@@ -5,7 +5,7 @@ class Constants {
   static const String metadataBoxName = "metadata_box";
   static const String playlistBoxName = "playlist_box";
   static const String excludedDirectoriesBoxName = "excluded_directories_box";
-  static const String appDocumentsFolderName = "døPi";
+  static const String appDocumentsFolderName = "døPe";
   static const String legacyAppDocumentsFolderName = "ClassiPod";
   static const String importsDirectoryName = "imports";
   static const String artworkDirectoryName = "artwork";
