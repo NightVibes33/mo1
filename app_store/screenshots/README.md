@@ -1,4 +1,4 @@
-# døPi App Store screenshots
+# døPe App Store screenshots
 
 These screenshots are direct crops from `screenshots/combined.jpg`. The source sheet is split into 4 columns by 2 rows, producing eight portrait crops in `crops/`.
 

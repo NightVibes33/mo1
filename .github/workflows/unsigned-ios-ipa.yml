@@ -53,16 +53,16 @@ jobs:
             find build/ios -maxdepth 4 -type d | sort
             exit 1
           fi
-          rm -rf build/Payload build/døPi-classic-unsigned.ipa
+          rm -rf build/Payload build/døPe-classic-unsigned.ipa
           mkdir -p build/Payload
-          cp -R "$APP_PATH" build/Payload/døPi.app
+          cp -R "$APP_PATH" build/Payload/døPe.app
           cd build
-          /usr/bin/zip -qry døPi-classic-unsigned.ipa Payload
-          ls -lh døPi-classic-unsigned.ipa
+          /usr/bin/zip -qry døPe-classic-unsigned.ipa Payload
+          ls -lh døPe-classic-unsigned.ipa
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: døPi-classic-unsigned-ipa
-          path: build/døPi-classic-unsigned.ipa
+          name: døPe-classic-unsigned-ipa
+          path: build/døPe-classic-unsigned.ipa
           if-no-files-found: error

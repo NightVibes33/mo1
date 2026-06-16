@@ -865,7 +865,7 @@ private enum AppleMusicLookupChannel {
         create: true
       )
       let artworkDirectory = documentsDirectory.appendingPathComponent(
-        "døPi/AppleMusicArtwork",
+        "døPe/AppleMusicArtwork",
         isDirectory: true
       )
       try FileManager.default.createDirectory(
@@ -945,7 +945,7 @@ private enum AppleMusicLookupChannel {
 
 
 private enum NativeCrashLogWriter {
-  private static let appFolderName = "døPi"
+  private static let appFolderName = "døPe"
 
   static func install() {
     NSSetUncaughtExceptionHandler { exception in
@@ -1011,7 +1011,7 @@ private enum NativeCrashLogWriter {
         }
       }
     } catch {
-      NSLog("døPi native crash log write failed: \(error.localizedDescription)")
+      NSLog("døPe native crash log write failed: \(error.localizedDescription)")
     }
   }
 }
