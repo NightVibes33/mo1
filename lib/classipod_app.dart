@@ -1,7 +1,7 @@
-import 'package:dopi/core/extensions/build_context_extensions.dart';
-import 'package:dopi/core/navigation/routes.dart';
-import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
-import 'package:dopi/l10n/generated/app_localizations.dart';
+import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/core/navigation/routes.dart';
+import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dope/l10n/generated/app_localizations.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
