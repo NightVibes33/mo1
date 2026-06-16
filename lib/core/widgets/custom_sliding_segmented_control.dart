@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:math';
 
-import 'package:classipod/core/constants/app_palette.dart';
+import 'package:dope/core/constants/app_palette.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';

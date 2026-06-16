@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 
-import 'package:classipod/core/services/apple_music_playback_service.dart';
-import 'package:classipod/core/services/audio_player_service.dart';
-import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
-import 'package:classipod/features/now_playing/widgets/scrubber_bar.dart';
-import 'package:classipod/features/now_playing/widgets/seek_bar.dart';
+import 'package:dope/core/services/apple_music_playback_service.dart';
+import 'package:dope/core/services/audio_player_service.dart';
+import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dope/features/now_playing/widgets/scrubber_bar.dart';
+import 'package:dope/features/now_playing/widgets/seek_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

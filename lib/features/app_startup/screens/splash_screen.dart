@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:classipod/core/alerts/dialogs.dart';
-import 'package:classipod/core/constants/app_palette.dart';
-import 'package:classipod/core/constants/assets.dart';
-import 'package:classipod/core/extensions/build_context_extensions.dart';
-import 'package:classipod/core/navigation/routes.dart';
-import 'package:classipod/features/app_startup/controllers/splash_controller.dart';
+import 'package:dope/core/alerts/dialogs.dart';
+import 'package:dope/core/constants/app_palette.dart';
+import 'package:dope/core/constants/assets.dart';
+import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/core/navigation/routes.dart';
+import 'package:dope/features/app_startup/controllers/splash_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

@@ -1,13 +1,13 @@
-import 'package:classipod/features/settings/models/app_text_size.dart';
-import 'package:classipod/features/settings/models/app_theme.dart';
-import 'package:classipod/features/settings/models/click_wheel_sensitivity.dart';
-import 'package:classipod/features/settings/models/click_wheel_size.dart';
-import 'package:classipod/features/settings/models/device_color.dart';
-import 'package:classipod/features/settings/models/equalizer_preset.dart';
-import 'package:classipod/features/settings/models/repeat_mode.dart';
-import 'package:classipod/features/settings/models/song_sort_order.dart';
-import 'package:classipod/features/settings/models/song_transition_style.dart';
-import 'package:classipod/features/settings/models/volume_mode.dart';
+import 'package:dope/features/settings/models/app_text_size.dart';
+import 'package:dope/features/settings/models/app_theme.dart';
+import 'package:dope/features/settings/models/click_wheel_sensitivity.dart';
+import 'package:dope/features/settings/models/click_wheel_size.dart';
+import 'package:dope/features/settings/models/device_color.dart';
+import 'package:dope/features/settings/models/equalizer_preset.dart';
+import 'package:dope/features/settings/models/repeat_mode.dart';
+import 'package:dope/features/settings/models/song_sort_order.dart';
+import 'package:dope/features/settings/models/song_transition_style.dart';
+import 'package:dope/features/settings/models/volume_mode.dart';
 
 class SettingsPreferencesModel {
   final String languageLocaleCode;

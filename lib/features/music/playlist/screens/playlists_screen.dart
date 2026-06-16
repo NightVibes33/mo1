@@ -1,9 +1,9 @@
-import 'package:classipod/core/navigation/routes.dart';
-import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
-import 'package:classipod/features/music/playlist/models/playlist_model.dart';
-import 'package:classipod/features/music/playlist/providers/playlists_provider.dart';
-import 'package:classipod/features/music/playlist/widgets/playlist_list_tile.dart';
-import 'package:classipod/features/status_bar/widgets/status_bar.dart';
+import 'package:dope/core/navigation/routes.dart';
+import 'package:dope/features/custom_screen_elements/custom_screen.dart';
+import 'package:dope/features/music/playlist/models/playlist_model.dart';
+import 'package:dope/features/music/playlist/providers/playlists_provider.dart';
+import 'package:dope/features/music/playlist/widgets/playlist_list_tile.dart';
+import 'package:dope/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

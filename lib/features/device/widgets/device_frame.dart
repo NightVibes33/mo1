@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 
-import 'package:classipod/core/constants/assets.dart';
-import 'package:classipod/core/constants/keys.dart';
-import 'package:classipod/features/device/widgets/device_controls.dart';
-import 'package:classipod/features/device/widgets/device_screen.dart';
-import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
-import 'package:classipod/features/settings/models/device_color.dart';
+import 'package:dope/core/constants/assets.dart';
+import 'package:dope/core/constants/keys.dart';
+import 'package:dope/features/device/widgets/device_controls.dart';
+import 'package:dope/features/device/widgets/device_screen.dart';
+import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dope/features/settings/models/device_color.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

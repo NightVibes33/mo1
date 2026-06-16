@@ -1,4 +1,4 @@
-import 'package:classipod/core/models/music_metadata.dart';
+import 'package:dope/core/models/music_metadata.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 
 class PlaylistModel extends HiveObject {

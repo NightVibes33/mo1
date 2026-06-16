@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
-import 'package:classipod/core/models/music_metadata.dart';
-import 'package:classipod/core/services/song_transition_analysis_service.dart';
-import 'package:classipod/features/now_playing/models/now_playing_model.dart';
+import 'package:dope/core/models/music_metadata.dart';
+import 'package:dope/core/services/song_transition_analysis_service.dart';
+import 'package:dope/features/now_playing/models/now_playing_model.dart';
 
 const int minCrossfadeDurationSeconds = 1;
 const int maxCrossfadeDurationSeconds = 12;

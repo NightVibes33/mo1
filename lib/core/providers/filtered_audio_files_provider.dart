@@ -1,8 +1,8 @@
 import 'dart:collection';
 
-import 'package:classipod/core/models/music_metadata.dart';
-import 'package:classipod/core/services/audio_files_service.dart';
-import 'package:classipod/features/settings/controller/exclude_directories_controller.dart';
+import 'package:dope/core/models/music_metadata.dart';
+import 'package:dope/core/services/audio_files_service.dart';
+import 'package:dope/features/settings/controller/exclude_directories_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final filteredAudioFilesProvider =

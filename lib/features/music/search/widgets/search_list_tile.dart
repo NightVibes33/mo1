@@ -1,10 +1,10 @@
-import 'package:classipod/core/constants/app_palette.dart';
-import 'package:classipod/core/constants/assets.dart';
-import 'package:classipod/core/extensions/build_context_extensions.dart';
-import 'package:classipod/core/models/music_metadata.dart';
-import 'package:classipod/core/utils/metadata_artwork.dart';
-import 'package:classipod/features/music/album/models/album_model.dart';
-import 'package:classipod/features/music/search/model/search_model.dart';
+import 'package:dope/core/constants/app_palette.dart';
+import 'package:dope/core/constants/assets.dart';
+import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/core/models/music_metadata.dart';
+import 'package:dope/core/utils/metadata_artwork.dart';
+import 'package:dope/features/music/album/models/album_model.dart';
+import 'package:dope/features/music/search/model/search_model.dart';
 import 'package:flutter/cupertino.dart';
 
 class SearchListTile extends StatelessWidget {

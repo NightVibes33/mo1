@@ -1,13 +1,13 @@
 import 'dart:async';
 
-import 'package:classipod/core/extensions/build_context_extensions.dart';
-import 'package:classipod/core/navigation/routes.dart';
-import 'package:classipod/core/widgets/empty_state_widget.dart';
-import 'package:classipod/features/custom_screen_elements/custom_page_screen.dart';
-import 'package:classipod/features/music/album/models/album_model.dart';
-import 'package:classipod/features/music/album/providers/album_details_provider.dart';
-import 'package:classipod/features/now_playing/widgets/album_reflective_art.dart';
-import 'package:classipod/features/status_bar/widgets/status_bar.dart';
+import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/core/navigation/routes.dart';
+import 'package:dope/core/widgets/empty_state_widget.dart';
+import 'package:dope/features/custom_screen_elements/custom_page_screen.dart';
+import 'package:dope/features/music/album/models/album_model.dart';
+import 'package:dope/features/music/album/providers/album_details_provider.dart';
+import 'package:dope/features/now_playing/widgets/album_reflective_art.dart';
+import 'package:dope/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

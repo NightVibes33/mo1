@@ -1,6 +1,6 @@
-import 'package:classipod/core/constants/constants.dart';
-import 'package:classipod/core/extensions/build_context_extensions.dart';
-import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dope/core/constants/constants.dart';
+import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

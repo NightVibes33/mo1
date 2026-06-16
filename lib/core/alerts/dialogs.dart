@@ -1,4 +1,4 @@
-import 'package:classipod/core/extensions/build_context_extensions.dart';
+import 'package:dope/core/extensions/build_context_extensions.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 

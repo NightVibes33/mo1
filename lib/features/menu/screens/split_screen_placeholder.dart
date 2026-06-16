@@ -1,15 +1,15 @@
 import 'dart:async';
 
-import 'package:classipod/core/extensions/build_context_extensions.dart';
-import 'package:classipod/features/menu/controller/split_screen_controller.dart';
-import 'package:classipod/features/menu/models/split_screen_type.dart';
-import 'package:classipod/features/menu/widgets/animated_album_art_scroller.dart';
-import 'package:classipod/features/menu/widgets/icon_preview_widget.dart';
-import 'package:classipod/features/menu/widgets/language_preview_widget.dart';
-import 'package:classipod/features/menu/widgets/now_playing_preview_widget.dart';
-import 'package:classipod/features/menu/widgets/settings_preview_widget.dart';
-import 'package:classipod/features/music/songs/provider/songs_provider.dart';
-import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/features/menu/controller/split_screen_controller.dart';
+import 'package:dope/features/menu/models/split_screen_type.dart';
+import 'package:dope/features/menu/widgets/animated_album_art_scroller.dart';
+import 'package:dope/features/menu/widgets/icon_preview_widget.dart';
+import 'package:dope/features/menu/widgets/language_preview_widget.dart';
+import 'package:dope/features/menu/widgets/now_playing_preview_widget.dart';
+import 'package:dope/features/menu/widgets/settings_preview_widget.dart';
+import 'package:dope/features/music/songs/provider/songs_provider.dart';
+import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

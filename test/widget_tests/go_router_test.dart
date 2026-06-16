@@ -2,16 +2,16 @@
 
 import 'dart:io';
 
-import 'package:classipod/classipod_app.dart';
-import 'package:classipod/core/extensions/go_router_extensions.dart';
-import 'package:classipod/core/models/device_directory.dart';
-import 'package:classipod/core/navigation/page_not_found_screen.dart';
-import 'package:classipod/core/navigation/routes.dart';
-import 'package:classipod/core/providers/device_directory_provider.dart';
-import 'package:classipod/core/providers/shared_preferences_with_cache_provider.dart';
-import 'package:classipod/features/app_startup/controllers/app_startup_controller.dart';
-import 'package:classipod/features/app_startup/screens/app_startup_screen.dart';
-import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dope/classipod_app.dart';
+import 'package:dope/core/extensions/go_router_extensions.dart';
+import 'package:dope/core/models/device_directory.dart';
+import 'package:dope/core/navigation/page_not_found_screen.dart';
+import 'package:dope/core/navigation/routes.dart';
+import 'package:dope/core/providers/device_directory_provider.dart';
+import 'package:dope/core/providers/shared_preferences_with_cache_provider.dart';
+import 'package:dope/features/app_startup/controllers/app_startup_controller.dart';
+import 'package:dope/features/app_startup/screens/app_startup_screen.dart';
+import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:classipod/core/constants/assets.dart';
+import 'package:dope/core/constants/assets.dart';
 import 'package:flutter/cupertino.dart';
 
 bool isRemoteArtworkPath(String path) {

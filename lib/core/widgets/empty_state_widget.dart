@@ -1,4 +1,4 @@
-import 'package:classipod/core/constants/app_palette.dart';
+import 'package:dope/core/constants/app_palette.dart';
 import 'package:flutter/cupertino.dart';
 
 class EmptyStateWidget extends StatelessWidget {

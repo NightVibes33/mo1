@@ -1,4 +1,4 @@
-import 'package:classipod/core/extensions/duration_extensions.dart';
+import 'package:dope/core/extensions/duration_extensions.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

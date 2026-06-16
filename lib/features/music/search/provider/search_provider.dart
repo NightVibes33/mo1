@@ -1,8 +1,8 @@
-import 'package:classipod/features/music/album/providers/album_details_provider.dart';
-import 'package:classipod/features/music/artists/providers/artist_albums_provider.dart';
-import 'package:classipod/features/music/artists/providers/artist_names_provider.dart';
-import 'package:classipod/features/music/search/model/search_model.dart';
-import 'package:classipod/features/music/songs/provider/songs_provider.dart';
+import 'package:dope/features/music/album/providers/album_details_provider.dart';
+import 'package:dope/features/music/artists/providers/artist_albums_provider.dart';
+import 'package:dope/features/music/artists/providers/artist_names_provider.dart';
+import 'package:dope/features/music/search/model/search_model.dart';
+import 'package:dope/features/music/songs/provider/songs_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final searchProvider = Provider.autoDispose

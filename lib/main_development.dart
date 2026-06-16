@@ -1,9 +1,9 @@
-import 'package:classipod/core/constants/app_palette.dart';
-import 'package:classipod/core/extensions/build_context_extensions.dart';
-import 'package:classipod/core/navigation/routes.dart';
-import 'package:classipod/features/app_startup/screens/app_startup_screen.dart';
-import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
-import 'package:classipod/l10n/generated/app_localizations.dart';
+import 'package:dope/core/constants/app_palette.dart';
+import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/core/navigation/routes.dart';
+import 'package:dope/features/app_startup/screens/app_startup_screen.dart';
+import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dope/l10n/generated/app_localizations.dart';
 import 'package:device_preview_plus/device_preview_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';

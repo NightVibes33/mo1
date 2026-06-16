@@ -1,18 +1,18 @@
 import 'dart:async';
 
-import 'package:classipod/core/models/music_metadata.dart';
-import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
-import 'package:classipod/core/services/audio_equalizer_service.dart';
-import 'package:classipod/core/services/apple_music_playback_service.dart';
-import 'package:classipod/core/services/crash_log_service.dart';
-import 'package:classipod/core/services/lyrics_lookup_service.dart';
-import 'package:classipod/core/services/song_transition_analysis_service.dart';
-import 'package:classipod/features/music/album/models/album_model.dart';
-import 'package:classipod/features/music/playlist/models/playlist_model.dart';
-import 'package:classipod/features/now_playing/models/now_playing_model.dart';
-import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
-import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
-import 'package:classipod/features/settings/models/song_transition_style.dart';
+import 'package:dope/core/models/music_metadata.dart';
+import 'package:dope/core/providers/filtered_audio_files_provider.dart';
+import 'package:dope/core/services/audio_equalizer_service.dart';
+import 'package:dope/core/services/apple_music_playback_service.dart';
+import 'package:dope/core/services/crash_log_service.dart';
+import 'package:dope/core/services/lyrics_lookup_service.dart';
+import 'package:dope/core/services/song_transition_analysis_service.dart';
+import 'package:dope/features/music/album/models/album_model.dart';
+import 'package:dope/features/music/playlist/models/playlist_model.dart';
+import 'package:dope/features/now_playing/models/now_playing_model.dart';
+import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dope/features/settings/models/song_transition_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 

@@ -1,15 +1,15 @@
 import 'dart:io';
 
-import 'package:classipod/core/navigation/routes.dart';
-import 'package:classipod/core/providers/filtered_audio_files_provider.dart';
-import 'package:classipod/features/music/album/providers/album_details_provider.dart';
-import 'package:classipod/features/music/artists/providers/artist_names_provider.dart';
-import 'package:classipod/features/music/genres/providers/genres_provider.dart';
-import 'package:classipod/features/music/playlist/providers/playlists_provider.dart';
-import 'package:classipod/features/music/songs/provider/songs_provider.dart';
-import 'package:classipod/features/now_playing/provider/now_playing_details_provider.dart';
-import 'package:classipod/features/settings/controller/settings_preferences_controller.dart';
-import 'package:classipod/features/tutorial/controller/tutorial_controller.dart';
+import 'package:dope/core/navigation/routes.dart';
+import 'package:dope/core/providers/filtered_audio_files_provider.dart';
+import 'package:dope/features/music/album/providers/album_details_provider.dart';
+import 'package:dope/features/music/artists/providers/artist_names_provider.dart';
+import 'package:dope/features/music/genres/providers/genres_provider.dart';
+import 'package:dope/features/music/playlist/providers/playlists_provider.dart';
+import 'package:dope/features/music/songs/provider/songs_provider.dart';
+import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dope/features/tutorial/controller/tutorial_controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';

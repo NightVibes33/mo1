@@ -1,5 +1,5 @@
-import 'package:classipod/core/constants/app_palette.dart';
-import 'package:classipod/features/menu/models/split_screen_type.dart';
+import 'package:dope/core/constants/app_palette.dart';
+import 'package:dope/features/menu/models/split_screen_type.dart';
 import 'package:flutter/cupertino.dart';
 
 class IconPreviewWidget extends StatelessWidget {

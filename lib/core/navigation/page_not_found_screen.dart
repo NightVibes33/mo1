@@ -1,5 +1,5 @@
-import 'package:classipod/core/extensions/build_context_extensions.dart';
-import 'package:classipod/core/navigation/routes.dart';
+import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/core/navigation/routes.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 

@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:classipod/core/constants/constants.dart';
-import 'package:classipod/core/providers/device_directory_provider.dart';
+import 'package:dope/core/constants/constants.dart';
+import 'package:dope/core/providers/device_directory_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final appDocumentsServiceProvider = Provider<AppDocumentsService>((ref) {

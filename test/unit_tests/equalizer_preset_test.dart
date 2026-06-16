@@ -1,4 +1,4 @@
-import 'package:classipod/features/settings/models/equalizer_preset.dart';
+import 'package:dope/features/settings/models/equalizer_preset.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

@@ -1,9 +1,9 @@
-import 'package:classipod/core/extensions/build_context_extensions.dart';
-import 'package:classipod/core/models/music_metadata.dart';
-import 'package:classipod/core/navigation/routes.dart';
-import 'package:classipod/core/widgets/options_list_tile.dart';
-import 'package:classipod/features/custom_screen_elements/custom_screen.dart';
-import 'package:classipod/features/music/songs/services/song_metadata_actions.dart';
+import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/core/models/music_metadata.dart';
+import 'package:dope/core/navigation/routes.dart';
+import 'package:dope/core/widgets/options_list_tile.dart';
+import 'package:dope/features/custom_screen_elements/custom_screen.dart';
+import 'package:dope/features/music/songs/services/song_metadata_actions.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

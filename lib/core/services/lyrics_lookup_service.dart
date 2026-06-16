@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:classipod/core/models/music_metadata.dart';
+import 'package:dope/core/models/music_metadata.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final lyricsLookupServiceProvider = Provider<LyricsLookupService>(
