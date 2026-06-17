@@ -24,6 +24,7 @@ platform :android do
 
     build_flutter_app(
       type: options[:type] || "appbundle",
+      flavor: options[:flavor] || "production",
       no_codesign: options[:no_codesign],
       config_only: options[:config_only],
       build_number: options[:build_number],
