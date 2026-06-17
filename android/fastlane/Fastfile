@@ -7,11 +7,6 @@ platform :android do
   # Build flutter Android app
   lane :build do |options|
 
-    # Verify 'firebase_app_distribution_service_account.json' file exists
-    unless File.exist?(google_service_account_json_path)
-      UI.user_error!("google_service_account.json file not found. Please add it to the root of the flutter project. See https://docs.fastlane.tools/actions/supply/")
-    end
-
     # Verify version number is correct
     if !is_ci && (!options[:version_number])
       version_number = get_version_from_pubspec()
@@ -37,6 +32,9 @@ platform :android do
   desc "Release to Play Store"
   lane :release_play_store do |options|
     begin
+      unless File.exist?(google_service_account_json_path)
+        UI.user_error!("google_service_account.json file not found. Please add it to the root of the flutter project. See https://docs.fastlane.tools/actions/supply/")
+      end
       build(
         no_codesign: options[:no_codesign],
         config_only: options[:config_only],
@@ -114,6 +112,9 @@ platform :android do
   desc "Release to Play Store using Firebase App Distribution"
   lane :release_play_store_using_firebase do |options|
     begin
+      unless File.exist?(google_service_account_json_path)
+        UI.user_error!("google_service_account.json file not found. Please add it to the root of the flutter project. See https://docs.fastlane.tools/actions/supply/")
+      end
       build(
         type: 'apk',
         no_codesign: options[:no_codesign],
