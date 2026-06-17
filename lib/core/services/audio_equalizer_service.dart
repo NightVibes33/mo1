@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:dope/features/settings/models/equalizer_preset.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -9,57 +8,48 @@ final audioEqualizerServiceProvider = Provider<AudioEqualizerService>(
   AudioEqualizerService.new,
 );
 
+/// Applies EQ presets to the active audio player.
+///
+/// On iOS: uses just_audio's [DarwinEqualizer] which is wired directly
+/// into the AVAudioEngine graph — no MethodChannel, no native code.
+///
+/// On other platforms: no-op (EQ handled by platform plugin or not supported).
 class AudioEqualizerService {
   AudioEqualizerService(this._ref);
 
   final Ref _ref;
-  static const _channel = MethodChannel('mo1/equalizer');
 
-  /// Applies [preset] to the native EQ.
-  ///
-  /// On iOS this sends the band gains to [AudioEngineManager] via
-  /// MethodChannel. The manager applies them to the AVAudioUnitEQ node
-  /// that is wired into just_audio's AVAudioEngine graph.
-  ///
-  /// On other platforms this is a no-op (EQ is handled by the platform
-  /// plugin or not supported).
   Future<void> applyPreset(EqualizerPreset preset) async {
     if (!Platform.isIOS) return;
+
+    final equalizer = _ref.read(iosEqualizerProvider);
+    if (equalizer == null) return;
+
     try {
-      // Attempt to wire our EQ node into just_audio's AVAudioEngine first.
-      // This is idempotent — if already wired the native side no-ops.
-      await _tryWireEngine();
+      final params = await equalizer.parameters;
+      final bands = params.bands;
 
-      final gains = preset == EqualizerPreset.off
-          ? <double>[]
-          : preset.approximateBandGainsDb;
-
-      final result = await _channel.invokeMapMethod<String, dynamic>(
-        'setPreset',
-        {'bandGainsDb': gains},
-      );
-
-      final isApplied = result?['isApplied'] as bool? ?? false;
-      if (!isApplied && preset != EqualizerPreset.off) {
-        // ignore: avoid_print
-        print(
-          '[AudioEqualizerService] iOS EQ not applied — '
-          'backend: ${result?["backend"]}',
-        );
+      if (preset == EqualizerPreset.off) {
+        // Reset all bands to 0 dB and disable the EQ.
+        for (final band in bands) {
+          await band.setGain(0.0);
+        }
+        await equalizer.setEnabled(false);
+        return;
       }
-    } on PlatformException catch (e) {
-      // ignore: avoid_print
-      print('[AudioEqualizerService] setPreset failed: $e');
-    }
-  }
 
-  /// Tells the native side to wire its eqNode into just_audio's engine.
-  /// Called before every setPreset so the graph is always up to date.
-  Future<void> _tryWireEngine() async {
-    try {
-      await _channel.invokeMethod<void>('wireEngine');
-    } catch (_) {
-      // Best-effort; setPreset still applies gain values even if wiring fails.
+      final gains = preset.approximateBandGainsDb;
+
+      // Map preset gains to the equalizer's bands by index.
+      // DarwinEqualizer bands are ordered low-to-high frequency,
+      // matching the order in approximateBandGainsDb.
+      for (var i = 0; i < bands.length && i < gains.length; i++) {
+        await bands[i].setGain(gains[i]);
+      }
+      await equalizer.setEnabled(true);
+    } catch (e) {
+      // ignore: avoid_print
+      print('[AudioEqualizerService] applyPreset failed: $e');
     }
   }
 }

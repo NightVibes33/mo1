@@ -17,27 +17,45 @@ import 'package:dope/features/settings/models/song_transition_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
-/// Creates an [AudioPlayer] configured for iOS AVAudioEngine mode so that
-/// just_audio exposes its internal [AVAudioEngine] instance, which
-/// [AudioEngineManager] can wire our EQ node into.
-///
-/// On non-iOS platforms a plain [AudioPlayer] is returned.
-AudioPlayer _makePlayer() {
-  if (Platform.isIOS) {
+// ---------------------------------------------------------------------------
+// EQ effect — created once, shared via provider so AudioEqualizerService
+// can reach it without going through a MethodChannel.
+// ---------------------------------------------------------------------------
+
+/// The DarwinEqualizer wired into the main AudioPlayer on iOS.
+/// On non-iOS platforms this is null and EQ is a no-op.
+final iosEqualizerProvider = Provider<DarwinEqualizer?>((ref) {
+  if (!Platform.isIOS) return null;
+  // 10-band EQ matching the frequencies used in EqualizerPreset.
+  return DarwinEqualizer(
+    bandCount: 10,
+    minFrequency: 20,
+    maxFrequency: 20000,
+  );
+});
+
+/// Creates an [AudioPlayer] with the iOS EQ effect attached (if on iOS).
+/// On other platforms a plain [AudioPlayer] is returned.
+AudioPlayer _makePlayer(DarwinEqualizer? equalizer) {
+  if (Platform.isIOS && equalizer != null) {
     return AudioPlayer(
       audioLoadConfiguration: const AudioLoadConfiguration(
         darwinLoadControl: DarwinLoadControl(
-          // Use AVAudioEngine backend instead of AVQueuePlayer so we can
-          // inject AVAudioUnitEQ into the engine graph.
           avAudioEngineEnabled: true,
         ),
+      ),
+      audioPipeline: AudioPipeline(
+        darwinAudioEffects: [equalizer],
       ),
     );
   }
   return AudioPlayer();
 }
 
-final audioPlayerProvider = Provider<AudioPlayer>((_) => _makePlayer());
+final audioPlayerProvider = Provider<AudioPlayer>((ref) {
+  final eq = ref.read(iosEqualizerProvider);
+  return _makePlayer(eq);
+});
 
 final audioPlayerServiceProvider =
     AsyncNotifierProvider<AudioPlayerServiceNotifier, void>(
@@ -261,7 +279,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   Future<void> shuffleAllSongs() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      //If Album or Playlist is being played then Switch to original List of Songs
       if (ref.read(nowPlayingDetailsProvider).nowPlayingType !=
           NowPlayingType.songs) {
         await setAudioSource(
@@ -500,7 +517,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         }
       }
 
-      //In case the same song is already playing
       if (nowPlayingDetails.currentIndex == index) {
         return;
       } else {
@@ -532,8 +548,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       }
       final hasLoadedSources = player.currentIndex != null;
       final shouldUseOriginalList = !hasLoadedSources ||
-          nowPlayingDetails.nowPlayingType !=
-              NowPlayingType.songs ||
+          nowPlayingDetails.nowPlayingType != NowPlayingType.songs ||
           nowPlayingDetails.metadataList.isEmpty ||
           !nowPlayingDetails.metadataList.any(
             (element) => element.originalSongIndex == originalIndex,
@@ -553,7 +568,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
               .where((metadata) => metadata.isAppleMusicCatalogTrack)
               .toList(growable: false);
           final appleMusicIndex = appleMusicList.indexWhere(
-            (metadata) => metadata.filePath == selectedOriginalMetadata.filePath,
+            (metadata) =>
+                metadata.filePath == selectedOriginalMetadata.filePath,
           );
           if (appleMusicIndex == -1) {
             return;
@@ -591,7 +607,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       Future.delayed(const Duration(milliseconds: 200), play);
     });
   }
-
 
   Future<bool> playMetadataListAtIndex({
     required List<MusicMetadata> metadataList,
@@ -881,10 +896,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
 
     final mainPlayer = ref.read(audioPlayerProvider);
-    // Transition player also uses AVAudioEngine mode on iOS so it shares
-    // the same session and the EQ node applies to it automatically via
-    // the wired engine graph.
-    final transitionPlayer = _makePlayer();
+    // Transition player uses the same iOS equalizer so EQ is consistent
+    // during crossfades.
+    final eq = ref.read(iosEqualizerProvider);
+    final transitionPlayer = _makePlayer(eq);
     _transitionPlayer = transitionPlayer;
     _mainVolumeBeforeTransition = mainPlayer.volume.clamp(0, 1).toDouble();
     _isTransitioning = true;
@@ -1022,19 +1037,16 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final int currentDurationInSeconds = ref
-          .read(audioPlayerProvider)
-          .position
-          .inSeconds;
+      final int currentDurationInSeconds =
+          ref.read(audioPlayerProvider).position.inSeconds;
       final int maxDurationInSeconds =
           ref.read(audioPlayerProvider).duration?.inSeconds ?? 0;
       if (currentDurationInSeconds + 1 < maxDurationInSeconds) {
         await _cancelSongTransition();
-        await ref
-            .read(audioPlayerProvider)
-            .seek(
+        await ref.read(audioPlayerProvider).seek(
               Duration(
-                seconds: ref.read(audioPlayerProvider).position.inSeconds + 1,
+                seconds:
+                    ref.read(audioPlayerProvider).position.inSeconds + 1,
               ),
             );
       }
@@ -1052,10 +1064,14 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final currentSeconds = ref.read(audioPlayerProvider).position.inSeconds;
-      final targetSeconds = (currentSeconds - 1).clamp(0, currentSeconds).toInt();
+      final currentSeconds =
+          ref.read(audioPlayerProvider).position.inSeconds;
+      final targetSeconds =
+          (currentSeconds - 1).clamp(0, currentSeconds).toInt();
       await _cancelSongTransition();
-      await ref.read(audioPlayerProvider).seek(Duration(seconds: targetSeconds));
+      await ref
+          .read(audioPlayerProvider)
+          .seek(Duration(seconds: targetSeconds));
     });
   }
 
@@ -1076,7 +1092,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           .clamp(0, maxDurationInSeconds)
           .toInt();
       await _cancelSongTransition();
-      await ref.read(audioPlayerProvider).seek(Duration(seconds: clampedTarget));
+      await ref
+          .read(audioPlayerProvider)
+          .seek(Duration(seconds: clampedTarget));
     });
   }
 }
