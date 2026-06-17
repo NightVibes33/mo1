@@ -8,12 +8,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasKeystore = keystorePropertiesFile.exists()
 val keystoreProperties = Properties()
-try {
-    val keystorePropertiesFile = rootProject.file("key.properties")
+if (hasKeystore) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
-} catch (e: FileNotFoundException) {
-    println("Warning: key.properties file not found. Ensure the file is present before building the release version.")
+} else {
+    println("Warning: key.properties not found — release build will be unsigned.")
 }
 
 android {
@@ -39,13 +40,12 @@ android {
         ndk.abiFilters.addAll(arrayOf("armeabi-v7a", "arm64-v8a", "x86_64"))
     }
 
-    signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as? String
-            keyPassword = keystoreProperties["keyPassword"] as? String
-            storePassword = keystoreProperties["storePassword"] as? String
-            val storeFilePath = keystoreProperties["storeFile"] as? String
-            if (storeFilePath != null) {
+    if (hasKeystore) {
+        signingConfigs {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storePassword = keystoreProperties["storePassword"] as String
                 storeFile = file(keystoreProperties["storeFile"] as String)
             }
         }
@@ -56,7 +56,10 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            if (hasKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+            // No signingConfig = unsigned APK when key.properties is absent
         }
     }
 
@@ -64,12 +67,12 @@ android {
     productFlavors {
         create("production") {
             dimension = "default"
-            resValue("string", "app_name", "døPe")
+            resValue("string", "app_name", "\u00f8Pe")
             applicationIdSuffix = ""
         }
         create("dev") {
             dimension = "default"
-            resValue("string", "app_name", "døPe Dev")
+            resValue("string", "app_name", "\u00f8Pe Dev")
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
         }
