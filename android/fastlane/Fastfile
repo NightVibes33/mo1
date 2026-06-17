@@ -94,7 +94,18 @@ platform :android do
         version_number: options[:version_number]
       )
 
-      File.rename("#{root_path}/build/app/outputs/flutter-apk/app-production-release.apk", "#{root_path}/build/app/outputs/flutter-apk/dope-android.apk")
+      apk_output_dir = "#{root_path}/build/app/outputs/flutter-apk"
+      apk_candidates = [
+        "#{apk_output_dir}/app-production-release.apk",
+        "#{apk_output_dir}/app-release.apk",
+        "#{apk_output_dir}/app-production-release-production.apk"
+      ]
+      apk_source = apk_candidates.find { |path| File.exist?(path) }
+      unless apk_source
+        available_apks = Dir["#{apk_output_dir}/*.apk"]
+        UI.user_error!("No APK output found to rename in #{apk_output_dir}. Available APKs: #{available_apks.join(', ')}")
+      end
+      File.rename(apk_source, "#{apk_output_dir}/dope-android.apk")
 
       # set_github_release(
       #   repository_name: "adeeteya/Classipod",
