@@ -137,36 +137,10 @@ jobs:
           fi
           echo "VERSION_NAME=${VERSION_NAME}" >> "${GITHUB_ENV}"
 
-      - name: Setup Android signing
-        env:
-          ANDROID_KEYSTORE_FILE_BASE64: ${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}
-          ANDROID_KEY_STORE_PASSWORD: ${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if [ -n "${ANDROID_KEYSTORE_FILE_BASE64:-}" ]; then
-            echo "${ANDROID_KEYSTORE_FILE_BASE64}" | base64 --decode > android/key.jks
-            cat <<EOF > android/key.properties
-          storePassword=${ANDROID_KEY_STORE_PASSWORD}
-          keyPassword=${ANDROID_KEY_STORE_PASSWORD}
-          keyAlias=release
-          storeFile=../key.jks
-          EOF
-            echo "ANDROID_SIGNED=true" >> "${GITHUB_ENV}"
-            echo "Signing keystore configured."
-          else
-            echo "::warning::ANDROID_KEYSTORE_FILE_BASE64 secret not set — building unsigned APK."
-            echo "ANDROID_SIGNED=false" >> "${GITHUB_ENV}"
-          fi
-
       - name: Build Android APK
         run: |
           set -euo pipefail
-          if [ "${ANDROID_SIGNED}" = "true" ]; then
-            flutter build apk --release --flavor production --build-name "${VERSION_NAME}" --target-platform android-arm,android-arm64,android-x64
-          else
-            flutter build apk --release --flavor production --build-name "${VERSION_NAME}" --target-platform android-arm,android-arm64,android-x64 --no-shrink || \
-            flutter build apk --release --build-name "${VERSION_NAME}" --target-platform android-arm,android-arm64,android-x64
-          fi
+          flutter build apk --release --flavor production --build-name "${VERSION_NAME}" --target-platform android-arm,android-arm64,android-x64
           APK_DIR="build/app/outputs/flutter-apk"
           APK_SOURCE=""
           for candidate in \
