@@ -20,10 +20,13 @@ on:
         required: false
         type: string
         default: ""
+  push:
+    branches:
+      - main
 
 jobs:
   unsigned_ipa:
-    if: ${{ inputs.unsigned_ipa }}
+    if: ${{ github.event_name == 'push' || inputs.unsigned_ipa }}
     name: Build unsigned iOS IPA
     runs-on: macos-26-intel
     timeout-minutes: 90
@@ -95,7 +98,7 @@ jobs:
           if-no-files-found: error
 
   android_apk:
-    if: ${{ inputs.android_apk }}
+    if: ${{ github.event_name == 'push' || inputs.android_apk }}
     name: Build Android APK artifact
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -165,7 +168,7 @@ jobs:
           if-no-files-found: error
 
   upload_testflight:
-    if: ${{ inputs.upload_testflight }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.upload_testflight }}
     name: Build and upload TestFlight IPA
     runs-on: macos-26-intel
     timeout-minutes: 90
