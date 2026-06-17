@@ -23,6 +23,14 @@ import UIKit
       NSLog("mo1 audio session setup failed: \(error.localizedDescription)")
     }
 
+    // Register JustAudioEQPlugin BEFORE GeneratedPluginRegistrant so that
+    // local-file playback calls are intercepted and routed through
+    // AudioEngineManager (AVAudioEngine + AVAudioUnitEQ) instead of
+    // just_audio's default AVQueuePlayer backend, which does not support EQ.
+    if let registrar = self.registrar(forPlugin: "JustAudioEQPlugin") {
+      JustAudioEQPlugin.register(with: registrar)
+    }
+
     GeneratedPluginRegistrant.register(with: self)
     if let controller = window?.rootViewController as? FlutterViewController {
       AppleMusicLookupChannel.register(with: controller.binaryMessenger)
