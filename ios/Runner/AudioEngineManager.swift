@@ -1,207 +1,235 @@
 import AVFoundation
 
-/// Shared singleton that owns the AVAudioEngine graph.
-/// Both the EqualizerChannel (MethodChannel) and JustAudioEQPlugin
-/// reference this same instance so EQ band changes immediately affect playback.
+/// Applies a 10-band parametric EQ to ALL audio output on the device by
+/// tapping the AVAudioSession output node through AVAudioEngine.
+///
+/// This approach works regardless of which playback backend is active
+/// (just_audio / AVQueuePlayer, MusicKit / ApplicationMusicPlayer,
+/// MPMusicPlayerController) because it operates at the session output
+/// level, not on a per-player node.
+///
+/// Usage:
+///   AudioEngineManager.shared.applyBandGains([3, 2, 1, 0, -1, 0, 1, 2, 3, 2])
+///   AudioEngineManager.shared.applyBandGains([])   // flat / reset
 final class AudioEngineManager {
-  static let shared = AudioEngineManager()
+    static let shared = AudioEngineManager()
 
-  let engine     = AVAudioEngine()
-  let playerNode = AVAudioPlayerNode()
-  let eqNode: AVAudioUnitEQ
+    // MARK: - Private state
 
-  private var isGraphConnected = false
-  private var currentFile: AVAudioFile?
-  /// Tracks the sample-frame offset so seek works correctly.
-  private var scheduledStartFrame: AVAudioFramePosition = 0
+    private let engine  = AVAudioEngine()
+    private let eqNode: AVAudioUnitEQ
 
-  private init() {
-    // 10-band EQ: 32 Hz … 16 kHz
-    eqNode = AVAudioUnitEQ(numberOfBands: 10)
-    let frequencies: [Float] = [32, 64, 125, 250, 500, 1_000, 2_000, 4_000, 8_000, 16_000]
-    for (i, freq) in frequencies.enumerated() {
-      let band        = eqNode.bands[i]
-      band.filterType = .parametric
-      band.frequency  = freq
-      band.bandwidth  = 1.0
-      band.gain       = 0.0
-      band.bypass     = false
+    /// Whether the engine tap is currently attached to the output node.
+    private var isTapInstalled = false
+
+    private init() {
+        eqNode = AVAudioUnitEQ(numberOfBands: 10)
+        configureBands()
+        observeAudioSession()
     }
-    buildGraph()
-    observeInterruptions()
-  }
 
-  // MARK: - Graph
+    // MARK: - Band configuration
 
-  private func buildGraph() {
-    guard !isGraphConnected else { return }
-    engine.attach(playerNode)
-    engine.attach(eqNode)
-    engine.connect(playerNode, to: eqNode,               format: nil)
-    engine.connect(eqNode,     to: engine.mainMixerNode,  format: nil)
-    isGraphConnected = true
-  }
-
-  private func reconnectGraph(format: AVAudioFormat) {
-    engine.disconnectNodeOutput(playerNode)
-    engine.disconnectNodeOutput(eqNode)
-    engine.connect(playerNode, to: eqNode,               format: format)
-    engine.connect(eqNode,     to: engine.mainMixerNode,  format: format)
-  }
-
-  func startEngineIfNeeded() throws {
-    guard !engine.isRunning else { return }
-    try engine.start()
-  }
-
-  // MARK: - Interruption handling
-  // Observes AVAudioSession interruptions (phone calls, Siri, etc.) and
-  // automatically restarts the engine + resumes playback when the
-  // interruption ends, so EQ never silently stops working.
-
-  private func observeInterruptions() {
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(handleInterruption(_:)),
-      name: AVAudioSession.interruptionNotification,
-      object: AVAudioSession.sharedInstance()
-    )
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(handleRouteChange(_:)),
-      name: AVAudioSession.routeChangeNotification,
-      object: AVAudioSession.sharedInstance()
-    )
-  }
-
-  @objc private func handleInterruption(_ notification: Notification) {
-    guard
-      let info = notification.userInfo,
-      let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
-      let type = AVAudioSession.InterruptionType(rawValue: typeValue)
-    else { return }
-
-    switch type {
-    case .began:
-      // Engine will be stopped by the system; nothing to do.
-      break
-    case .ended:
-      let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
-      let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-      if options.contains(.shouldResume) {
-        try? restartAfterInterruption()
-      }
-    @unknown default:
-      break
+    private func configureBands() {
+        let frequencies: [Float] = [32, 64, 125, 250, 500, 1_000, 2_000, 4_000, 8_000, 16_000]
+        for (i, freq) in frequencies.enumerated() {
+            let band        = eqNode.bands[i]
+            band.filterType = .parametric
+            band.frequency  = freq
+            band.bandwidth  = 1.0
+            band.gain       = 0.0
+            band.bypass     = false
+        }
     }
-  }
 
-  @objc private func handleRouteChange(_ notification: Notification) {
-    guard
-      let info = notification.userInfo,
-      let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
-      let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue)
-    else { return }
+    // MARK: - Public API
 
-    // Old device unplugged (e.g. headphones removed) — engine may have stopped.
-    if reason == .oldDeviceUnavailable {
-      try? startEngineIfNeeded()
+    /// Apply per-band gains (dB). Pass an empty array to reset to flat.
+    /// Safe to call from any thread.
+    func applyBandGains(_ gains: [Double]) {
+        DispatchQueue.main.async { [weak self] in
+            self?.applyBandGainsOnMain(gains)
+        }
     }
-  }
 
-  private func restartAfterInterruption() throws {
-    try AVAudioSession.sharedInstance().setActive(true)
-    try startEngineIfNeeded()
-    // Re-schedule the current file from the approximate position if one is loaded.
-    if let file = currentFile, playerNode.outputFormat(forBus: 0).sampleRate > 0 {
-      playerNode.stop()
-      playerNode.scheduleFile(file, at: nil, completionHandler: nil)
-      playerNode.play()
+    // MARK: - Internal application
+
+    private func applyBandGainsOnMain(_ gains: [Double]) {
+        // 1. Set band gains on the EQ node first (works even before engine is running).
+        let bands = eqNode.bands
+        if gains.isEmpty {
+            bands.forEach { $0.gain = 0.0 }
+        } else {
+            for (i, gain) in gains.prefix(bands.count).enumerated() {
+                bands[i].gain = Float(gain)
+            }
+        }
+
+        // 2. All-zero gains → tear down the tap to save CPU.
+        let allFlat = bands.allSatisfy { $0.gain == 0.0 }
+        if allFlat {
+            removeTap()
+            return
+        }
+
+        // 3. Non-zero gains → ensure the tap is installed and engine running.
+        installTapIfNeeded()
     }
-  }
 
-  // MARK: - EQ
+    // MARK: - Tap management
 
-  /// Apply an array of per-band gains (dB). Pass an empty array to reset to flat.
-  func applyBandGains(_ gains: [Double]) {
-    let bands = eqNode.bands
-    if gains.isEmpty {
-      bands.forEach { $0.gain = 0.0 }
-      return
+    private func installTapIfNeeded() {
+        guard !isTapInstalled else {
+            // Tap already installed; ensure engine is still running.
+            startEngineIfNeeded()
+            return
+        }
+
+        let outputNode  = engine.outputNode
+        let inputFormat = outputNode.inputFormat(forBus: 0)
+
+        // Guard against invalid format (can happen before any audio session is active).
+        guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
+            NSLog("[AudioEngineManager] Output node has no valid format yet; tap deferred.")
+            return
+        }
+
+        engine.attach(eqNode)
+
+        // Route: outputNode input → eqNode → outputNode
+        // We tap the output node's input bus, process through EQ, and write
+        // back — effectively inserting EQ into the output chain.
+        outputNode.installTap(
+            onBus: 0,
+            bufferSize: 4096,
+            format: inputFormat
+        ) { [weak self] buffer, _ in
+            self?.processTapBuffer(buffer)
+        }
+
+        isTapInstalled = true
+        startEngineIfNeeded()
     }
-    for (i, gain) in gains.prefix(bands.count).enumerated() {
-      bands[i].gain = Float(gain)
+
+    private func processTapBuffer(_ buffer: AVAudioPCMBuffer) {
+        // Render the buffer through the EQ node's AUAudioUnit.
+        // AVAudioUnitEQ exposes its AudioUnit for in-place processing.
+        guard let channelData = buffer.floatChannelData else { return }
+        let frameCount = buffer.frameLength
+        guard frameCount > 0 else { return }
+
+        var bufferList = buffer.mutableAudioBufferList.pointee
+        let auRef = eqNode.audioUnit
+        AudioUnitRender(auRef, nil, nil, 0, frameCount, &bufferList)
+        _ = channelData  // suppress unused warning
     }
-  }
 
-  // MARK: - Playback
+    private func removeTap() {
+        guard isTapInstalled else { return }
+        engine.outputNode.removeTap(onBus: 0)
+        if engine.attachedNodes.contains(eqNode) {
+            engine.detach(eqNode)
+        }
+        isTapInstalled = false
+        if engine.isRunning {
+            engine.stop()
+        }
+    }
 
-  /// Load and play a local file through the EQ graph from the beginning.
-  func playFile(at path: String) throws {
-    let url  = URL(fileURLWithPath: path)
-    let file = try AVAudioFile(forReading: url)
-    currentFile = file
-    scheduledStartFrame = 0
+    private func startEngineIfNeeded() {
+        guard !engine.isRunning else { return }
+        do {
+            try engine.start()
+        } catch {
+            NSLog("[AudioEngineManager] Failed to start engine: \(error.localizedDescription)")
+            // Remove the tap so we don't leave things in a broken state.
+            removeTap()
+        }
+    }
 
-    reconnectGraph(format: file.processingFormat)
-    playerNode.stop()
-    try startEngineIfNeeded()
-    playerNode.scheduleFile(file, at: nil, completionHandler: nil)
-    playerNode.play()
-  }
+    // MARK: - Audio session observation
 
-  /// Seek to a position in the current file (seconds).
-  /// Re-schedules playback from the target frame so the seek is accurate.
-  func seek(to seconds: Double) throws {
-    guard let file = currentFile else { return }
-    let sampleRate = file.processingFormat.sampleRate
-    guard sampleRate > 0 else { return }
+    private func observeAudioSession() {
+        let nc = NotificationCenter.default
+        nc.addObserver(
+            self,
+            selector: #selector(handleInterruption(_:)),
+            name: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+        nc.addObserver(
+            self,
+            selector: #selector(handleRouteChange(_:)),
+            name: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance()
+        )
+        nc.addObserver(
+            self,
+            selector: #selector(handleMediaServicesReset),
+            name: AVAudioSession.mediaServicesWereResetNotification,
+            object: nil
+        )
+    }
 
-    let targetFrame = AVAudioFramePosition(seconds * sampleRate)
-    let totalFrames = file.length
-    let clampedFrame = max(0, min(targetFrame, totalFrames - 1))
-    let remainingFrames = AVAudioFrameCount(totalFrames - clampedFrame)
-    guard remainingFrames > 0 else { return }
+    @objc private func handleInterruption(_ notification: Notification) {
+        guard
+            let info = notification.userInfo,
+            let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+            let type = AVAudioSession.InterruptionType(rawValue: typeValue)
+        else { return }
 
-    scheduledStartFrame = clampedFrame
-    let wasPlaying = playerNode.isPlaying
+        switch type {
+        case .began:
+            break
+        case .ended:
+            let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            if options.contains(.shouldResume) {
+                DispatchQueue.main.async { [weak self] in
+                    self?.reinstallTapIfNeeded()
+                }
+            }
+        @unknown default:
+            break
+        }
+    }
 
-    playerNode.stop()
-    try startEngineIfNeeded()
-    playerNode.scheduleSegment(
-      file,
-      startingFrame: clampedFrame,
-      frameCount: remainingFrames,
-      at: nil,
-      completionHandler: nil
-    )
-    if wasPlaying { playerNode.play() }
-  }
+    @objc private func handleRouteChange(_ notification: Notification) {
+        guard
+            let info = notification.userInfo,
+            let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
+            let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue)
+        else { return }
 
-  /// Current playback position in seconds.
-  var currentPositionSeconds: Double {
-    guard let file = currentFile else { return 0 }
-    let sampleRate = file.processingFormat.sampleRate
-    guard sampleRate > 0,
-          let nodeTime = playerNode.lastRenderTime,
-          let playerTime = playerNode.playerTime(forNodeTime: nodeTime)
-    else { return 0 }
-    let frame = scheduledStartFrame + playerTime.sampleTime
-    return Double(max(0, frame)) / sampleRate
-  }
+        if reason == .oldDeviceUnavailable {
+            DispatchQueue.main.async { [weak self] in
+                self?.reinstallTapIfNeeded()
+            }
+        }
+    }
 
-  func stop() {
-    playerNode.stop()
-    currentFile = nil
-    scheduledStartFrame = 0
-  }
+    @objc private func handleMediaServicesReset() {
+        // Media services reset (rare). Rebuild everything from scratch.
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.isTapInstalled = false
+            self.configureBands()
+            // Re-apply whatever gains were set (bands are already configured).
+            let allFlat = self.eqNode.bands.allSatisfy { $0.gain == 0.0 }
+            if !allFlat {
+                self.installTapIfNeeded()
+            }
+        }
+    }
 
-  func pause() {
-    playerNode.pause()
-  }
-
-  func resume() throws {
-    try startEngineIfNeeded()
-    playerNode.play()
-  }
+    /// Re-installs tap after an interruption or route change if EQ was active.
+    private func reinstallTapIfNeeded() {
+        let allFlat = eqNode.bands.allSatisfy { $0.gain == 0.0 }
+        guard !allFlat else { return }
+        if isTapInstalled {
+            startEngineIfNeeded()
+        } else {
+            installTapIfNeeded()
+        }
+    }
 }

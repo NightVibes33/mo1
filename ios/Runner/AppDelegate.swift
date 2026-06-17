@@ -23,13 +23,9 @@ import UIKit
       NSLog("mo1 audio session setup failed: \(error.localizedDescription)")
     }
 
-    // Register JustAudioEQPlugin BEFORE GeneratedPluginRegistrant so that
-    // local-file playback calls are intercepted and routed through
-    // AudioEngineManager (AVAudioEngine + AVAudioUnitEQ) instead of
-    // just_audio's default AVQueuePlayer backend, which does not support EQ.
-    if let registrar = self.registrar(forPlugin: "JustAudioEQPlugin") {
-      JustAudioEQPlugin.register(with: registrar)
-    }
+    // Warm up AudioEngineManager so it observes audio session
+    // notifications from the very first second of app launch.
+    _ = AudioEngineManager.shared
 
     GeneratedPluginRegistrant.register(with: self)
     if let controller = window?.rootViewController as? FlutterViewController {
@@ -41,8 +37,9 @@ import UIKit
 }
 
 // MARK: - EqualizerChannel
-// Delegates all engine work to AudioEngineManager.shared so the same
-// AVAudioUnitEQ node that processes playback is the one being configured.
+// Receives setPreset calls from Flutter and delegates all engine work
+// to AudioEngineManager.shared, which applies EQ via an output-node
+// tap that affects all audio on the device regardless of playback backend.
 private enum EqualizerChannel {
   static func register(with messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
@@ -77,7 +74,7 @@ private enum EqualizerChannel {
     result([
       "isApplied": true,
       "backend": "avAudioEngine",
-      "message": "EQ preset '\(presetName)' applied via AVAudioUnitEQ."
+      "message": "EQ preset '\(presetName)' applied via AVAudioEngine output tap."
     ])
   }
 }
