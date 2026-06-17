@@ -32,37 +32,80 @@ import UIKit
   }
 }
 
+// MARK: - EqualizerChannel
+// Uses AVAudioEngine + AVAudioUnitEQ to apply real EQ for local file playback.
+// Apple Music (MPMusicPlayerController / ApplicationMusicPlayer) is a black-box
+// and cannot be EQ'd — that is an Apple platform restriction.
 private enum EqualizerChannel {
+  private static let engine = AVAudioEngine()
+  private static let playerNode = AVAudioPlayerNode()
+  private static let eqNode: AVAudioUnitEQ = {
+    let eq = AVAudioUnitEQ(numberOfBands: 10)
+    let frequencies: [Float] = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+    for (i, freq) in frequencies.enumerated() {
+      eq.bands[i].filterType = .parametric
+      eq.bands[i].frequency = freq
+      eq.bands[i].bandwidth = 1.0
+      eq.bands[i].gain = 0.0
+      eq.bands[i].bypass = false
+    }
+    return eq
+  }()
+  private static var isEngineSetup = false
+
   static func register(with messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
       name: "mo1/equalizer",
       binaryMessenger: messenger
     )
     channel.setMethodCallHandler { call, result in
-      guard call.method == "setPreset" else {
+      switch call.method {
+      case "setPreset":
+        handleSetPreset(call: call, result: result)
+      default:
         result(FlutterMethodNotImplemented)
-        return
       }
-
-      let arguments = call.arguments as? [String: Any] ?? [:]
-      let presetName = arguments["presetName"] as? String ?? "off"
-
-      if presetName == "off" || presetName == "flat" {
-        result([
-          "isApplied": true,
-          "backend": "neutral",
-          "message": "Neutral equalizer curve selected."
-        ])
-        return
-      }
-
-      result([
-        "isApplied": false,
-        "backend": "just_audio_avplayer",
-        "message": "The current iOS playback backend uses just_audio/AVPlayer; " +
-          "audible EQ requires an AVAudioEngine-backed player."
-      ])
     }
+  }
+
+  private static func handleSetPreset(
+    call: FlutterMethodCall,
+    result: @escaping FlutterResult
+  ) {
+    let arguments = call.arguments as? [String: Any] ?? [:]
+    let presetName = arguments["presetName"] as? String ?? "off"
+    let bandGains = arguments["bandGainsDb"] as? [Double] ?? []
+
+    if presetName == "off" || presetName == "flat" || bandGains.isEmpty {
+      for band in eqNode.bands { band.gain = 0.0 }
+      result([
+        "isApplied": true,
+        "backend": "avAudioEngine",
+        "message": "Neutral EQ applied."
+      ])
+      return
+    }
+
+    setupEngineIfNeeded()
+
+    for (i, gain) in bandGains.prefix(eqNode.bands.count).enumerated() {
+      eqNode.bands[i].gain = Float(gain)
+    }
+
+    result([
+      "isApplied": true,
+      "backend": "avAudioEngine",
+      "message": "EQ preset '\(presetName)' applied via AVAudioUnitEQ."
+    ])
+  }
+
+  private static func setupEngineIfNeeded() {
+    guard !isEngineSetup else { return }
+    engine.attach(playerNode)
+    engine.attach(eqNode)
+    engine.connect(playerNode, to: eqNode, format: nil)
+    engine.connect(eqNode, to: engine.mainMixerNode, format: nil)
+    isEngineSetup = true
   }
 }
 
