@@ -95,7 +95,7 @@ platform :android do
         version_number: options[:version_number]
       )
 
-      File.rename("#{root_path}/build/app/outputs/flutter-apk/app-production-release.apk", "#{root_path}/build/app/outputs/flutter-apk/Classipod-Android.apk")
+      File.rename("#{root_path}/build/app/outputs/flutter-apk/app-production-release.apk", "#{root_path}/build/app/outputs/flutter-apk/dope-android.apk")
 
       # set_github_release(
       #   repository_name: "adeeteya/Classipod",
@@ -104,7 +104,7 @@ platform :android do
       #   tag_name: options[:version_number],
       #   is_generate_release_notes: true,
       #   commitish: "master",
-      #   upload_assets: ["#{root_path}/build/app/outputs/flutter-apk/Classipod-Android.apk"]
+      #   upload_assets: ["#{root_path}/build/app/outputs/flutter-apk/dope-android.apk"]
       # )
     end
   end

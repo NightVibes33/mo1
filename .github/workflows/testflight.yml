@@ -2,9 +2,170 @@ name: TestFlight
 
 on:
   workflow_dispatch:
+    inputs:
+      unsigned_ipa:
+        description: Build unsigned iOS IPA artifact
+        type: boolean
+        default: true
+      android_apk:
+        description: Build Android APK artifact
+        type: boolean
+        default: true
+      upload_testflight:
+        description: Upload signed IPA to TestFlight
+        type: boolean
+        default: false
+      ios_build_number:
+        description: Optional explicit iOS/TestFlight build number (must be higher than the latest uploaded build)
+        required: false
+        type: string
+        default: ""
 
 jobs:
-  upload:
+  unsigned_ipa:
+    if: ${{ inputs.unsigned_ipa }}
+    name: Build unsigned iOS IPA
+    runs-on: macos-26-intel
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          XCODE_PATH="$(find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' | sort -V | tail -1 || true)"
+          if [ -z "${XCODE_PATH}" ]; then
+            XCODE_PATH="$(find /Applications -maxdepth 1 -type d -name 'Xcode*.app' | sort -V | tail -1 || true)"
+          fi
+          if [ -n "${XCODE_PATH}" ]; then
+            sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
+          else
+            echo "No Xcode app bundle found under /Applications; using the runner default selection" >&2
+            xcode-select -p || true
+          fi
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.7"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Build unsigned iOS app
+        run: |
+          set -euo pipefail
+          BUILD_NUMBER="${{ inputs.ios_build_number }}"
+          if [ -z "${BUILD_NUMBER}" ]; then
+            BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
+          fi
+          flutter build ios --release --no-codesign --no-pub --build-number="${BUILD_NUMBER}"
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "No Runner.app found at $APP_PATH" >&2
+            find build/ios -maxdepth 4 -type d | sort
+            exit 1
+          fi
+          rm -rf build/Payload build/døPe-unsigned.ipa
+          mkdir -p build/Payload
+          cp -R "$APP_PATH" build/Payload/døPe.app
+          cd build
+          /usr/bin/zip -qry døPe-unsigned.ipa Payload
+          ls -lh døPe-unsigned.ipa
+
+      - name: Upload unsigned IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: døPe-unsigned-ipa-${{ github.run_number }}
+          path: build/døPe-unsigned.ipa
+          retention-days: 30
+          if-no-files-found: error
+
+  android_apk:
+    if: ${{ inputs.android_apk }}
+    name: Build Android APK artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2.2"
+          bundler-cache: true
+          working-directory: android
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.35.7"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate localizations
+        run: flutter gen-l10n
+
+      - name: Derive Android version name
+        run: |
+          set -euo pipefail
+          VERSION_NAME="$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' pubspec.yaml | head -n 1)"
+          if [ -z "${VERSION_NAME}" ]; then
+            echo "Unable to derive version name from pubspec.yaml" >&2
+            exit 1
+          fi
+          echo "VERSION_NAME=${VERSION_NAME}" >> "${GITHUB_ENV}"
+
+      - name: Create key.jks
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.ANDROID_KEYSTORE_FILE_BASE64 }}" | base64 --decode > android/key.jks
+
+      - name: Create key.properties
+        run: |
+          set -euo pipefail
+          cat <<EOF > android/key.properties
+          storePassword=${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_STORE_PASSWORD }}
+          keyAlias=release
+          storeFile=../key.jks
+          EOF
+
+      - name: Build signed Android APK
+        uses: maierj/fastlane-action@v3.1.0
+        with:
+          lane: build_apk
+          subdirectory: android
+          options: '{ "version_number": "${{ env.VERSION_NAME }}" }'
+
+      - name: Upload Android APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: døPe-android-apk-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/dope-android.apk
+          retention-days: 30
+          if-no-files-found: error
+
+  upload_testflight:
+    if: ${{ inputs.upload_testflight }}
     name: Build and upload TestFlight IPA
     runs-on: macos-26-intel
     timeout-minutes: 90
@@ -78,8 +239,12 @@ jobs:
       - name: Build Flutter iOS artifacts without codesigning
         run: |
           set -euo pipefail
-          TESTFLIGHT_BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
+          TESTFLIGHT_BUILD_NUMBER="${{ inputs.ios_build_number }}"
+          if [ -z "${TESTFLIGHT_BUILD_NUMBER}" ]; then
+            TESTFLIGHT_BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
+          fi
           echo "Building døPe TestFlight build ${TESTFLIGHT_BUILD_NUMBER}"
+          echo "TESTFLIGHT_BUILD_NUMBER=${TESTFLIGHT_BUILD_NUMBER}" >> "${GITHUB_ENV}"
           flutter build ios --release --no-codesign --no-pub --build-number="${TESTFLIGHT_BUILD_NUMBER}"
 
       - name: Write App Store Connect key
@@ -96,7 +261,10 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
-          TESTFLIGHT_BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
+          TESTFLIGHT_BUILD_NUMBER="${TESTFLIGHT_BUILD_NUMBER:-${{ inputs.ios_build_number }}}"
+          if [ -z "${TESTFLIGHT_BUILD_NUMBER}" ]; then
+            TESTFLIGHT_BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
+          fi
           xcodebuild \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -183,5 +351,8 @@ jobs:
           DOPI_USES_NON_EXEMPT_ENCRYPTION: "false"
         run: |
           set -euo pipefail
-          export DOPI_TARGET_BUILD_VERSION="$((5000 + GITHUB_RUN_NUMBER))"
+          export DOPI_TARGET_BUILD_VERSION="${TESTFLIGHT_BUILD_NUMBER:-${{ inputs.ios_build_number }}}"
+          if [ -z "${DOPI_TARGET_BUILD_VERSION}" ]; then
+            export DOPI_TARGET_BUILD_VERSION="$((5000 + GITHUB_RUN_NUMBER))"
+          fi
           ruby tool/app_store_connect_public_link.rb

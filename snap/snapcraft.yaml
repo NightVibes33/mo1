@@ -16,7 +16,7 @@ slots:
   dbus-classipod:
     interface: dbus
     bus: session
-    name: com.adeeteya.classipod
+    name: app.mo1.player
 
 apps:
   classipod:

@@ -17,7 +17,7 @@ try {
 }
 
 android {
-    namespace = "com.adeeteya.classipod"
+    namespace = "app.mo1.player"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
 
@@ -31,7 +31,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.adeeteya.classipod"
+        applicationId = "app.mo1.player"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -64,12 +64,12 @@ android {
     productFlavors {
         create("production") {
             dimension = "default"
-            resValue("string", "app_name", "døPi")
+            resValue("string", "app_name", "døPe")
             applicationIdSuffix = ""
         }
         create("dev") {
             dimension = "default"
-            resValue("string", "app_name", "døPi Dev")
+            resValue("string", "app_name", "døPe Dev")
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
         }

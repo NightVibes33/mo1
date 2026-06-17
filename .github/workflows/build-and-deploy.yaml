@@ -116,8 +116,8 @@ jobs:
         run: |
           REL_VER=$(grep "^version" pubspec.yaml | cut -d' ' -f2)
           for PKG in AppImage deb rpm; do
-            mv "dist/${REL_VER}/classipod-${REL_VER}-linux.${PKG}" "Classipod-Linux-${PKG}.${PKG}"
-            gh release upload ${{ inputs.version_number }} "Classipod-Linux-${PKG}.${PKG}" --clobber
+            mv "dist/${REL_VER}/classipod-${REL_VER}-linux.${PKG}" "dope-linux-${PKG}.${PKG}"
+            gh release upload ${{ inputs.version_number }} "dope-linux-${PKG}.${PKG}" --clobber
           done
 
   build_windows:
@@ -152,10 +152,15 @@ jobs:
         run: |
           build\iscc\iscc.exe scripts\windows-setup.iss /DMyAppVersion=${{ inputs.version_number }}
 
+      - name: Rename Windows installer artifact
+        shell: cmd
+        run: |
+          if exist "%GITHUB_WORKSPACE%\Classipod-Windows.exe" rename "%GITHUB_WORKSPACE%\Classipod-Windows.exe" "dope-windows.exe"
+
       - name: Upload Windows Release Artifact to GitHub Release
         shell: cmd
         run: |
-          gh release upload ${{ inputs.version_number }} "%GITHUB_WORKSPACE%\Classipod-Windows.exe
+          gh release upload ${{ inputs.version_number }} "%GITHUB_WORKSPACE%\dope-windows.exe" --clobber
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
@@ -209,7 +214,7 @@ jobs:
           options: '{ "version_number": "${{ inputs.version_number }}" }'
       
       - name: Upload APK Artifact to GitHub Release
-        run:  gh release upload ${{ inputs.version_number }} build/app/outputs/flutter-apk/Classipod-Android.apk
+        run:  gh release upload ${{ inputs.version_number }} build/app/outputs/flutter-apk/dope-android.apk
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 

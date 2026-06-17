@@ -1,4 +1,4 @@
-icon: snap/gui/classipod.png
+icon: snap/gui/dope.png
 summary: Retro click-wheel local music player
 group: Applications/Multimedia
 vendor: adeeteya
@@ -28,7 +28,7 @@ requires:
   - xdg-utils
   - ca-certificates
 
-display_name: døPi
+display_name: døPe
 
 keywords:
   - Music
