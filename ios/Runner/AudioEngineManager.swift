@@ -1,26 +1,49 @@
 import AVFoundation
 
-/// Applies a 10-band parametric EQ to ALL audio output on the device by
-/// tapping the AVAudioSession output node through AVAudioEngine.
-///
-/// This approach works regardless of which playback backend is active
-/// (just_audio / AVQueuePlayer, MusicKit / ApplicationMusicPlayer,
-/// MPMusicPlayerController) because it operates at the session output
-/// level, not on a per-player node.
-///
-/// Usage:
-///   AudioEngineManager.shared.applyBandGains([3, 2, 1, 0, -1, 0, 1, 2, 3, 2])
-///   AudioEngineManager.shared.applyBandGains([])   // flat / reset
+// MARK: - AudioEngineManager
+//
+// Applies a 10-band parametric EQ to just_audio playback on iOS.
+//
+// Architecture
+// ─────────────
+// just_audio 0.10+ supports an AVAudioEngine backend when the AudioPlayer
+// is created with AudioLoadConfiguration(darwinLoadControl: .avAudioEngine).
+// In that mode just_audio builds its own AVAudioEngine internally and
+// connects:  playerNode → mainMixerNode → outputNode
+//
+// We intercept that graph and insert our eqNode:
+//   playerNode → mainMixerNode → eqNode → outputNode
+//
+// The Dart side calls MethodChannel "mo1/equalizer" → "setPreset" which
+// calls applyBandGains(_:).  The MethodChannel "mo1/equalizer" → "wireEngine"
+// is called once after the AudioPlayer is ready, passing the engine pointer
+// via AudioPlayer.audioEffects (AVAudioEngineNativeWrapper).
+//
+// Fallback
+// ────────
+// For MusicKit / MPMusicPlayerController paths (which never expose their
+// engine) we keep a standalone AVAudioEngine + outputNode tap as a
+// best-effort approach.  Note: this fallback CANNOT mutate in-place;
+// it silently no-ops for those sources.  Full EQ for MusicKit requires
+// a different API surface (AudioComponentFindNext / AUGraph) that is
+// out of scope here.  Local-file playback via just_audio is fully covered.
+
 final class AudioEngineManager {
     static let shared = AudioEngineManager()
 
     // MARK: - Private state
 
-    private let engine  = AVAudioEngine()
     private let eqNode: AVAudioUnitEQ
+    /// Gains currently applied (kept so we can re-wire after interruption).
+    private var currentGains: [Double] = []
 
-    /// Whether the engine tap is currently attached to the output node.
-    private var isTapInstalled = false
+    /// Set when just_audio hands us its engine.
+    private weak var wiredEngine: AVAudioEngine?
+    private var isWiredIntoJustAudioEngine = false
+
+    // Standalone fallback engine (used only when wiredEngine is nil).
+    private let fallbackEngine = AVAudioEngine()
+    private var fallbackTapInstalled = false
 
     private init() {
         eqNode = AVAudioUnitEQ(numberOfBands: 10)
@@ -44,7 +67,51 @@ final class AudioEngineManager {
 
     // MARK: - Public API
 
-    /// Apply per-band gains (dB). Pass an empty array to reset to flat.
+    /// Wire our eqNode into the provided just_audio AVAudioEngine.
+    /// Must be called on the main thread after the AudioPlayer is configured.
+    ///
+    /// just_audio (AVAudioEngine mode) graph before wiring:
+    ///   playerNode → (optional: pitch/speed nodes) → mainMixerNode → outputNode
+    ///
+    /// After wiring:
+    ///   playerNode → (optional nodes) → mainMixerNode → eqNode → outputNode
+    func wireIntoEngine(_ engine: AVAudioEngine) {
+        guard !isWiredIntoJustAudioEngine || wiredEngine !== engine else { return }
+
+        // Tear down any previous wiring.
+        unwireFromEngine()
+        removeFallbackTap()
+
+        let mixer    = engine.mainMixerNode
+        let output   = engine.outputNode
+        let format   = mixer.outputFormat(forBus: 0)
+
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            NSLog("[AudioEngineManager] wireIntoEngine: mixer has no valid format yet, deferred")
+            return
+        }
+
+        engine.attach(eqNode)
+        // Disconnect mixer → output, insert eqNode in between.
+        engine.disconnectNodeOutput(mixer)
+        engine.connect(mixer,   to: eqNode,  format: format)
+        engine.connect(eqNode,  to: output,  format: format)
+
+        wiredEngine = engine
+        isWiredIntoJustAudioEngine = true
+
+        // Re-apply gains now that the graph is wired.
+        applyGainsToEqNode(currentGains)
+
+        if engine.isRunning {
+            // Engine already running — no need to restart.
+            NSLog("[AudioEngineManager] Wired eqNode into running just_audio engine")
+        } else {
+            startEngine(engine, tag: "just_audio")
+        }
+    }
+
+    /// Apply per-band gains (dB). Pass an empty array to reset to flat / bypass.
     /// Safe to call from any thread.
     func applyBandGains(_ gains: [Double]) {
         DispatchQueue.main.async { [weak self] in
@@ -55,7 +122,29 @@ final class AudioEngineManager {
     // MARK: - Internal application
 
     private func applyBandGainsOnMain(_ gains: [Double]) {
-        // 1. Set band gains on the EQ node first (works even before engine is running).
+        currentGains = gains
+        applyGainsToEqNode(gains)
+
+        let allFlat = eqNode.bands.allSatisfy { $0.gain == 0.0 }
+
+        if isWiredIntoJustAudioEngine {
+            // EQ node stays in the graph; bypass it when flat for zero overhead.
+            eqNode.bypass = allFlat
+            if let engine = wiredEngine, !engine.isRunning {
+                startEngine(engine, tag: "just_audio (resume)")
+            }
+            return
+        }
+
+        // Fallback standalone path (MusicKit / MPMusicPlayerController).
+        if allFlat {
+            removeFallbackTap()
+        } else {
+            installFallbackTapIfNeeded()
+        }
+    }
+
+    private func applyGainsToEqNode(_ gains: [Double]) {
         let bands = eqNode.bands
         if gains.isEmpty {
             bands.forEach { $0.gain = 0.0 }
@@ -64,86 +153,65 @@ final class AudioEngineManager {
                 bands[i].gain = Float(gain)
             }
         }
+    }
 
-        // 2. All-zero gains → tear down the tap to save CPU.
-        let allFlat = bands.allSatisfy { $0.gain == 0.0 }
-        if allFlat {
-            removeTap()
+    // MARK: - just_audio engine wiring helpers
+
+    private func unwireFromEngine() {
+        guard isWiredIntoJustAudioEngine, let engine = wiredEngine else { return }
+        // Restore original mixer → output connection.
+        let mixer  = engine.mainMixerNode
+        let output = engine.outputNode
+        let format = eqNode.outputFormat(forBus: 0)
+        engine.disconnectNodeOutput(eqNode)
+        engine.disconnectNodeOutput(mixer)
+        engine.detach(eqNode)
+        engine.connect(mixer, to: output, format: format)
+        isWiredIntoJustAudioEngine = false
+        wiredEngine = nil
+    }
+
+    // MARK: - Fallback tap (standalone, read-only capture — for future use)
+
+    /// NOTE: AVAudioEngine output-node taps are READ-ONLY captures.
+    /// They cannot mutate audio in-place.  This fallback installs a tap
+    /// solely to keep the API surface consistent; actual EQ processing
+    /// for non-just_audio sources (MusicKit etc.) is not possible via
+    /// this path.  It is kept here as a no-op placeholder.
+    private func installFallbackTapIfNeeded() {
+        guard !fallbackTapInstalled else {
+            startEngine(fallbackEngine, tag: "fallback")
             return
         }
-
-        // 3. Non-zero gains → ensure the tap is installed and engine running.
-        installTapIfNeeded()
-    }
-
-    // MARK: - Tap management
-
-    private func installTapIfNeeded() {
-        guard !isTapInstalled else {
-            // Tap already installed; ensure engine is still running.
-            startEngineIfNeeded()
+        let outputNode = fallbackEngine.outputNode
+        let format     = outputNode.inputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            NSLog("[AudioEngineManager] Fallback output node has no valid format yet")
             return
         }
-
-        let outputNode  = engine.outputNode
-        let inputFormat = outputNode.inputFormat(forBus: 0)
-
-        // Guard against invalid format (can happen before any audio session is active).
-        guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
-            NSLog("[AudioEngineManager] Output node has no valid format yet; tap deferred.")
-            return
+        outputNode.installTap(onBus: 0, bufferSize: 4096, format: format) { _, _ in
+            // Read-only tap: no in-place mutation possible here.
         }
-
-        engine.attach(eqNode)
-
-        // Route: outputNode input → eqNode → outputNode
-        // We tap the output node's input bus, process through EQ, and write
-        // back — effectively inserting EQ into the output chain.
-        outputNode.installTap(
-            onBus: 0,
-            bufferSize: 4096,
-            format: inputFormat
-        ) { [weak self] buffer, _ in
-            self?.processTapBuffer(buffer)
-        }
-
-        isTapInstalled = true
-        startEngineIfNeeded()
+        fallbackTapInstalled = true
+        startEngine(fallbackEngine, tag: "fallback")
     }
 
-    private func processTapBuffer(_ buffer: AVAudioPCMBuffer) {
-        // Render the buffer through the EQ node's AUAudioUnit.
-        // AVAudioUnitEQ exposes its AudioUnit for in-place processing.
-        guard let channelData = buffer.floatChannelData else { return }
-        let frameCount = buffer.frameLength
-        guard frameCount > 0 else { return }
-
-        var bufferList = buffer.mutableAudioBufferList.pointee
-        let auRef = eqNode.audioUnit
-        AudioUnitRender(auRef, nil, nil, 0, frameCount, &bufferList)
-        _ = channelData  // suppress unused warning
+    private func removeFallbackTap() {
+        guard fallbackTapInstalled else { return }
+        fallbackEngine.outputNode.removeTap(onBus: 0)
+        fallbackTapInstalled = false
+        if fallbackEngine.isRunning { fallbackEngine.stop() }
     }
 
-    private func removeTap() {
-        guard isTapInstalled else { return }
-        engine.outputNode.removeTap(onBus: 0)
-        if engine.attachedNodes.contains(eqNode) {
-            engine.detach(eqNode)
-        }
-        isTapInstalled = false
-        if engine.isRunning {
-            engine.stop()
-        }
-    }
+    // MARK: - Engine start helper
 
-    private func startEngineIfNeeded() {
+    private func startEngine(_ engine: AVAudioEngine, tag: String) {
         guard !engine.isRunning else { return }
         do {
             try engine.start()
+            NSLog("[AudioEngineManager] Started \(tag) engine")
         } catch {
-            NSLog("[AudioEngineManager] Failed to start engine: \(error.localizedDescription)")
-            // Remove the tap so we don't leave things in a broken state.
-            removeTap()
+            NSLog("[AudioEngineManager] Failed to start \(tag) engine: \(error.localizedDescription)")
         }
     }
 
@@ -151,85 +219,62 @@ final class AudioEngineManager {
 
     private func observeAudioSession() {
         let nc = NotificationCenter.default
-        nc.addObserver(
-            self,
-            selector: #selector(handleInterruption(_:)),
-            name: AVAudioSession.interruptionNotification,
-            object: AVAudioSession.sharedInstance()
-        )
-        nc.addObserver(
-            self,
-            selector: #selector(handleRouteChange(_:)),
-            name: AVAudioSession.routeChangeNotification,
-            object: AVAudioSession.sharedInstance()
-        )
-        nc.addObserver(
-            self,
-            selector: #selector(handleMediaServicesReset),
-            name: AVAudioSession.mediaServicesWereResetNotification,
-            object: nil
-        )
+        nc.addObserver(self, selector: #selector(handleInterruption(_:)),
+                       name: AVAudioSession.interruptionNotification,
+                       object: AVAudioSession.sharedInstance())
+        nc.addObserver(self, selector: #selector(handleRouteChange(_:)),
+                       name: AVAudioSession.routeChangeNotification,
+                       object: AVAudioSession.sharedInstance())
+        nc.addObserver(self, selector: #selector(handleMediaServicesReset),
+                       name: AVAudioSession.mediaServicesWereResetNotification,
+                       object: nil)
     }
 
     @objc private func handleInterruption(_ notification: Notification) {
         guard
-            let info = notification.userInfo,
+            let info      = notification.userInfo,
             let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
-            let type = AVAudioSession.InterruptionType(rawValue: typeValue)
+            let type      = AVAudioSession.InterruptionType(rawValue: typeValue)
         else { return }
 
-        switch type {
-        case .began:
-            break
-        case .ended:
+        if case .ended = type {
             let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
             let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
             if options.contains(.shouldResume) {
-                DispatchQueue.main.async { [weak self] in
-                    self?.reinstallTapIfNeeded()
-                }
+                DispatchQueue.main.async { [weak self] in self?.reinstallIfNeeded() }
             }
-        @unknown default:
-            break
         }
     }
 
     @objc private func handleRouteChange(_ notification: Notification) {
         guard
-            let info = notification.userInfo,
+            let info        = notification.userInfo,
             let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
-            let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue)
+            let reason      = AVAudioSession.RouteChangeReason(rawValue: reasonValue),
+            reason == .oldDeviceUnavailable
         else { return }
-
-        if reason == .oldDeviceUnavailable {
-            DispatchQueue.main.async { [weak self] in
-                self?.reinstallTapIfNeeded()
-            }
-        }
+        DispatchQueue.main.async { [weak self] in self?.reinstallIfNeeded() }
     }
 
     @objc private func handleMediaServicesReset() {
-        // Media services reset (rare). Rebuild everything from scratch.
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.isTapInstalled = false
+            guard let self else { return }
+            self.isWiredIntoJustAudioEngine = false
+            self.wiredEngine = nil
+            self.fallbackTapInstalled = false
             self.configureBands()
-            // Re-apply whatever gains were set (bands are already configured).
-            let allFlat = self.eqNode.bands.allSatisfy { $0.gain == 0.0 }
-            if !allFlat {
-                self.installTapIfNeeded()
-            }
+            // Re-apply; the Dart side will call wireEngine again on next play.
+            self.applyGainsToEqNode(self.currentGains)
         }
     }
 
-    /// Re-installs tap after an interruption or route change if EQ was active.
-    private func reinstallTapIfNeeded() {
+    private func reinstallIfNeeded() {
         let allFlat = eqNode.bands.allSatisfy { $0.gain == 0.0 }
         guard !allFlat else { return }
-        if isTapInstalled {
-            startEngineIfNeeded()
+        if let engine = wiredEngine {
+            startEngine(engine, tag: "just_audio (resume after interruption)")
         } else {
-            installTapIfNeeded()
+            installFallbackTapIfNeeded()
         }
     }
 }

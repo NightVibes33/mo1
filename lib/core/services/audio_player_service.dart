@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/providers/filtered_audio_files_provider.dart';
@@ -16,9 +17,27 @@ import 'package:dope/features/settings/models/song_transition_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
-final audioPlayerProvider = Provider<AudioPlayer>((_) {
+/// Creates an [AudioPlayer] configured for iOS AVAudioEngine mode so that
+/// just_audio exposes its internal [AVAudioEngine] instance, which
+/// [AudioEngineManager] can wire our EQ node into.
+///
+/// On non-iOS platforms a plain [AudioPlayer] is returned.
+AudioPlayer _makePlayer() {
+  if (Platform.isIOS) {
+    return AudioPlayer(
+      audioLoadConfiguration: const AudioLoadConfiguration(
+        darwinLoadControl: DarwinLoadControl(
+          // Use AVAudioEngine backend instead of AVQueuePlayer so we can
+          // inject AVAudioUnitEQ into the engine graph.
+          avAudioEngineEnabled: true,
+        ),
+      ),
+    );
+  }
   return AudioPlayer();
-});
+}
+
+final audioPlayerProvider = Provider<AudioPlayer>((_) => _makePlayer());
 
 final audioPlayerServiceProvider =
     AsyncNotifierProvider<AudioPlayerServiceNotifier, void>(
@@ -862,7 +881,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
 
     final mainPlayer = ref.read(audioPlayerProvider);
-    final transitionPlayer = AudioPlayer();
+    // Transition player also uses AVAudioEngine mode on iOS so it shares
+    // the same session and the EQ node applies to it automatically via
+    // the wired engine graph.
+    final transitionPlayer = _makePlayer();
     _transitionPlayer = transitionPlayer;
     _mainVolumeBeforeTransition = mainPlayer.volume.clamp(0, 1).toDouble();
     _isTransitioning = true;
