@@ -234,7 +234,7 @@
 /* Begin PBXNativeTarget section */
 		A111111111111111111111108 /* DopiWidget */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = A111111111111111111111109 /* Build configuration list for PBXNativeTarget "DopiWidget" */;
+			buildConfigurationList = A111111111111111111111110 /* Build configuration list for PBXNativeTarget "DopiWidget" */;
 			buildPhases = (
 				A11111111111111111111110A /* Sources */,
 				A11111111111111111111110B /* Frameworks */,
