@@ -17,25 +17,7 @@ import 'package:dope/features/settings/models/song_transition_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
-/// Creates an [AudioPlayer] configured for iOS AVAudioEngine mode so that
-/// just_audio exposes its internal [AVAudioEngine] instance, which
-/// [AudioEngineManager] can wire our EQ node into.
-///
-/// On non-iOS platforms a plain [AudioPlayer] is returned.
-AudioPlayer _makePlayer() {
-  if (Platform.isIOS) {
-    return AudioPlayer(
-      audioLoadConfiguration: const AudioLoadConfiguration(
-        darwinLoadControl: DarwinLoadControl(
-          // Use AVAudioEngine backend instead of AVQueuePlayer so we can
-          // inject AVAudioUnitEQ into the engine graph.
-          avAudioEngineEnabled: true,
-        ),
-      ),
-    );
-  }
-  return AudioPlayer();
-}
+AudioPlayer _makePlayer() => AudioPlayer();
 
 final audioPlayerProvider = Provider<AudioPlayer>((_) => _makePlayer());
 
