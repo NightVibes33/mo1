@@ -255,4 +255,232 @@ class SettingsPreferencesControllerNotifier
       case RepeatMode.all:
         state = state.copyWith(repeatMode: RepeatMode.off);
         await ref
-            
+            .read(settingsPreferencesRepositoryProvider)
+            .setRepeatMode(repeatModeName: RepeatMode.off.name);
+        break;
+    }
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .setLoopMode(state.repeatMode.toLoopMode());
+  }
+
+  Future<void> toggleVibrate() async {
+    state = state.copyWith(vibrate: !state.vibrate);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setVibrate(isVibrateEnabled: state.vibrate);
+  }
+
+  Future<void> toggleClickWheelSound(BuildContext context) async {
+    state = state.copyWith(clickWheelSound: !state.clickWheelSound);
+
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setClickWheelSound(isClickWheelSoundEnabled: state.clickWheelSound);
+
+    if (state.clickWheelSound && context.mounted) {
+      await Dialogs.showInfoDialog(
+        context: context,
+        title: context.localization.touchSoundsDialogTitle,
+        content: context.localization.touchSoundsDialogContent,
+      );
+    }
+  }
+
+  Future<void> toggleVolumeMode() async {
+    switch (state.volumeMode) {
+      case VolumeMode.app:
+        await ref
+            .read(settingsPreferencesRepositoryProvider)
+            .setVolumeMode(volumeModeName: VolumeMode.system.name);
+        state = state.copyWith(volumeMode: VolumeMode.system);
+        break;
+      case VolumeMode.system:
+        await ref
+            .read(settingsPreferencesRepositoryProvider)
+            .setVolumeMode(volumeModeName: VolumeMode.app.name);
+        state = state.copyWith(volumeMode: VolumeMode.app);
+        break;
+    }
+  }
+
+  Future<void> toggleEqualizerPreset() async {
+    final updatedPreset = state.equalizerPreset.next;
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setEqualizerPreset(equalizerPresetName: updatedPreset.name);
+    state = state.copyWith(equalizerPreset: updatedPreset);
+    await ref.read(audioEqualizerServiceProvider).applyPreset(updatedPreset);
+  }
+
+  Future<void> toggleSongSortOrder() async {
+    final updatedSortOrder = state.songSortOrder.next;
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setSongSortOrder(songSortOrderName: updatedSortOrder.name);
+    state = state.copyWith(songSortOrder: updatedSortOrder);
+  }
+
+  Future<void> toggleSongTransitionStyle() async {
+    final updatedStyle = state.songTransitionStyle.next;
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setSongTransitionStyle(songTransitionStyleName: updatedStyle.name);
+    state = state.copyWith(songTransitionStyle: updatedStyle);
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .syncSongTransitionStyle();
+  }
+
+  Future<void> increaseCrossfadeDuration() async {
+    final currentSeconds = state.crossfadeDurationSeconds;
+    final updatedSeconds = currentSeconds >= maxCrossfadeDurationSeconds
+        ? minCrossfadeDurationSeconds
+        : currentSeconds + 1;
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setCrossfadeDurationSeconds(seconds: updatedSeconds);
+    state = state.copyWith(crossfadeDurationSeconds: updatedSeconds);
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .syncSongTransitionStyle();
+  }
+
+  Future<void> toggleSplitScreen() async {
+    state = state.copyWith(splitScreenEnabled: !state.splitScreenEnabled);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setSplitScreenEnabled(isSplitScreenEnabled: state.splitScreenEnabled);
+  }
+
+  Future<void> toggleAppTheme() async {
+    final AppTheme updatedTheme = state.appTheme == AppTheme.light
+        ? AppTheme.dark
+        : AppTheme.light;
+    state = state.copyWith(appTheme: updatedTheme);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setAppTheme(appThemeName: updatedTheme.name);
+  }
+
+  Future<void> toggleTextSize() async {
+    final updatedTextSize = state.appTextSize.next;
+    state = state.copyWith(appTextSize: updatedTextSize);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setTextSize(textSizeName: updatedTextSize.name);
+  }
+
+  Future<void> toggleImmersiveMode() async {
+    state = state.copyWith(immersiveMode: !state.immersiveMode);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setImmersiveMode(isImmersiveModeEnabled: state.immersiveMode);
+    await setSystemUiMode();
+  }
+
+  Future<void> rescanMusicFiles({bool clearPlaylists = false}) async {
+    await Hive.box<MusicMetadata>(Constants.metadataBoxName).clear();
+    if (clearPlaylists) {
+      await Hive.box<PlaylistModel>(Constants.playlistBoxName).clear();
+    }
+    ref.invalidate(audioFilesServiceProvider);
+    ref.invalidate(filteredAudioFilesProvider);
+    ref.read(routerProvider).goNamed(Routes.splash.name);
+  }
+
+  Future<void> resetSettings() async {
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setLanguageLocaleCode(languageLocaleCode: 'en');
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setDeviceColor(deviceColorName: DeviceColor.silver.name);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setTouchScreenEnabled(isTouchScreenEnabled: true);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setRepeatMode(repeatModeName: RepeatMode.off.name);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setVibrate(isVibrateEnabled: true);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setClickWheelSound(isClickWheelSoundEnabled: false);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setEqualizerPreset(equalizerPresetName: EqualizerPreset.off.name);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setSongSortOrder(songSortOrderName: SongSortOrder.title.name);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setSongTransitionStyle(
+          songTransitionStyleName: SongTransitionStyle.off.name,
+        );
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setCrossfadeDurationSeconds(
+          seconds: defaultCrossfadeDurationSeconds,
+        );
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setTextSize(textSizeName: AppTextSize.medium.name);
+    state = state.copyWith(appTextSize: AppTextSize.medium);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setSplitScreenEnabled(isSplitScreenEnabled: true);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setImmersiveMode(isImmersiveModeEnabled: false);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setAppTheme(appThemeName: AppTheme.light.name);
+    state = state.copyWith(
+      songTransitionStyle: SongTransitionStyle.off,
+      crossfadeDurationSeconds: defaultCrossfadeDurationSeconds,
+    );
+    await ref.read(audioEqualizerServiceProvider).applyPreset(
+          EqualizerPreset.off,
+        );
+    await ref.read(audioPlayerServiceProvider.notifier).syncSongTransitionStyle();
+    ref.invalidateSelf();
+  }
+
+  Future<void> increaseVolume() async {
+    if (state.volumeMode == VolumeMode.app) {
+      final double currentVolume = ref.read(audioPlayerProvider).volume;
+      if (currentVolume < 1) {
+        await ref.read(audioPlayerProvider).setVolume(currentVolume + 0.05);
+      }
+    } else {
+      final double currentVolume = await VolumeController.instance.getVolume();
+      if (currentVolume < 1) {
+        await VolumeController.instance.setVolume(
+          (currentVolume + 0.05).clamp(0, 1),
+        );
+      }
+    }
+  }
+
+  Future<void> decreaseVolume() async {
+    if (state.volumeMode == VolumeMode.app) {
+      final double currentVolume = ref.read(audioPlayerProvider).volume;
+      if (currentVolume > 0) {
+        if (currentVolume <= 0.05) {
+          await ref.read(audioPlayerProvider).setVolume(0);
+        } else {
+          await ref.read(audioPlayerProvider).setVolume(currentVolume - 0.05);
+        }
+      }
+    } else {
+      final double currentVolume = await VolumeController.instance.getVolume();
+      if (currentVolume > 0) {
+        await VolumeController.instance.setVolume(
+          (currentVolume - 0.05).clamp(0, 1),
+        );
+      }
+    }
+  }
+}
