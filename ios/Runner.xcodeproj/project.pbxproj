@@ -1456,7 +1456,7 @@
 			};
 			name = Release;
 		};
-		A111111111111111111111111 /* Profile */ = {
+		A111111111111111111111115 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -1532,7 +1532,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A11111111111111111111110E /* Debug */,
-				A111111111111111111111111 /* Profile */,
+				A111111111111111111111115 /* Profile */,
 				A11111111111111111111110F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
