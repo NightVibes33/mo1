@@ -17,45 +17,27 @@ import 'package:dope/features/settings/models/song_transition_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
-// ---------------------------------------------------------------------------
-// EQ effect — created once, shared via provider so AudioEqualizerService
-// can reach it without going through a MethodChannel.
-// ---------------------------------------------------------------------------
-
-/// The DarwinEqualizer wired into the main AudioPlayer on iOS.
-/// On non-iOS platforms this is null and EQ is a no-op.
-final iosEqualizerProvider = Provider<DarwinEqualizer?>((ref) {
-  if (!Platform.isIOS) return null;
-  // 10-band EQ matching the frequencies used in EqualizerPreset.
-  return DarwinEqualizer(
-    bandCount: 10,
-    minFrequency: 20,
-    maxFrequency: 20000,
-  );
-});
-
-/// Creates an [AudioPlayer] with the iOS EQ effect attached (if on iOS).
-/// On other platforms a plain [AudioPlayer] is returned.
-AudioPlayer _makePlayer(DarwinEqualizer? equalizer) {
-  if (Platform.isIOS && equalizer != null) {
+/// Creates an [AudioPlayer] configured for iOS AVAudioEngine mode so that
+/// just_audio exposes its internal [AVAudioEngine] instance, which
+/// [AudioEngineManager] can wire our EQ node into.
+///
+/// On non-iOS platforms a plain [AudioPlayer] is returned.
+AudioPlayer _makePlayer() {
+  if (Platform.isIOS) {
     return AudioPlayer(
       audioLoadConfiguration: const AudioLoadConfiguration(
         darwinLoadControl: DarwinLoadControl(
+          // Use AVAudioEngine backend instead of AVQueuePlayer so we can
+          // inject AVAudioUnitEQ into the engine graph.
           avAudioEngineEnabled: true,
         ),
-      ),
-      audioPipeline: AudioPipeline(
-        darwinAudioEffects: [equalizer],
       ),
     );
   }
   return AudioPlayer();
 }
 
-final audioPlayerProvider = Provider<AudioPlayer>((ref) {
-  final eq = ref.read(iosEqualizerProvider);
-  return _makePlayer(eq);
-});
+final audioPlayerProvider = Provider<AudioPlayer>((_) => _makePlayer());
 
 final audioPlayerServiceProvider =
     AsyncNotifierProvider<AudioPlayerServiceNotifier, void>(
@@ -280,833 +262,327 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       if (ref.read(nowPlayingDetailsProvider).nowPlayingType !=
-          NowPlayingType.songs) {
-        await setAudioSource(
-          musicMetadataList: ref.read(filteredAudioFilesProvider).requireValue,
-        );
+          NowPlayingType.allSongs) {
+        await loadAllSongs();
       }
-
-      await setShuffleMode(true);
       await ref.read(audioPlayerProvider).shuffle();
-      await nextSong();
-      Future.delayed(const Duration(milliseconds: 100), play);
-
-      await ref
-          .read(settingsPreferencesControllerProvider.notifier)
-          .setInitialRepeatMode();
+      await ref.read(audioPlayerProvider).setShuffleModeEnabled(true);
     });
   }
 
-  Future<void> setLoopMode(LoopMode loopMode) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await ref.read(audioPlayerProvider).setLoopMode(loopMode);
-    });
-  }
-
-  Future<void> stopPlaybackAndClearQueue() async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await ref.read(appleMusicPlaybackServiceProvider).pause();
-      await _cancelSongTransition();
-      await ref.read(audioPlayerProvider).stop();
-      ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
-            nowPlayingType: NowPlayingType.songs,
-            newMetadataList: const [],
-            isPlaying: false,
-          );
-    });
-  }
-
-  Future<void> setAudioSource({
-    NowPlayingType nowPlayingType = NowPlayingType.songs,
-    required List<MusicMetadata> musicMetadataList,
-    int initialIndex = 0,
-  }) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      await _pauseAppleMusicPlaybackIfCurrent();
-      await _cancelSongTransition();
-      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
-            'Setting local audio source',
-            data: {
-              'requestedCount': musicMetadataList.length,
-              'initialIndex': initialIndex,
-              'nowPlayingType': nowPlayingType.name,
-            },
-          );
-      final requestedMetadata = musicMetadataList.isEmpty
-          ? null
-          : musicMetadataList[
-              initialIndex.clamp(0, musicMetadataList.length - 1).toInt()
-            ];
-      final localMetadataList = musicMetadataList
-          .where((metadata) => !metadata.isAppleMusicCatalogTrack)
-          .toList(growable: false);
-      final List<AudioSource> songSourcePlaylist = [];
-      try {
-        for (final musicMetadata in localMetadataList) {
-          songSourcePlaylist.add(musicMetadata.toAudioSource());
-        }
-      } catch (_) {}
-
-      if (songSourcePlaylist.isEmpty) {
-        ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
-              'Local audio source was empty',
-              data: {
-                'requestedCount': musicMetadataList.length,
-                'localCount': localMetadataList.length,
-              },
-            );
-        await ref.read(audioPlayerProvider).stop();
-        ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
-              nowPlayingType: nowPlayingType,
-              newMetadataList: const [],
-            );
-        return;
-      }
-
-      final matchingInitialIndex = localMetadataList.indexWhere((metadata) {
-        final requestedPath = requestedMetadata?.filePath;
-        return (requestedPath != null && metadata.filePath == requestedPath) ||
-            metadata.originalSongIndex == requestedMetadata?.originalSongIndex;
-      });
-      final safeInitialIndex = matchingInitialIndex == -1
-          ? 0
-          : matchingInitialIndex.clamp(0, songSourcePlaylist.length - 1).toInt();
-
-      await ref.read(audioPlayerProvider).setAudioSources(
-            songSourcePlaylist,
-            initialIndex: safeInitialIndex,
-            initialPosition: Duration.zero,
-            shuffleOrder: DefaultShuffleOrder(),
-          );
-      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
-            'Local audio source loaded',
-            data: {
-              'localCount': localMetadataList.length,
-              'safeInitialIndex': safeInitialIndex,
-              'requestedTrack': requestedMetadata?.trackName,
-              'requestedPath': requestedMetadata?.filePath,
-            },
-          );
-
-      await _syncEqualizerPreset();
-
-      ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
-            nowPlayingType: nowPlayingType,
-            newMetadataList: localMetadataList,
-            currentIndex: safeInitialIndex,
-          );
-    });
-  }
-
-  Future<void> nextSong() async {
+  Future<void> skipToNext() async {
     final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
     if (nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
-      final nextIndex = nowPlayingDetails.currentIndex + 1;
-      if (nextIndex >= nowPlayingDetails.metadataList.length) {
-        return;
-      }
-      final metadata = nowPlayingDetails.metadataList[nextIndex];
-      if (!metadata.isAppleMusicCatalogTrack) {
-        return;
-      }
-      await _playAppleMusicCatalogTrack(
-        metadata,
-        metadataList: nowPlayingDetails.metadataList,
-        currentIndex: nextIndex,
-        nowPlayingType: nowPlayingDetails.nowPlayingType,
-      );
+      await ref.read(appleMusicPlaybackServiceProvider).skipToNextTrack();
       return;
     }
-    await _cancelSongTransition();
     await ref.read(audioPlayerProvider).seekToNext();
   }
 
-  Future<void> seekBackwards() async {
+  Future<void> skipToPrevious() async {
     final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
     if (nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
-      final previousIndex = nowPlayingDetails.currentIndex - 1;
-      if (previousIndex < 0) {
-        return;
-      }
-      final metadata = nowPlayingDetails.metadataList[previousIndex];
-      if (!metadata.isAppleMusicCatalogTrack) {
-        return;
-      }
-      await _playAppleMusicCatalogTrack(
-        metadata,
-        metadataList: nowPlayingDetails.metadataList,
-        currentIndex: previousIndex,
-        nowPlayingType: nowPlayingDetails.nowPlayingType,
-      );
+      await ref.read(appleMusicPlaybackServiceProvider).skipToPreviousTrack();
       return;
     }
+    final player = ref.read(audioPlayerProvider);
+    if (player.position > const Duration(seconds: 3)) {
+      await player.seek(Duration.zero);
+    } else {
+      await player.seekToPrevious();
+    }
+  }
 
+  Future<void> seek(Duration position) async {
+    final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+    if (nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
+      await ref.read(appleMusicPlaybackServiceProvider).seekToTime(position);
+      return;
+    }
+    await ref.read(audioPlayerProvider).seek(position);
+  }
+
+  Future<void> setVolume(double volume) async {
+    await ref.read(audioPlayerProvider).setVolume(volume);
+  }
+
+  Future<void> toggleRepeatMode() async {
+    final player = ref.read(audioPlayerProvider);
+    final currentMode = player.loopMode;
+    if (currentMode == LoopMode.off) {
+      await player.setLoopMode(LoopMode.all);
+    } else if (currentMode == LoopMode.all) {
+      await player.setLoopMode(LoopMode.one);
+    } else {
+      await player.setLoopMode(LoopMode.off);
+    }
+  }
+
+  Future<void> setRepeatMode(LoopMode mode) async {
+    await ref.read(audioPlayerProvider).setLoopMode(mode);
+  }
+
+  Future<void> loadAllSongs() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      if (ref.read(audioPlayerProvider).position.inSeconds > 3) {
-        await _cancelSongTransition();
-        await ref.read(audioPlayerProvider).seek(Duration.zero);
-      } else {
-        await _cancelSongTransition();
-        await ref.read(audioPlayerProvider).seekToPrevious();
-      }
+      await _loadSongs(
+        ref.read(filteredAudioFilesProvider),
+        nowPlayingType: NowPlayingType.allSongs,
+      );
     });
   }
 
-  Future<void> playAlbum({
-    required AlbumModel albumDetail,
-    required int songIndex,
-  }) async {
+  Future<void> loadAlbum(AlbumModel album) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      if (albumDetail.albumSongs.isEmpty ||
-          songIndex >= albumDetail.albumSongs.length) {
-        return;
-      }
-
-      final didStart = await playMetadataListAtIndex(
-        metadataList: albumDetail.albumSongs,
-        index: songIndex,
+      await _loadSongs(
+        album.songs,
         nowPlayingType: NowPlayingType.album,
       );
-      if (didStart) {
-        await setShuffleMode(false);
-      }
     });
   }
 
-  Future<void> playPlaylist({
-    required PlaylistModel playlistDetail,
-    required int songIndex,
-  }) async {
+  Future<void> loadPlaylist(PlaylistModel playlist) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      if (playlistDetail.songs.isEmpty ||
-          songIndex >= playlistDetail.songs.length) {
-        return;
-      }
-
-      final didStart = await playMetadataListAtIndex(
-        metadataList: playlistDetail.songs,
-        index: songIndex,
+      await _loadSongs(
+        playlist.songs,
         nowPlayingType: NowPlayingType.playlist,
       );
-      if (didStart) {
-        await setShuffleMode(false);
-      }
     });
   }
 
-  Future<void> playSongAtIndex(int index) async {
+  Future<void> playSongFromOriginalList(int originalSongIndex) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final songs = ref.read(filteredAudioFilesProvider);
+      final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+
+      if (nowPlayingDetails.nowPlayingType != NowPlayingType.allSongs) {
+        await _loadSongs(
+          songs,
+          nowPlayingType: NowPlayingType.allSongs,
+        );
+      }
+
+      final newIndex = songs.indexWhere(
+        (s) => s.originalSongIndex == originalSongIndex,
+      );
+
+      if (newIndex == -1) {
+        return;
+      }
+      await _syncEqualizerPreset();
+      await _playIndex(newIndex);
+    });
+  }
+
+  Future<void> playSongFromAlbum({
+    required AlbumModel album,
+    required int songIndex,
+  }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
-      if (index >= 0 && index < nowPlayingDetails.metadataList.length) {
-        final metadata = nowPlayingDetails.metadataList[index];
-        if (metadata.isAppleMusicCatalogTrack) {
-          await _playAppleMusicCatalogTrack(
-            metadata,
-            metadataList: nowPlayingDetails.metadataList,
-            currentIndex: index,
-            nowPlayingType: nowPlayingDetails.nowPlayingType,
-          );
-          return;
-        }
-      }
-
-      if (nowPlayingDetails.currentIndex == index) {
-        return;
-      } else {
-        await _cancelSongTransition();
-        await ref.read(audioPlayerProvider).seek(Duration.zero, index: index);
-        Future.delayed(const Duration(milliseconds: 100), play);
-      }
-    });
-  }
-
-  Future<void> playSongFromOriginalList(int originalIndex) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      final player = ref.read(audioPlayerProvider);
-      var nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
-      final externalIndex = nowPlayingDetails.metadataList.indexWhere(
-        (element) => element.originalSongIndex == originalIndex,
-      );
-      if (externalIndex != -1 &&
-          nowPlayingDetails.metadataList[externalIndex]
-              .isAppleMusicCatalogTrack) {
-        await _playAppleMusicCatalogTrack(
-          nowPlayingDetails.metadataList[externalIndex],
-          metadataList: nowPlayingDetails.metadataList,
-          currentIndex: externalIndex,
-          nowPlayingType: nowPlayingDetails.nowPlayingType,
-        );
-        return;
-      }
-      final hasLoadedSources = player.currentIndex != null;
-      final shouldUseOriginalList = !hasLoadedSources ||
-          nowPlayingDetails.nowPlayingType != NowPlayingType.songs ||
-          nowPlayingDetails.metadataList.isEmpty ||
-          !nowPlayingDetails.metadataList.any(
-            (element) => element.originalSongIndex == originalIndex,
-          );
-
-      if (shouldUseOriginalList) {
-        final originalList = ref.read(filteredAudioFilesProvider).requireValue;
-        final initialIndex = originalList.indexWhere(
-          (element) => element.originalSongIndex == originalIndex,
-        );
-        if (initialIndex == -1) {
-          return;
-        }
-        final selectedOriginalMetadata = originalList[initialIndex];
-        if (selectedOriginalMetadata.isAppleMusicCatalogTrack) {
-          final appleMusicList = originalList
-              .where((metadata) => metadata.isAppleMusicCatalogTrack)
-              .toList(growable: false);
-          final appleMusicIndex = appleMusicList.indexWhere(
-            (metadata) =>
-                metadata.filePath == selectedOriginalMetadata.filePath,
-          );
-          if (appleMusicIndex == -1) {
-            return;
-          }
-          await _playAppleMusicCatalogTrack(
-            appleMusicList[appleMusicIndex],
-            metadataList: appleMusicList,
-            currentIndex: appleMusicIndex,
-          );
-          return;
-        }
-        await setAudioSource(
-          musicMetadataList: originalList,
-          initialIndex: initialIndex,
-        );
-        nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
-      }
-
-      if (originalIndex ==
-          nowPlayingDetails.currentMetadata?.originalSongIndex) {
+      if (nowPlayingDetails.nowPlayingType == NowPlayingType.album &&
+          nowPlayingDetails.metadataList.isNotEmpty &&
+          nowPlayingDetails.metadataList.first.albumName == album.name) {
         await _syncEqualizerPreset();
-        await player.play();
+        await _playIndex(songIndex);
         return;
       }
-
-      final int index = nowPlayingDetails.metadataList.indexWhere(
-        (element) => element.originalSongIndex == originalIndex,
-      );
-      if (index == -1) {
-        return;
-      }
-
-      await _cancelSongTransition();
-      await player.seek(Duration.zero, index: index);
-      Future.delayed(const Duration(milliseconds: 200), play);
+      await _loadSongs(album.songs, nowPlayingType: NowPlayingType.album);
+      await _syncEqualizerPreset();
+      await _playIndex(songIndex);
     });
   }
 
-  Future<bool> playMetadataListAtIndex({
-    required List<MusicMetadata> metadataList,
-    required int index,
-    NowPlayingType nowPlayingType = NowPlayingType.songs,
+  Future<void> playSongFromPlaylist({
+    required PlaylistModel playlist,
+    required int songIndex,
   }) async {
-    if (index < 0 || index >= metadataList.length) {
-      return false;
-    }
-
-    final selectedMetadata = metadataList[index];
-    if (selectedMetadata.isAppleMusicCatalogTrack) {
-      final appleMusicList = metadataList
-          .where((metadata) => metadata.isAppleMusicCatalogTrack)
-          .toList(growable: false);
-      final appleMusicIndex = appleMusicList.indexWhere(
-        (metadata) => metadata.filePath == selectedMetadata.filePath,
-      );
-      if (appleMusicIndex == -1) {
-        return false;
-      }
-      return _playAppleMusicCatalogTrack(
-        appleMusicList[appleMusicIndex],
-        metadataList: appleMusicList,
-        currentIndex: appleMusicIndex,
-        nowPlayingType: nowPlayingType,
-      );
-    }
-
-    await setAudioSource(
-      nowPlayingType: nowPlayingType,
-      musicMetadataList: metadataList,
-      initialIndex: index,
-    );
-    await play();
-    return true;
-  }
-
-  Future<bool> playAppleMusicMetadata(
-    MusicMetadata metadata, {
-    List<MusicMetadata>? metadataList,
-    int currentIndex = 0,
-  }) async {
-    var didStart = false;
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      didStart = await _playAppleMusicCatalogTrack(
-        metadata,
-        metadataList: metadataList ?? [metadata],
-        currentIndex: currentIndex,
+      final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+      if (nowPlayingDetails.nowPlayingType == NowPlayingType.playlist &&
+          nowPlayingDetails.metadataList.isNotEmpty &&
+          nowPlayingDetails.metadataList.first.albumName == playlist.name) {
+        await _syncEqualizerPreset();
+        await _playIndex(songIndex);
+        return;
+      }
+      await _loadSongs(
+        playlist.songs,
+        nowPlayingType: NowPlayingType.playlist,
       );
+      await _syncEqualizerPreset();
+      await _playIndex(songIndex);
     });
-    return didStart;
   }
 
-  Future<bool> _resumeAppleMusicCatalogTrack(
-    MusicMetadata metadata, {
-    List<MusicMetadata>? metadataList,
-    int currentIndex = 0,
-    NowPlayingType nowPlayingType = NowPlayingType.songs,
-  }) async {
-    final didResume = await ref.read(appleMusicPlaybackServiceProvider).resume();
-    if (didResume) {
-      ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
-            nowPlayingType: nowPlayingType,
-            newMetadataList: metadataList ?? [metadata],
-            currentIndex: currentIndex,
-            isPlaying: true,
-          );
-      return true;
-    }
+  Future<void> _syncEqualizerPreset() async {
+    final settings = ref.read(settingsPreferencesControllerProvider);
+    await ref
+        .read(audioEqualizerServiceProvider.notifier)
+        .applyPreset(settings.equalizerPreset);
+  }
 
-    return _playAppleMusicCatalogTrack(
-      metadata,
-      metadataList: metadataList,
-      currentIndex: currentIndex,
+  Future<void> _playIndex(int index) async {
+    ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+          'Playing index',
+          data: _playbackCrashData(extra: {'targetIndex': index}),
+        );
+    final player = ref.read(audioPlayerProvider);
+    await player.seek(Duration.zero, index: index);
+    await player.play();
+  }
+
+  Future<void> _loadSongs(
+    List<MusicMetadata> songs, {
+    required NowPlayingType nowPlayingType,
+  }) async {
+    final player = ref.read(audioPlayerProvider);
+    final playlist = ConcatenatingAudioSource(
+      children:
+          songs.map((song) => AudioSource.file(song.filePath)).toList(),
+    );
+    await player.setAudioSource(
+      playlist,
+      preloadIndex: 0,
+    );
+    ref.read(nowPlayingDetailsProvider.notifier).setMetadataList(
+      songs,
       nowPlayingType: nowPlayingType,
     );
   }
 
-  Future<bool> _playAppleMusicCatalogTrack(
+  Future<void> _resumeAppleMusicCatalogTrack(
     MusicMetadata metadata, {
-    List<MusicMetadata>? metadataList,
-    int currentIndex = 0,
-    NowPlayingType nowPlayingType = NowPlayingType.songs,
+    required List<MusicMetadata> metadataList,
+    required int currentIndex,
+    required NowPlayingType nowPlayingType,
   }) async {
-    final catalogId = metadata.appleMusicCatalogId;
-    if (catalogId == null) {
-      return false;
-    }
-
-    final localPlayer = ref.read(audioPlayerProvider);
-    if (localPlayer.playing) {
-      await localPlayer.pause();
-    }
-
-    final playbackList = metadataList ?? [metadata];
-    final catalogIds = playbackList
-        .map((entry) => entry.appleMusicCatalogId)
-        .whereType<String>()
-        .toList(growable: false);
-    final settings = ref.read(settingsPreferencesControllerProvider);
-    final didStart = await ref
-        .read(appleMusicPlaybackServiceProvider)
-        .playCatalogQueue(
-          catalogIds: catalogIds.isEmpty ? [catalogId] : catalogIds,
-          startCatalogId: catalogId,
-          transitionStyle: settings.songTransitionStyle,
-          transitionDuration: Duration(
-            seconds: settings.crossfadeDurationSeconds,
-          ),
-        );
-    ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
-          nowPlayingType: nowPlayingType,
-          newMetadataList: playbackList,
+    await ref.read(appleMusicPlaybackServiceProvider).play(
+          metadata: metadata,
+          metadataList: metadataList,
           currentIndex: currentIndex,
-          isPlaying: didStart,
+          nowPlayingType: nowPlayingType,
         );
-    if (didStart) {
-      unawaited(_refreshAppleMusicLyrics(metadata));
-    }
-    return didStart;
   }
 
-  Future<void> _refreshAppleMusicLyrics(MusicMetadata metadata) async {
-    if (metadata.originalSongIndex < 0 ||
-        _hasSyncedLyricTiming(metadata.lyrics)) {
-      return;
-    }
-
-    try {
-      final lyrics = await ref.read(lyricsLookupServiceProvider).findBestFor(
-            metadata,
-          );
-      if (lyrics == null || lyrics.trim().isEmpty) {
-        return;
-      }
-      final enrichedMetadata = metadata.copyWith(lyrics: lyrics);
-      await ref
-          .read(nowPlayingDetailsProvider.notifier)
-          .updateMetadata(enrichedMetadata);
-    } catch (_) {
-      // Lyrics are best-effort metadata; playback should never depend on them.
-    }
-  }
-
-  Future<void> _pauseAppleMusicPlaybackIfCurrent() async {
-    if (ref
-            .read(nowPlayingDetailsProvider)
-            .currentMetadata
-            ?.isAppleMusicCatalogTrack ??
-        false) {
-      await ref.read(appleMusicPlaybackServiceProvider).pause();
-      ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(false);
-    }
-  }
+  // ─── Song Transition ────────────────────────────────────────────────────────
 
   Future<void> _maybeStartSongTransition(Duration position) async {
-    if (_isPreparingTransition || _isTransitioning) {
-      return;
-    }
-
-    final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
-    final currentMetadata = nowPlayingDetails.currentMetadata;
-    if (currentMetadata == null ||
-        currentMetadata.isAppleMusicCatalogTrack ||
-        !nowPlayingDetails.isPlaying ||
-        nowPlayingDetails.metadataList.isEmpty) {
-      return;
-    }
-
     final settings = ref.read(settingsPreferencesControllerProvider);
-    final style = settings.songTransitionStyle;
-    if (style == SongTransitionStyle.off) {
-      return;
-    }
+    final transitionStyle = settings.songTransitionStyle;
+    if (transitionStyle == SongTransitionStyle.none) return;
 
     final player = ref.read(audioPlayerProvider);
     final duration = player.duration;
-    final currentIndex = player.currentIndex ?? nowPlayingDetails.currentIndex;
-    if (!player.playing ||
-        player.shuffleModeEnabled ||
-        nowPlayingDetails.loopMode == LoopMode.one ||
-        duration == null ||
-        duration <= const Duration(seconds: 4) ||
-        currentIndex < 0 ||
-        currentIndex >= nowPlayingDetails.metadataList.length) {
+    if (duration == null || duration.inSeconds < 10) return;
+    if (!player.playing) return;
+
+    final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+    if (nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
       return;
     }
 
-    final nextIndex = _nextTransitionIndex(nowPlayingDetails, currentIndex);
-    if (nextIndex == null || _transitionSourceIndex == currentIndex) {
-      return;
-    }
+    final crossfadeDuration = Duration(
+      seconds: settings.crossfadeDurationSeconds,
+    );
+    final transitionStart = duration - crossfadeDuration;
+    if (position < transitionStart) return;
 
-    final nextMetadata = nowPlayingDetails.metadataList[nextIndex];
-    if (nextMetadata.isAppleMusicCatalogTrack) {
-      return;
-    }
+    final currentIndex = player.currentIndex;
+    if (currentIndex == null) return;
+    if (_isPreparingTransition || _isTransitioning) return;
+    if (_transitionSourceIndex == currentIndex) return;
+
+    final nextIndex = player.nextIndex;
+    if (nextIndex == null) return;
+
+    _isPreparingTransition = true;
+    _transitionSourceIndex = currentIndex;
 
     final analysisService = ref.read(songTransitionAnalysisServiceProvider);
-    final currentProfile = analysisService.cachedProfileFor(currentMetadata);
-    final nextProfile = analysisService.cachedProfileFor(nextMetadata);
+    final metadataList = nowPlayingDetails.metadataList;
+    final currentSong = metadataList[currentIndex];
+    final nextSong = metadataList[nextIndex];
 
-    final transitionDuration = _safeTransitionDuration(
-      duration,
-      style.transitionDuration(
-        nowPlayingType: nowPlayingDetails.nowPlayingType,
-        currentMetadata: currentMetadata,
-        crossfadeDurationSeconds: settings.crossfadeDurationSeconds,
-        nextMetadata: nextMetadata,
-        currentProfile: currentProfile,
-        nextProfile: nextProfile,
-      ),
+    final result = await analysisService.analyze(
+      currentSong: currentSong,
+      nextSong: nextSong,
+      transitionStyle: transitionStyle,
+      crossfadeDuration: crossfadeDuration,
     );
-    if (transitionDuration == Duration.zero) {
+
+    if (result == null) {
+      _isPreparingTransition = false;
       return;
     }
 
-    final startPosition = style == SongTransitionStyle.autoMix
-        ? autoMixStartPosition(
-            duration: duration,
-            transitionDuration: transitionDuration,
-            profile: currentProfile,
-          )
-        : duration - transitionDuration;
-    if (position < startPosition) {
-      return;
-    }
-
-    _transitionSourceIndex = currentIndex;
-    ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
-          'Starting local song transition',
-          data: _playbackCrashData(
-            extra: {
-              'nextIndex': nextIndex,
-              'nextTrackName': nextMetadata.trackName,
-              'transitionDurationMs': transitionDuration.inMilliseconds,
-              'transitionStartSeconds': startPosition.inSeconds,
-            },
-          ),
-        );
-    await _performLocalSongTransition(
-      nextIndex: nextIndex,
-      nextMetadata: nextMetadata,
-      transitionDuration: transitionDuration,
-    );
-  }
-
-  int? _nextTransitionIndex(
-    NowPlayingModel nowPlayingDetails,
-    int currentIndex,
-  ) {
-    final nextIndex = currentIndex + 1;
-    if (nextIndex < nowPlayingDetails.metadataList.length) {
-      return nextIndex;
-    }
-    if (nowPlayingDetails.loopMode == LoopMode.all &&
-        nowPlayingDetails.metadataList.length > 1) {
-      return 0;
-    }
-    return null;
-  }
-
-  Duration _safeTransitionDuration(Duration duration, Duration transition) {
-    if (transition <= Duration.zero) {
-      return Duration.zero;
-    }
-    final maxTransitionMs = ((duration.inMilliseconds - 3000) / 2).floor();
-    if (maxTransitionMs <= 0) {
-      return Duration.zero;
-    }
-    return Duration(
-      milliseconds: transition.inMilliseconds
-          .clamp(1000, maxTransitionMs)
-          .toInt(),
-    );
-  }
-
-  Future<void> _performLocalSongTransition({
-    required int nextIndex,
-    required MusicMetadata nextMetadata,
-    required Duration transitionDuration,
-  }) async {
-    if (_isTransitioning) {
-      return;
-    }
-
-    final mainPlayer = ref.read(audioPlayerProvider);
-    // Transition player uses the same iOS equalizer so EQ is consistent
-    // during crossfades.
-    final eq = ref.read(iosEqualizerProvider);
-    final transitionPlayer = _makePlayer(eq);
-    _transitionPlayer = transitionPlayer;
-    _mainVolumeBeforeTransition = mainPlayer.volume.clamp(0, 1).toDouble();
+    _isPreparingTransition = false;
     _isTransitioning = true;
 
-    try {
-      await transitionPlayer.setAudioSource(nextMetadata.toAudioSource());
-      await transitionPlayer.setVolume(0);
-      await transitionPlayer.play();
-      await _blendPlayers(
-        mainPlayer: mainPlayer,
-        transitionPlayer: transitionPlayer,
-        targetVolume: _mainVolumeBeforeTransition,
-        transitionDuration: transitionDuration,
-      );
-      if (!_isTransitioning) {
-        return;
-      }
-      await mainPlayer.seek(transitionDuration, index: nextIndex);
-      await mainPlayer.setVolume(_mainVolumeBeforeTransition);
-      if (!mainPlayer.playing) {
-        await mainPlayer.play();
-      }
-      ref.read(nowPlayingDetailsProvider.notifier).setCurrentIndex(nextIndex);
-      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
-            'Local song transition complete',
-            data: _playbackCrashData(
-              extra: {
-                'nextIndex': nextIndex,
-                'nextTrackName': nextMetadata.trackName,
-                'transitionDurationMs': transitionDuration.inMilliseconds,
-              },
-            ),
-          );
-    } catch (error, stackTrace) {
-      ref.read(crashLogServiceProvider).recordPlaybackError(
-            'Local song transition failed',
-            error: error,
-            stackTrace: stackTrace,
-            data: _playbackCrashData(
-              extra: {
-                'nextIndex': nextIndex,
-                'nextTrackName': nextMetadata.trackName,
-                'transitionDurationMs': transitionDuration.inMilliseconds,
-              },
-            ),
-          );
-      await mainPlayer.setVolume(_mainVolumeBeforeTransition);
-    } finally {
-      if (identical(_transitionPlayer, transitionPlayer)) {
-        _transitionPlayer = null;
-        await transitionPlayer.stop();
-        await transitionPlayer.dispose();
-      }
-      _isTransitioning = false;
-    }
+    await _executeTransition(
+      result: result,
+      nextSong: nextSong,
+      nextIndex: nextIndex,
+      crossfadeDuration: crossfadeDuration,
+    );
   }
 
-  Future<void> _blendPlayers({
-    required AudioPlayer mainPlayer,
-    required AudioPlayer transitionPlayer,
-    required double targetVolume,
-    required Duration transitionDuration,
+  Future<void> _executeTransition({
+    required SongTransitionAnalysisResult result,
+    required MusicMetadata nextSong,
+    required int nextIndex,
+    required Duration crossfadeDuration,
   }) async {
-    final steps = (transitionDuration.inMilliseconds / 120)
-        .ceil()
-        .clamp(8, 80)
-        .toInt();
-    final stepDelay = Duration(
-      milliseconds: (transitionDuration.inMilliseconds / steps).round(),
+    final player = ref.read(audioPlayerProvider);
+
+    _transitionPlayer = _makePlayer();
+    await _transitionPlayer!.setAudioSource(
+      AudioSource.file(nextSong.filePath),
     );
-    for (var step = 0; step <= steps; step++) {
-      if (!_isTransitioning) {
-        return;
-      }
-      final progress = step / steps;
-      await mainPlayer.setVolume(targetVolume * (1 - progress));
-      await transitionPlayer.setVolume(targetVolume * progress);
-      if (step < steps) {
-        await Future<void>.delayed(stepDelay);
-      }
+    await _transitionPlayer!.seek(result.nextSongStartPosition);
+
+    await _transitionPlayer!.setVolume(0);
+    await _transitionPlayer!.play();
+
+    final steps = 20;
+    final stepDuration = crossfadeDuration ~/ steps;
+
+    for (var i = 1; i <= steps; i++) {
+      await Future<void>.delayed(stepDuration);
+      final progress = i / steps;
+      _mainVolumeBeforeTransition = player.volume;
+      await player.setVolume(1.0 - progress);
+      await _transitionPlayer!.setVolume(progress);
     }
+
+    await player.seekToIndex(nextIndex);
+    await player.setVolume(1.0);
+    await _transitionPlayer!.stop();
+    await _transitionPlayer!.dispose();
+    _transitionPlayer = null;
+    _isTransitioning = false;
   }
 
   Future<void> _cancelSongTransition() async {
-    if (!_isTransitioning && _transitionPlayer == null) {
-      return;
+    if (_transitionPlayer != null) {
+      await _transitionPlayer!.stop();
+      await _transitionPlayer!.dispose();
+      _transitionPlayer = null;
     }
+    _isPreparingTransition = false;
     _isTransitioning = false;
-    final transitionPlayer = _transitionPlayer;
-    _transitionPlayer = null;
-    if (transitionPlayer != null) {
-      await transitionPlayer.stop();
-      await transitionPlayer.dispose();
-    }
     _transitionSourceIndex = null;
     await ref.read(audioPlayerProvider).setVolume(_mainVolumeBeforeTransition);
   }
 
-  Future<void> _syncEqualizerPreset() async {
-    await ref.read(audioEqualizerServiceProvider).applyPreset(
-          ref.read(settingsPreferencesControllerProvider).equalizerPreset,
-        );
+  // ─── Lyrics ───────────────────────────────────────────────────────────────────
+
+  Future<void> lookupLyrics(MusicMetadata metadata) async {
+    await ref.read(lyricsLookupServiceProvider).lookupLyrics(metadata);
   }
-
-  Future<void> togglePlayback() async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
-      if (nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ??
-          false) {
-        if (nowPlayingDetails.isPlaying) {
-          await pause();
-        } else {
-          await play();
-        }
-        return;
-      }
-
-      if (ref.read(audioPlayerProvider).playing) {
-        await pause();
-      } else {
-        await play();
-      }
-    });
-  }
-
-  Future<void> seekForward() async {
-    if (ref.read(nowPlayingDetailsProvider).currentMetadata
-            ?.isAppleMusicCatalogTrack ??
-        false) {
-      await ref
-          .read(appleMusicPlaybackServiceProvider)
-          .seekBy(const Duration(seconds: 1));
-      return;
-    }
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      final int currentDurationInSeconds =
-          ref.read(audioPlayerProvider).position.inSeconds;
-      final int maxDurationInSeconds =
-          ref.read(audioPlayerProvider).duration?.inSeconds ?? 0;
-      if (currentDurationInSeconds + 1 < maxDurationInSeconds) {
-        await _cancelSongTransition();
-        await ref.read(audioPlayerProvider).seek(
-              Duration(
-                seconds:
-                    ref.read(audioPlayerProvider).position.inSeconds + 1,
-              ),
-            );
-      }
-    });
-  }
-
-  Future<void> seekBackward() async {
-    if (ref.read(nowPlayingDetailsProvider).currentMetadata
-            ?.isAppleMusicCatalogTrack ??
-        false) {
-      await ref
-          .read(appleMusicPlaybackServiceProvider)
-          .seekBy(const Duration(seconds: -1));
-      return;
-    }
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      final currentSeconds =
-          ref.read(audioPlayerProvider).position.inSeconds;
-      final targetSeconds =
-          (currentSeconds - 1).clamp(0, currentSeconds).toInt();
-      await _cancelSongTransition();
-      await ref
-          .read(audioPlayerProvider)
-          .seek(Duration(seconds: targetSeconds));
-    });
-  }
-
-  Future<void> seekToDuration(int targetDurationInSeconds) async {
-    if (ref.read(nowPlayingDetailsProvider).currentMetadata
-            ?.isAppleMusicCatalogTrack ??
-        false) {
-      await ref.read(appleMusicPlaybackServiceProvider).seekTo(
-            Duration(seconds: targetDurationInSeconds),
-          );
-      return;
-    }
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
-      final int maxDurationInSeconds =
-          ref.read(audioPlayerProvider).duration?.inSeconds ?? 0;
-      final clampedTarget = targetDurationInSeconds
-          .clamp(0, maxDurationInSeconds)
-          .toInt();
-      await _cancelSongTransition();
-      await ref
-          .read(audioPlayerProvider)
-          .seek(Duration(seconds: clampedTarget));
-    });
-  }
-}
-
-final _syncedLyricTimestampRegex = RegExp(
-  r'^\[\d{1,2}:\d{2}(?:[\.:]\d{1,3})?\]',
-  multiLine: true,
-);
-
-bool _hasSyncedLyricTiming(String? lyrics) {
-  final value = lyrics?.trim();
-  return value != null &&
-      value.isNotEmpty &&
-      _syncedLyricTimestampRegex.hasMatch(value);
 }
