@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/providers/filtered_audio_files_provider.dart';
@@ -452,7 +451,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         );
   }
 
-  // ─── Song Transition ────────────────────────────────────────────────────────
+  // ─── Song Transition ──────────────────────────────────────────────────────
 
   Future<void> _maybeStartSongTransition(Duration position) async {
     final settings = ref.read(settingsPreferencesControllerProvider);
@@ -562,7 +561,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     await ref.read(audioPlayerProvider).setVolume(_mainVolumeBeforeTransition);
   }
 
-  // ─── Lyrics ───────────────────────────────────────────────────────────────────
+  // ─── Lyrics ───────────────────────────────────────────────────────────────
 
   Future<void> lookupLyrics(MusicMetadata metadata) async {
     await ref.read(lyricsLookupServiceProvider).lookupLyrics(metadata);
