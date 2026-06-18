@@ -219,6 +219,42 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
   }
 
+  /// Toggles between play and pause.
+  Future<void> togglePlayback() async {
+    if (ref.read(audioPlayerProvider).playing) {
+      await pause();
+    } else {
+      await play();
+    }
+  }
+
+  /// Skips to the next track.
+  Future<void> nextSong() async {
+    await skipToNext();
+  }
+
+  /// Skips to the previous track (or beginning of current if past 3 s).
+  Future<void> seekBackwards() async {
+    await skipToPrevious();
+  }
+
+  /// Seeks to [seconds] seconds from the start of the current track.
+  Future<void> seekToDuration(int seconds) async {
+    await seek(Duration(seconds: seconds));
+  }
+
+  /// Stops playback and clears the audio source / queue.
+  Future<void> stopPlaybackAndClearQueue() async {
+    await _cancelSongTransition();
+    final player = ref.read(audioPlayerProvider);
+    if (player.playing) {
+      await player.stop();
+    }
+    await player.setAudioSource(
+      ConcatenatingAudioSource(children: []),
+    );
+  }
+
   Future<void> toggleShuffleMode() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
@@ -424,8 +460,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   }) async {
     final player = ref.read(audioPlayerProvider);
     final playlist = ConcatenatingAudioSource(
-      children:
-          songs.map((song) => AudioSource.file(song.filePath)).toList(),
+      children: songs
+          .where((song) => song.filePath != null)
+          .map((song) => AudioSource.file(song.filePath!))
+          .toList(),
     );
     await player.setAudioSource(
       playlist,
@@ -490,6 +528,12 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     final currentSong = metadataList[currentIndex];
     final nextSong = metadataList[nextIndex];
 
+    // If the next song has no local file path, skip the crossfade.
+    if (nextSong.filePath == null) {
+      _isPreparingTransition = false;
+      return;
+    }
+
     final result = await analysisService.analyze(
       currentSong: currentSong,
       nextSong: nextSong,
@@ -523,7 +567,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
     _transitionPlayer = _makePlayer();
     await _transitionPlayer!.setAudioSource(
-      AudioSource.file(nextSong.filePath),
+      AudioSource.file(nextSong.filePath!),
     );
     await _transitionPlayer!.seek(result.nextSongStartPosition);
 
@@ -541,7 +585,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       await _transitionPlayer!.setVolume(progress);
     }
 
-    await player.seekToIndex(nextIndex);
+    // seek to the next track in the main player queue
+    await player.seek(Duration.zero, index: nextIndex);
     await player.setVolume(1.0);
     await _transitionPlayer!.stop();
     await _transitionPlayer!.dispose();
@@ -564,6 +609,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   // ─── Lyrics ─────────────────────────────────────────────────────────────────
 
   Future<void> lookupLyrics(MusicMetadata metadata) async {
-    await ref.read(lyricsLookupServiceProvider).lookupLyrics(metadata);
+    await ref.read(lyricsLookupServiceProvider).findBestFor(metadata);
   }
 }
