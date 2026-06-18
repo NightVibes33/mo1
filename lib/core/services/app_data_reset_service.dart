@@ -4,6 +4,7 @@ import 'package:dope/core/providers/filtered_audio_files_provider.dart';
 import 'package:dope/core/services/app_documents_service.dart';
 import 'package:dope/core/services/audio_files_service.dart';
 import 'package:dope/core/services/audio_player_service.dart';
+import 'package:dope/core/services/native_core_bridge.dart';
 import 'package:dope/core/services/debug_log_service.dart';
 import 'package:dope/features/music/album/providers/album_details_provider.dart';
 import 'package:dope/features/music/artists/providers/artist_names_provider.dart';
@@ -38,6 +39,7 @@ class AppDataResetService {
     await ref.read(appDocumentsServiceProvider).deleteUserContent();
 
     ref.read(audioFilesServiceProvider.notifier).clearLibraryState();
+    await ref.read(nativeCoreBridgeProvider).clear();
     ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
           nowPlayingType: NowPlayingType.songs,
           newMetadataList: const [],

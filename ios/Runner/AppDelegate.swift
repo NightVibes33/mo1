@@ -27,6 +27,7 @@ import UIKit
     if let controller = window?.rootViewController as? FlutterViewController {
       AppleMusicLookupChannel.register(with: controller.binaryMessenger)
       EqualizerChannel.register(with: controller.binaryMessenger)
+      NativeCoreBridgeChannel.register(with: controller.binaryMessenger)
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
