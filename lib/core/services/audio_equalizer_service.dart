@@ -22,7 +22,7 @@ class AudioEqualizerServiceNotifier extends AsyncNotifier<void> {
       final result = await _channel.invokeMapMethod<String, dynamic>(
         'setPreset',
         {
-          'presetName': preset.displayName,
+          'presetName': preset.title,
           'bandGainsDb': preset.approximateBandGainsDb,
         },
       );
@@ -30,7 +30,7 @@ class AudioEqualizerServiceNotifier extends AsyncNotifier<void> {
       if (!isApplied) {
         final msg = result?['message'] as String? ?? 'unknown reason';
         // ignore: avoid_print
-        print('[EQ] Preset "${preset.displayName}" not applied: $msg');
+        print('[EQ] Preset "${preset.title}" not applied: $msg');
       }
     } on PlatformException catch (e) {
       // ignore: avoid_print
