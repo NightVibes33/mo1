@@ -7,8 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A111111111111111111111101 /* DopiWidgetExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = A111111111111111111111102 /* DopiWidgetExtension.swift */; };
-		A111111111111111111111103 /* DopiWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A111111111111111111111104 /* DopiWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A111111111111111111111111 /* CarPlaySceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A111111111111111111111112 /* CarPlaySceneDelegate.swift */; };
 		A111111111111111111111113 /* AppShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A111111111111111111111114 /* AppShortcuts.swift */; };
 		9B3D5F202F4B4A7A00A1A111 /* PlatformIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D5F1B2F4B4A7A00A1A111 /* PlatformIntegration.swift */; };
@@ -51,10 +49,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		A111111111111111111111102 /* DopiWidgetExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DopiWidgetExtension.swift; sourceTree = "<group>"; };
-		A111111111111111111111104 /* DopiWidget.appex */ = {isa = PBXFileReference; explicitFileType = wrapper.app-extension; includeInIndex = 0; path = DopiWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		A111111111111111111111105 /* WidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WidgetExtension.entitlements; sourceTree = "<group>"; };
-		A111111111111111111111106 /* Info.plist (WidgetExtension) */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A111111111111111111111112 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
 		A111111111111111111111114 /* AppShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShortcuts.swift; sourceTree = "<group>"; };
 		9B3D5F1A2F4B4A7A00A1A112 /* WidgetTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTimeline.swift; sourceTree = "<group>"; };
@@ -146,7 +140,6 @@
 				97C146F01CF9000F007C117D /* Runner */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
-				A111111111111111111111107 /* WidgetExtension */,
 				9F6AE6316DBE93A36C7790FA /* Pods */,
 				AE96429EC359E6A71DFF8C03 /* Frameworks */,
 			);
@@ -157,7 +150,6 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
-				A111111111111111111111104 /* DopiWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -219,36 +211,9 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		A111111111111111111111107 /* WidgetExtension */ = {
-			isa = PBXGroup;
-			children = (
-				A111111111111111111111102 /* DopiWidgetExtension.swift */,
-				A111111111111111111111105 /* WidgetExtension.entitlements */,
-				A111111111111111111111106 /* Info.plist (WidgetExtension) */,
-			);
-			path = WidgetExtension;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A111111111111111111111108 /* DopiWidget */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A111111111111111111111110 /* Build configuration list for PBXNativeTarget "DopiWidget" */;
-			buildPhases = (
-				A11111111111111111111110A /* Sources */,
-				A11111111111111111111110B /* Frameworks */,
-				A11111111111111111111110C /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = DopiWidget;
-			productName = DopiWidget;
-			productReference = A111111111111111111111104 /* DopiWidget.appex */;
-			productType = "com.apple.product-type.widgetkit-extension";
-		};
 		331C8080294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */;
@@ -278,7 +243,6 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
-				A11111111111111111111110D /* Embed Widget Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				79FB463DBC674BDECA37CC02 /* [CP] Embed Pods Frameworks */,
 				78B4381452D940E7DFB7A8AB /* [CP] Copy Pods Resources */,
@@ -327,7 +291,6 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
-				A111111111111111111111108 /* DopiWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -352,13 +315,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-		A11111111111111111111110C /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 
 /* Begin PBXShellScriptBuildPhase section */
 		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
@@ -498,24 +454,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-		A11111111111111111111110A /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				A111111111111111111111101 /* DopiWidgetExtension.swift in Sources */,
-				9B3D5F212F4B4A7A00A1A111 /* WidgetTimeline.swift in Sources */,
-				9B3D5F1A2F4B4A7A00A1A111 /* WidgetDataManager.swift in Sources */,
-				9B3D5F1E2F4B4A7A00A1A111 /* SharedStateModels.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A11111111111111111111110B /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 
 /* Begin PBXTargetDependency section */
 		331C8086294A63A400263BE5 /* PBXTargetDependency */ = {
@@ -524,17 +462,6 @@
 			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
-		A11111111111111111111110D /* Embed Widget Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				A111111111111111111111103 /* DopiWidget.appex in Embed App Extensions */,
-			);
-			name = "Embed Widget Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 
 /* Begin PBXVariantGroup section */
 		97C146FA1CF9000F007C117D /* Main.storyboard */ = {
@@ -1416,66 +1343,6 @@
 			name = Release;
 		};
 
-		A11111111111111111111110E /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = WidgetExtension/WidgetExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = WidgetExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks");
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.39A8Q3T3TR.widget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Debug;
-		};
-		A11111111111111111111110F /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = WidgetExtension/WidgetExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = WidgetExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks");
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.39A8Q3T3TR.widget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Release;
-		};
-		A111111111111111111111115 /* Profile */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = WidgetExtension/WidgetExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = 6G6BGG9SC2;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = WidgetExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks");
-				PRODUCT_BUNDLE_IDENTIFIER = app.mo1.player.39A8Q3T3TR.widget;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Profile;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1528,16 +1395,6 @@
 			defaultConfigurationName = Release;
 		};
 
-		A111111111111111111111110 /* Build configuration list for PBXNativeTarget "DopiWidget" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A11111111111111111111110E /* Debug */,
-				A111111111111111111111115 /* Profile */,
-				A11111111111111111111110F /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 /* End XCConfigurationList section */
 	};
 	rootObject = 97C146E61CF9000F007C117D /* Project object */;
