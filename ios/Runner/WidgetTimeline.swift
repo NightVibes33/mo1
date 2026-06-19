@@ -17,7 +17,7 @@ struct DopiWidgetProvider: TimelineProvider {
 
   private func currentEntry() -> DopiWidgetEntry {
     guard let snapshot = dataManager.loadCurrentTrack() else {
-      return placeholder()
+      return DopiWidgetEntry(date: .now, title: "No Music", artist: "døPi", isPlaying: false)
     }
     return DopiWidgetEntry(
       date: snapshot.lastUpdated,

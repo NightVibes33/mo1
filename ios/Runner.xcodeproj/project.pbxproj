@@ -443,13 +443,13 @@
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				A111111111111111111111111 /* CarPlaySceneDelegate.swift in Sources */,
-				A111111111111111111111113 /* AppShortcuts.swift in Sources */,
 				9B3D5F1D2F4B4A7A00A1A111 /* NativeCoreBridge.swift in Sources */,
+				9B3D5F202F4B4A7A00A1A111 /* PlatformIntegration.swift in Sources */,
+				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
+				A111111111111111111111113 /* AppShortcuts.swift in Sources */,
 				9B3D5F212F4B4A7A00A1A111 /* WidgetTimeline.swift in Sources */,
 				9B3D5F1A2F4B4A7A00A1A111 /* WidgetDataManager.swift in Sources */,
 				9B3D5F1E2F4B4A7A00A1A111 /* SharedStateModels.swift in Sources */,
-				9B3D5F202F4B4A7A00A1A111 /* PlatformIntegration.swift in Sources */,
-				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
