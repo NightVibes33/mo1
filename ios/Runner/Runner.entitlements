@@ -4,9 +4,5 @@
 <dict>
 	<key>com.apple.developer.music-user-token</key>
 	<true/>
-  <key>com.apple.security.application-groups</key>
-  <array>
-    <string>group.com.nightvibes.dopi</string>
-  </array>
 </dict>
 </plist>

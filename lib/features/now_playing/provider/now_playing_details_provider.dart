@@ -1,10 +1,8 @@
-import 'dart:async';
 import 'package:dope/core/constants/constants.dart';
 import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/providers/filtered_audio_files_provider.dart';
 import 'package:dope/core/services/audio_files_service.dart';
 import 'package:dope/core/services/audio_player_service.dart';
-import 'package:dope/core/services/native_core_bridge.dart';
 import 'package:dope/features/music/album/providers/album_details_provider.dart';
 import 'package:dope/features/music/playlist/models/playlist_model.dart';
 import 'package:dope/features/music/playlist/providers/playlists_provider.dart';
@@ -32,7 +30,6 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
           currentIndex: newIndex,
           currentMetadata: state.metadataList[newIndex],
         );
-        unawaited(_syncNativeCore());
       }
     });
 
@@ -42,7 +39,6 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
       }
       if (isPlaying != state.isPlaying) {
         state = state.copyWith(isPlaying: isPlaying);
-        unawaited(_syncNativeCore());
       }
     });
 
@@ -70,22 +66,6 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
     );
   }
 
-  Future<void> _syncNativeCore() async {
-    final bridge = ref.read(nativeCoreBridgeProvider);
-    final model = state;
-    unawaited(bridge.syncNowPlaying(snapshot: NowPlayingSnapshot.fromMetadataList(model: model)));
-    unawaited(bridge.syncLibrarySummary(
-      totalTracks: model.metadataList.length,
-      localTracks: model.metadataList.where((metadata) => metadata.isOnDevice).length,
-      appleMusicTracks: model.metadataList.where((metadata) => metadata.isAppleMusicCatalogTrack).length,
-      totalAlbums: model.metadataList
-          .map((metadata) => '${metadata.getAlbumName}::${metadata.getAlbumArtistName}')
-          .toSet()
-          .length,
-      currentRoute: null,
-    ));
-  }
-
   void setNewMetadataList({
     NowPlayingType? nowPlayingType,
     required List<MusicMetadata> newMetadataList,
@@ -104,12 +84,10 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
       metadataList: newMetadataList,
       isPlaying: isPlaying,
     );
-    unawaited(_syncNativeCore());
   }
 
   void setPlaybackState(bool isPlaying) {
     state = state.copyWith(isPlaying: isPlaying);
-    unawaited(_syncNativeCore());
   }
 
   void setCurrentIndex(int currentIndex) {
@@ -123,7 +101,6 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
       currentIndex: safeIndex,
       currentMetadata: state.metadataList[safeIndex],
     );
-    unawaited(_syncNativeCore());
   }
 
   Future<void> setCurrentMetadataRating(int val) async {
@@ -210,7 +187,6 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
             metadata,
       ],
     );
-    unawaited(_syncNativeCore());
 
     await _updatePersistedPlaylistMetadata(storedMetadata);
     ref.invalidate(audioFilesServiceProvider);

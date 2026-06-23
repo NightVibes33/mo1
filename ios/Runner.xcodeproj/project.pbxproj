@@ -7,13 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A111111111111111111111111 /* CarPlaySceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A111111111111111111111112 /* CarPlaySceneDelegate.swift */; };
-		A111111111111111111111113 /* AppShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A111111111111111111111114 /* AppShortcuts.swift */; };
-		9B3D5F202F4B4A7A00A1A111 /* PlatformIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D5F1B2F4B4A7A00A1A111 /* PlatformIntegration.swift */; };
-		9B3D5F212F4B4A7A00A1A111 /* WidgetTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D5F1A2F4B4A7A00A1A112 /* WidgetTimeline.swift */; };
-		9B3D5F1E2F4B4A7A00A1A111 /* SharedStateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D5F1F2F4B4A7A00A1A111 /* SharedStateModels.swift */; };
-		9B3D5F1A2F4B4A7A00A1A111 /* WidgetDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D5F192F4B4A7A00A1A111 /* WidgetDataManager.swift */; };
-		9B3D5F1D2F4B4A7A00A1A111 /* NativeCoreBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3D5F1C2F4B4A7A00A1A111 /* NativeCoreBridge.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		1BA3E694EBF5911CAB5E8F3B /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CA51C9C1DD0ABB62CE578C51 /* Pods_RunnerTests.framework */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
@@ -49,13 +42,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		A111111111111111111111112 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
-		A111111111111111111111114 /* AppShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShortcuts.swift; sourceTree = "<group>"; };
-		9B3D5F1A2F4B4A7A00A1A112 /* WidgetTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTimeline.swift; sourceTree = "<group>"; };
-		9B3D5F1B2F4B4A7A00A1A111 /* PlatformIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformIntegration.swift; sourceTree = "<group>"; };
-		9B3D5F192F4B4A7A00A1A111 /* WidgetDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDataManager.swift; sourceTree = "<group>"; };
-		9B3D5F1F2F4B4A7A00A1A111 /* SharedStateModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStateModels.swift; sourceTree = "<group>"; };
-		9B3D5F1C2F4B4A7A00A1A111 /* NativeCoreBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCoreBridge.swift; sourceTree = "<group>"; };
 		085401D5F3CA97E960D01D6C /* Pods-Runner.debug-dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug-dev.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug-dev.xcconfig"; sourceTree = "<group>"; };
 		0DB7CEEFC0E6C1E2231D0678 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
@@ -165,13 +151,6 @@
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
-				A111111111111111111111112 /* CarPlaySceneDelegate.swift */,
-				A111111111111111111111114 /* AppShortcuts.swift */,
-		9B3D5F1C2F4B4A7A00A1A111 /* NativeCoreBridge.swift */,
-		9B3D5F192F4B4A7A00A1A111 /* WidgetDataManager.swift */,
-		9B3D5F1F2F4B4A7A00A1A111 /* SharedStateModels.swift */,
-		9B3D5F1B2F4B4A7A00A1A111 /* PlatformIntegration.swift */,
-		9B3D5F1A2F4B4A7A00A1A112 /* WidgetTimeline.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -442,14 +421,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
-				A111111111111111111111111 /* CarPlaySceneDelegate.swift in Sources */,
-				9B3D5F1D2F4B4A7A00A1A111 /* NativeCoreBridge.swift in Sources */,
-				9B3D5F202F4B4A7A00A1A111 /* PlatformIntegration.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
-				A111111111111111111111113 /* AppShortcuts.swift in Sources */,
-				9B3D5F212F4B4A7A00A1A111 /* WidgetTimeline.swift in Sources */,
-				9B3D5F1A2F4B4A7A00A1A111 /* WidgetDataManager.swift in Sources */,
-				9B3D5F1E2F4B4A7A00A1A111 /* SharedStateModels.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1342,7 +1314,6 @@
 			};
 			name = Release;
 		};
-
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1394,7 +1365,6 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-
 /* End XCConfigurationList section */
 	};
 	rootObject = 97C146E61CF9000F007C117D /* Project object */;
