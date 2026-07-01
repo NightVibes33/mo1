@@ -458,6 +458,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls>
                           ],
                         ),
                       ),
+                      ),
                       IgnorePointer(
                         child: Container(
                           width: screenWidth * (selectButtonRadiusRatio * 1.8),
@@ -560,6 +561,7 @@ class LiquidGlassOrb extends StatelessWidget {
             painter: AppleLiquidGlassPainter(
               radius: radius,
               progress: progress,
+              tintColor: tintColor,
               glassColor: glassColor,
             ),
           ),
@@ -573,11 +575,13 @@ class AppleLiquidGlassPainter extends CustomPainter {
   final double radius;
   final double progress;
   final Color glassColor;
+  final Color tintColor;
 
   AppleLiquidGlassPainter({
     required this.radius,
     required this.progress,
     required this.glassColor,
+    required this.tintColor,
   });
 
   @override
