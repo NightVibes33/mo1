@@ -160,7 +160,7 @@ class _DeviceFrameState extends ConsumerState<DeviceFrame>
                     ),
                     const Spacer(),
                     DeviceControls(key: deviceControlsGlobalKey),
-                    const Spacer(flex: 2),
+                    const Spacer(),
                   ],
                 ),
               ),
