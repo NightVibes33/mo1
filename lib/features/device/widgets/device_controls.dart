@@ -220,7 +220,10 @@ class _DeviceControlsState extends ConsumerState<DeviceControls>
         final double screenWidth = constraints.maxWidth + 40;
         final double orbRadius = 75.0;
 
-        return GestureDetector(
+        return SizedBox(
+          height: screenWidth * clickWheelRadiusRatio,
+          width: screenWidth * clickWheelRadiusRatio,
+          child: GestureDetector(
           onPanStart: (_) {
             setState(() {
               showOrb = true;
@@ -516,6 +519,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls>
                   ),
                 ),
             ],
+          ),
           ),
         );
       },

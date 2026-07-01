@@ -146,30 +146,24 @@ class _DeviceFrameState extends ConsumerState<DeviceFrame>
           ),
           SafeArea(
             minimum: const EdgeInsets.fromLTRB(20, 30, 20, 20),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 450),
-                    child: SizedBox(
-                      height: constraints.maxHeight,
-                      child: Column(
-                        children: [
-                          DeviceScreen(
-                            key: deviceScreenGlobalKey,
-                            child: widget.child,
-                          ),
-                          Expanded(
-                            child: DeviceControls(
-                              key: deviceControlsGlobalKey,
-                            ),
-                          ),
-                        ],
-                      ),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxHeight: 960,
+                  maxWidth: 450,
+                ),
+                child: Column(
+                  children: [
+                    DeviceScreen(
+                      key: deviceScreenGlobalKey,
+                      child: widget.child,
                     ),
-                  ),
-                );
-              },
+                    const Spacer(flex: 2),
+                    DeviceControls(key: deviceControlsGlobalKey),
+                    const Spacer(),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
