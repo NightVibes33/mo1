@@ -79,7 +79,7 @@ class _DeviceColorOptionTile extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final useColorTextures = ref.watch(
       settingsPreferencesControllerProvider.select(
         (settings) => settings.useColorTextures,
