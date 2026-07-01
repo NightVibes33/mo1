@@ -18,7 +18,7 @@ import 'package:dope/features/settings/models/device_color.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ui/ui.dart' as ui;
+import 'dart:ui' as ui;
 
 class DeviceControls extends ConsumerStatefulWidget {
   const DeviceControls({super.key});
