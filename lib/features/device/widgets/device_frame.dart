@@ -151,7 +151,7 @@ class _DeviceFrameState extends ConsumerState<DeviceFrame>
                       key: deviceScreenGlobalKey,
                       child: widget.child,
                     ),
-                    const Spacer(flex: 2),
+                    const Spacer(),
                     DeviceControls(key: deviceControlsGlobalKey),
                     const Spacer(),
                   ],
