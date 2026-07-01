@@ -151,7 +151,14 @@ class _DeviceControlsState extends ConsumerState<DeviceControls>
         (settings) => settings.deviceColor,
       ),
     );
-    final deviceColorStyle = deviceColor.style;
+    final useColorTextures = ref.watch(
+      settingsPreferencesControllerProvider.select(
+        (settings) => settings.useColorTextures,
+      ),
+    );
+    final deviceColorStyle = deviceColor.style(
+      useColorTextures: useColorTextures,
+    );
     final clickWheelSize = ref.watch(
       settingsPreferencesControllerProvider.select(
         (settings) => settings.clickWheelSize,
@@ -210,7 +217,7 @@ class _DeviceControlsState extends ConsumerState<DeviceControls>
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double screenWidth = constraints.maxWidth;
+        final double screenWidth = constraints.maxWidth + 40;
         final double orbRadius = 75.0;
 
         return GestureDetector(

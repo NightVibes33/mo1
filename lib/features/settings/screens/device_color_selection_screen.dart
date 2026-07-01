@@ -67,7 +67,7 @@ class _DeviceColorSelectionScreenState extends ConsumerState with CustomScreen {
   }
 }
 
-class _DeviceColorOptionTile extends StatelessWidget {
+class _DeviceColorOptionTile extends ConsumerWidget {
   final DeviceColor deviceColor;
   final bool isSelected;
   final VoidCallback onTap;
@@ -80,7 +80,14 @@ class _DeviceColorOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final deviceColorStyle = deviceColor.style;
+    final useColorTextures = ref.watch(
+      settingsPreferencesControllerProvider.select(
+        (settings) => settings.useColorTextures,
+      ),
+    );
+    final deviceColorStyle = deviceColor.style(
+      useColorTextures: useColorTextures,
+    );
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(

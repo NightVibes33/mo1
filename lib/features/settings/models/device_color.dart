@@ -29,6 +29,39 @@ class DeviceColorStyle {
   });
 }
 
+DeviceColorStyle _buildDeviceColorStyle({
+  required bool useColorTextures,
+  required double noiseOpacity,
+  required List<Color> frameGradientColors,
+  required Color controlBackgroundColor,
+  required Color controlBorderColor,
+  required List<Color> innerButtonGradientColors,
+  required Color buttonAccentColor,
+  required Color buttonIconColor,
+  required bool isDark,
+  List<Color> frameHighlightColors = const [],
+  bool animateFrameHighlights = false,
+}) {
+  final resolvedFrameGradientColors = useColorTextures
+      ? frameGradientColors
+      : [frameGradientColors.first, frameGradientColors.first];
+  final resolvedInnerButtonGradientColors = useColorTextures
+      ? innerButtonGradientColors
+      : [innerButtonGradientColors.first, innerButtonGradientColors.first];
+
+  return DeviceColorStyle(
+    noiseOpacity: noiseOpacity,
+    frameGradientColors: resolvedFrameGradientColors,
+    controlBackgroundColor: controlBackgroundColor,
+    controlBorderColor: controlBorderColor,
+    innerButtonGradientColors: resolvedInnerButtonGradientColors,
+    buttonAccentColor: buttonAccentColor,
+    buttonIconColor: buttonIconColor,
+    isDark: isDark,
+    frameHighlightColors: useColorTextures ? frameHighlightColors : const [],
+    animateFrameHighlights: useColorTextures && animateFrameHighlights,
+  );
+}
 enum DeviceColor {
   silver,
   white,
@@ -155,10 +188,11 @@ enum DeviceColor {
     }
   }
 
-  DeviceColorStyle get style {
+  DeviceColorStyle style({bool useColorTextures = true}) {
     switch (this) {
       case DeviceColor.silver:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.lightDeviceFrameGradientColor1,
@@ -175,7 +209,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.white:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.whiteDeviceFrameGradientColor1,
@@ -192,7 +227,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.starlight:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.starlightDeviceFrameGradientColor1,
@@ -209,7 +245,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.auroraIce:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 0.42,
           frameGradientColors: [
             AppPalette.auroraIceDeviceFrameGradientColor1,
@@ -233,7 +270,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.black:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 0.3,
           frameGradientColors: [
             AppPalette.darkDeviceFrameGradientColor1,
@@ -250,7 +288,8 @@ enum DeviceColor {
           isDark: true,
         );
       case DeviceColor.graphite:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 0.45,
           frameGradientColors: [
             AppPalette.graphiteDeviceFrameGradientColor1,
@@ -267,7 +306,8 @@ enum DeviceColor {
           isDark: true,
         );
       case DeviceColor.midnight:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 0.45,
           frameGradientColors: [
             AppPalette.midnightDeviceFrameGradientColor1,
@@ -284,7 +324,8 @@ enum DeviceColor {
           isDark: true,
         );
       case DeviceColor.red:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.redDeviceFrameGradientColor1,
@@ -301,7 +342,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.orange:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.orangeDeviceFrameGradientColor1,
@@ -318,7 +360,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.yellow:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.yellowDeviceFrameGradientColor1,
@@ -335,7 +378,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.gold:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.goldDeviceFrameGradientColor1,
@@ -352,7 +396,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.roseGold:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.roseGoldDeviceFrameGradientColor1,
@@ -369,7 +414,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.lime:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.limeDeviceFrameGradientColor1,
@@ -386,7 +432,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.green:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 0.6,
           frameGradientColors: [
             AppPalette.greenDeviceFrameGradientColor1,
@@ -403,7 +450,8 @@ enum DeviceColor {
           isDark: true,
         );
       case DeviceColor.teal:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 0.7,
           frameGradientColors: [
             AppPalette.tealDeviceFrameGradientColor1,
@@ -420,7 +468,8 @@ enum DeviceColor {
           isDark: true,
         );
       case DeviceColor.cyan:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.cyanDeviceFrameGradientColor1,
@@ -437,7 +486,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.blue:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 0.8,
           frameGradientColors: [
             AppPalette.blueDeviceFrameGradientColor1,
@@ -454,7 +504,8 @@ enum DeviceColor {
           isDark: true,
         );
       case DeviceColor.pink:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.pinkDeviceFrameGradientColor1,
@@ -471,7 +522,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.magenta:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.magentaDeviceFrameGradientColor1,
@@ -488,7 +540,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.purple:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 1,
           frameGradientColors: [
             AppPalette.purpleDeviceFrameGradientColor1,
@@ -505,7 +558,8 @@ enum DeviceColor {
           isDark: false,
         );
       case DeviceColor.brown:
-        return const DeviceColorStyle(
+        return _buildDeviceColorStyle(
+          useColorTextures: useColorTextures,
           noiseOpacity: 0.8,
           frameGradientColors: [
             AppPalette.brownDeviceFrameGradientColor1,

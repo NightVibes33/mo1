@@ -30,6 +30,7 @@ enum _SettingsDisplayItems {
   appTheme,
   textSize,
   deviceColor,
+  gradientTextures,
   clickWheelSize,
   clickWheelSensitivity,
   isTouchScreenEnabled,
@@ -72,6 +73,8 @@ enum _SettingsDisplayItems {
         return context.localization.touchScreenSettingTitle;
       case deviceColor:
         return context.localization.deviceColorSettingTitle;
+      case gradientTextures:
+        return "Gradient Textures";
       case clickWheelSize:
         return context.localization.clickWheelSizeSettingTitle;
       case clickWheelSensitivity:
@@ -172,6 +175,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         break;
       case _SettingsDisplayItems.deviceColor:
         context.goNamed(Routes.deviceColor.name);
+        break;
+      case _SettingsDisplayItems.gradientTextures:
+        await ref
+            .read(settingsPreferencesControllerProvider.notifier)
+            .toggleColorTextures();
         break;
       case _SettingsDisplayItems.clickWheelSize:
         await ref
@@ -332,6 +340,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         return ref.watch(nowPlayingDetailsProvider).isShuffleEnabled;
       case _SettingsDisplayItems.isTouchScreenEnabled:
         return settingsState.isTouchScreenEnabled;
+      case _SettingsDisplayItems.gradientTextures:
+        return settingsState.useColorTextures;
       case _SettingsDisplayItems.vibrate:
         return settingsState.vibrate;
       case _SettingsDisplayItems.clickWheelSound:
@@ -352,6 +362,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     switch (settingsItem) {
       case _SettingsDisplayItems.deviceColor:
         return settingsState.deviceColor.title(context);
+      case _SettingsDisplayItems.gradientTextures:
+        return settingsState.useColorTextures
+            ? context.localization.tileValueOn
+            : context.localization.tileValueOff;
       case _SettingsDisplayItems.clickWheelSize:
         return settingsState.clickWheelSize.title(context);
       case _SettingsDisplayItems.clickWheelSensitivity:
@@ -396,6 +410,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       case _SettingsDisplayItems.deviceColor:
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
             SplitScreenType.deviceColor;
+        break;
+      case _SettingsDisplayItems.gradientTextures:
+        ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =
+            SplitScreenType.gradientTextures;
         break;
       case _SettingsDisplayItems.appTheme:
         ref.read(splitScreenControllerProvider.notifier).changeSplitScreenType =

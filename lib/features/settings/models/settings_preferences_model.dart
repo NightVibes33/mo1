@@ -26,6 +26,7 @@ class SettingsPreferencesModel {
   final AppTextSize appTextSize;
   final bool splitScreenEnabled;
   final bool immersiveMode;
+  final bool useColorTextures;
   final bool fetchOnlineMusic;
   final AppTheme appTheme;
 
@@ -46,6 +47,7 @@ class SettingsPreferencesModel {
     required this.appTextSize,
     required this.splitScreenEnabled,
     required this.immersiveMode,
+    required this.useColorTextures,
     required this.appTheme,
     this.fetchOnlineMusic = false,
   });
@@ -67,6 +69,7 @@ class SettingsPreferencesModel {
     AppTextSize? appTextSize,
     bool? splitScreenEnabled,
     bool? immersiveMode,
+    bool? useColorTextures,
     bool? fetchOnlineMusic,
     AppTheme? appTheme,
   }) {
@@ -90,6 +93,7 @@ class SettingsPreferencesModel {
       appTextSize: appTextSize ?? this.appTextSize,
       splitScreenEnabled: splitScreenEnabled ?? this.splitScreenEnabled,
       immersiveMode: immersiveMode ?? this.immersiveMode,
+      useColorTextures: useColorTextures ?? this.useColorTextures,
       appTheme: appTheme ?? this.appTheme,
       fetchOnlineMusic: fetchOnlineMusic ?? this.fetchOnlineMusic,
     );
@@ -114,6 +118,7 @@ class SettingsPreferencesModel {
         other.appTextSize == appTextSize &&
         other.splitScreenEnabled == splitScreenEnabled &&
         other.immersiveMode == immersiveMode &&
+        other.useColorTextures == useColorTextures &&
         other.fetchOnlineMusic == fetchOnlineMusic &&
         other.appTheme == appTheme;
   }
@@ -136,6 +141,7 @@ class SettingsPreferencesModel {
     appTextSize,
     splitScreenEnabled,
     immersiveMode,
+    useColorTextures,
     appTheme,
     fetchOnlineMusic,
   );

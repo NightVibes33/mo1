@@ -16,6 +16,7 @@ enum SharedPreferencesKeys {
   textSize,
   splitScreenEnabled,
   immersiveMode,
+  useColorTextures,
   isMenuFirstTime,
   isNowPlayingFirstTime,
   isInputTextBarFirstTime,

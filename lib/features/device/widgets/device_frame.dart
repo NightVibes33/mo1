@@ -53,7 +53,14 @@ class _DeviceFrameState extends ConsumerState<DeviceFrame>
     final DeviceColor deviceColor = ref.watch(
       settingsPreferencesControllerProvider.select((e) => e.deviceColor),
     );
-    final deviceColorStyle = deviceColor.style;
+    final useColorTextures = ref.watch(
+      settingsPreferencesControllerProvider.select(
+        (settings) => settings.useColorTextures,
+      ),
+    );
+    final deviceColorStyle = deviceColor.style(
+      useColorTextures: useColorTextures,
+    );
     _syncAuroraAnimation(deviceColorStyle.animateFrameHighlights);
 
     return DecoratedBox(
@@ -151,7 +158,7 @@ class _DeviceFrameState extends ConsumerState<DeviceFrame>
                       key: deviceScreenGlobalKey,
                       child: widget.child,
                     ),
-                    const Spacer(),
+                    const Spacer(flex: 2),
                     DeviceControls(key: deviceControlsGlobalKey),
                     const Spacer(),
                   ],

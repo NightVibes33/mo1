@@ -146,6 +146,13 @@ class SettingsPreferencesRepository {
         false;
   }
 
+  bool getUseColorTextures() {
+    return _sharedPreferencesWithCache.getBool(
+          SharedPreferencesKeys.useColorTextures.name,
+        ) ??
+        true;
+  }
+
   Future<void> setLanguageLocaleCode({
     required String languageLocaleCode,
   }) async {
@@ -274,6 +281,13 @@ class SettingsPreferencesRepository {
     return _sharedPreferencesWithCache.setBool(
       SharedPreferencesKeys.immersiveMode.name,
       isImmersiveModeEnabled,
+    );
+  }
+
+  Future<void> setUseColorTextures({required bool isUseColorTexturesEnabled}) async {
+    return _sharedPreferencesWithCache.setBool(
+      SharedPreferencesKeys.useColorTextures.name,
+      isUseColorTexturesEnabled,
     );
   }
 }

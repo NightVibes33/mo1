@@ -85,6 +85,7 @@ class SettingsPreferencesControllerNotifier
       ),
       splitScreenEnabled: settingsPreferencesRepository.getSplitScreenEnabled(),
       immersiveMode: settingsPreferencesRepository.getImmersiveMode(),
+      useColorTextures: settingsPreferencesRepository.getUseColorTextures(),
       appTheme: AppTheme.fromName(settingsPreferencesRepository.getAppTheme()),
     );
   }
@@ -353,6 +354,13 @@ class SettingsPreferencesControllerNotifier
         .setSplitScreenEnabled(isSplitScreenEnabled: state.splitScreenEnabled);
   }
 
+  Future<void> toggleColorTextures() async {
+    state = state.copyWith(useColorTextures: !state.useColorTextures);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setUseColorTextures(isUseColorTexturesEnabled: state.useColorTextures);
+  }
+
   Future<void> toggleAppTheme() async {
     final AppTheme updatedTheme = state.appTheme == AppTheme.light
         ? AppTheme.dark
@@ -436,10 +444,14 @@ class SettingsPreferencesControllerNotifier
         .setImmersiveMode(isImmersiveModeEnabled: false);
     await ref
         .read(settingsPreferencesRepositoryProvider)
+        .setUseColorTextures(isUseColorTexturesEnabled: true);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
         .setAppTheme(appThemeName: AppTheme.light.name);
     state = state.copyWith(
       songTransitionStyle: SongTransitionStyle.off,
       crossfadeDurationSeconds: defaultCrossfadeDurationSeconds,
+      useColorTextures: true,
     );
     await ref.read(audioEqualizerServiceProvider).applyPreset(
           EqualizerPreset.off,
