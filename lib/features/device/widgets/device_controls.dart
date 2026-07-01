@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:dope/core/constants/assets.dart';
 import 'package:dope/core/constants/constants.dart';
@@ -17,6 +18,7 @@ import 'package:dope/features/settings/models/device_color.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ui/ui.dart' as ui;
 
 class DeviceControls extends ConsumerStatefulWidget {
   const DeviceControls({super.key});
@@ -25,8 +27,28 @@ class DeviceControls extends ConsumerStatefulWidget {
   ConsumerState createState() => _DeviceControlsState();
 }
 
-class _DeviceControlsState extends ConsumerState<DeviceControls> {
+class _DeviceControlsState extends ConsumerState<DeviceControls>
+    with SingleTickerProviderStateMixin {
   Duration durationSinceLastScroll = Duration.zero;
+  Offset orbPosition = Offset.zero;
+  late AnimationController _glassOrbController;
+  bool showOrb = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _glassOrbController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    );
+    _glassOrbController.repeat();
+  }
+
+  @override
+  void dispose() {
+    _glassOrbController.dispose();
+    super.dispose();
+  }
 
   Future<void> onClickWheelScroll({
     required DragUpdateDetails dragUpdateDetails,
@@ -34,6 +56,12 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
     required double smallThresholdRotationalChange,
     required double bigThresholdRotationalChange,
   }) async {
+    // Update orb position to follow finger
+    setState(() {
+      orbPosition = dragUpdateDetails.localPosition;
+      showOrb = true;
+    });
+
     // Pan location on the wheel
     final bool onTop = dragUpdateDetails.localPosition.dy <= radius;
     final bool onLeftSide = dragUpdateDetails.localPosition.dx <= radius;
@@ -50,11 +78,11 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
     final double yChange = dragUpdateDetails.delta.dy.abs();
     final double xChange = dragUpdateDetails.delta.dx.abs();
 
-    // Directional change on wheel
+    // Directional change on wheel (for ROTATION = VOLUME)
     final double verticalRotation =
         (onRightSide && panDown) || (onLeftSide && panUp)
-        ? yChange
-        : yChange * -1;
+            ? yChange
+            : yChange * -1;
 
     final double horizontalRotation =
         (onTop && panRight) || (onBottom && panLeft) ? xChange : xChange * -1;
@@ -89,10 +117,12 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
           .buttonPressVibrate();
       await ref.read(deviceButtonsServiceProvider.notifier).clickWheelSound();
       if (isForwardDirection) {
+        // Rotate forward = VOLUME UP
         await ref
             .read(deviceButtonsServiceProvider.notifier)
             .setDeviceAction(DeviceAction.rotateForward);
       } else {
+        // Rotate backward = VOLUME DOWN
         await ref
             .read(deviceButtonsServiceProvider.notifier)
             .setDeviceAction(DeviceAction.rotateBackward);
@@ -168,158 +198,206 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double screenWidth = constraints.maxWidth + 40;
+        final double orbRadius = 75.0;
 
         return GestureDetector(
+          onPanStart: (_) {
+            setState(() {
+              showOrb = true;
+            });
+          },
           onPanUpdate: (dragUpdateDetails) => onClickWheelScroll(
             dragUpdateDetails: dragUpdateDetails,
             radius: (screenWidth * clickWheelRadiusRatio) / 2,
             smallThresholdRotationalChange: smallThresholdRotationalChange,
             bigThresholdRotationalChange: bigThresholdRotationalChange,
           ),
-          child: Container(
-            height: screenWidth * clickWheelRadiusRatio,
-            width: screenWidth * clickWheelRadiusRatio,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: deviceColorStyle.controlBackgroundColor,
-            ),
-            clipBehavior: Clip.hardEdge,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () async => ref
-                        .read(deviceButtonsServiceProvider.notifier)
-                        .setDeviceAction(DeviceAction.menu),
-                    onLongPress: () async {
-                      await Future.wait([
-                        ref
-                            .read(deviceButtonsServiceProvider.notifier)
-                            .buttonPressVibrate(),
-                        ref
-                            .read(deviceButtonsServiceProvider.notifier)
-                            .clickWheelSound(),
-                      ]);
-                      if (context.mounted) {
-                        context.goNamed(Routes.menu.name);
-                        if (!ref
-                            .read(splitScreenViewControllerProvider)
-                            .isScreenVisible) {
-                          unawaited(
-                            ref
-                                .read(splitScreenViewControllerProvider)
-                                .openSplitView(),
-                          );
-                        }
-                      }
-                    },
-                    child: ColoredBox(
-                      color: deviceColorStyle.controlBackgroundColor,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: Icon(
-                          CupertinoIcons.back,
-                          key: menuButtonGlobalKey,
-                          color: deviceColorStyle.buttonAccentColor,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
+          onPanEnd: (_) {
+            setState(() {
+              showOrb = false;
+            });
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // ===== ORIGINAL CIRCULAR WHEEL WITH ALL BUTTONS =====
+              Container(
+                height: screenWidth * clickWheelRadiusRatio,
+                width: screenWidth * clickWheelRadiusRatio,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: deviceColorStyle.controlBackgroundColor,
                 ),
-                Row(
+                clipBehavior: Clip.hardEdge,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // TOP: Menu Button
                     Expanded(
-                      key: previousButtonGlobalKey,
                       child: GestureDetector(
                         onTap: () async => ref
                             .read(deviceButtonsServiceProvider.notifier)
-                            .setDeviceAction(DeviceAction.seekBackward),
-                        onLongPress: () async => ref
-                            .read(deviceButtonsServiceProvider.notifier)
-                            .setDeviceAction(
-                              DeviceAction.seekBackwardLongPress,
+                            .setDeviceAction(DeviceAction.menu),
+                        onLongPress: () async {
+                          await Future.wait([
+                            ref
+                                .read(deviceButtonsServiceProvider.notifier)
+                                .buttonPressVibrate(),
+                            ref
+                                .read(deviceButtonsServiceProvider.notifier)
+                                .clickWheelSound(),
+                          ]);
+                          if (context.mounted) {
+                            context.goNamed(Routes.menu.name);
+                            if (!ref
+                                .read(splitScreenViewControllerProvider)
+                                .isScreenVisible) {
+                              unawaited(
+                                ref
+                                    .read(splitScreenViewControllerProvider)
+                                    .openSplitView(),
+                              );
+                            }
+                          }
+                        },
+                        child: ColoredBox(
+                          color: deviceColorStyle.controlBackgroundColor,
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: Icon(
+                              CupertinoIcons.back,
+                              key: menuButtonGlobalKey,
+                              color: deviceColorStyle.buttonAccentColor,
+                              size: 20,
                             ),
-                        onLongPressEnd: (_) async => ref
-                            .read(deviceButtonsServiceProvider.notifier)
-                            .setDeviceAction(DeviceAction.longPressEnd),
-                        child: SizedBox(
-                          height: screenWidth * 0.2175,
-                          child: ColoredBox(
-                            color: deviceColorStyle.controlBackgroundColor,
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: CustomPaint(
-                                size: const Size(20, 10),
-                                painter: PreviousButtonCustomPainter(
-                                  color: deviceColorStyle.buttonIconColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // MIDDLE ROW: Left (Previous) + Center (Select) + Right (Next)
+                    Row(
+                      children: [
+                        // LEFT: Previous Button
+                        Expanded(
+                          key: previousButtonGlobalKey,
+                          child: GestureDetector(
+                            onTap: () async => ref
+                                .read(deviceButtonsServiceProvider.notifier)
+                                .setDeviceAction(DeviceAction.seekBackward),
+                            onLongPress: () async => ref
+                                .read(deviceButtonsServiceProvider.notifier)
+                                .setDeviceAction(
+                                  DeviceAction.seekBackwardLongPress,
+                                ),
+                            onLongPressEnd: (_) async => ref
+                                .read(deviceButtonsServiceProvider.notifier)
+                                .setDeviceAction(DeviceAction.longPressEnd),
+                            child: SizedBox(
+                              height: screenWidth * 0.2175,
+                              child: ColoredBox(
+                                color: deviceColorStyle.controlBackgroundColor,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: CustomPaint(
+                                    size: const Size(20, 10),
+                                    painter: PreviousButtonCustomPainter(
+                                      color:
+                                          deviceColorStyle.buttonIconColor,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    GestureDetector(
-                      key: centerButtonGlobalKey,
-                      onTap: () async => ref
-                          .read(deviceButtonsServiceProvider.notifier)
-                          .setDeviceAction(DeviceAction.select),
-                      onLongPress: () async => ref
-                          .read(deviceButtonsServiceProvider.notifier)
-                          .setDeviceAction(DeviceAction.selectLongPress),
-                      onLongPressEnd: (_) async => ref
-                          .read(deviceButtonsServiceProvider.notifier)
-                          .setDeviceAction(DeviceAction.longPressEnd),
-                      child: SizedBox(
-                        height: screenWidth * selectButtonRadiusRatio,
-                        width: screenWidth * selectButtonRadiusRatio,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: deviceColorStyle.controlBorderColor,
-                            ),
-                            image: const DecorationImage(
-                              image: AssetImage(Assets.noiseImage),
-                              fit: BoxFit.cover,
-                            ),
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors:
-                                  deviceColorStyle.innerButtonGradientColors,
+                        // CENTER: Select Button
+                        GestureDetector(
+                          key: centerButtonGlobalKey,
+                          onTap: () async => ref
+                              .read(deviceButtonsServiceProvider.notifier)
+                              .setDeviceAction(DeviceAction.select),
+                          onLongPress: () async => ref
+                              .read(deviceButtonsServiceProvider.notifier)
+                              .setDeviceAction(DeviceAction.selectLongPress),
+                          onLongPressEnd: (_) async => ref
+                              .read(deviceButtonsServiceProvider.notifier)
+                              .setDeviceAction(DeviceAction.longPressEnd),
+                          child: SizedBox(
+                            height: screenWidth * selectButtonRadiusRatio,
+                            width: screenWidth * selectButtonRadiusRatio,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color:
+                                      deviceColorStyle.controlBorderColor,
+                                ),
+                                image: const DecorationImage(
+                                  image: AssetImage(Assets.noiseImage),
+                                  fit: BoxFit.cover,
+                                ),
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: deviceColorStyle
+                                      .innerButtonGradientColors,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                        // RIGHT: Next Button
+                        Expanded(
+                          key: nextButtonGlobalKey,
+                          child: GestureDetector(
+                            onTap: () async => ref
+                                .read(deviceButtonsServiceProvider.notifier)
+                                .setDeviceAction(DeviceAction.seekForward),
+                            onLongPress: () async => ref
+                                .read(deviceButtonsServiceProvider.notifier)
+                                .setDeviceAction(
+                                  DeviceAction.seekForwardLongPress,
+                                ),
+                            onLongPressEnd: (_) async => ref
+                                .read(deviceButtonsServiceProvider.notifier)
+                                .setDeviceAction(DeviceAction.longPressEnd),
+                            child: SizedBox(
+                              height: screenWidth * selectButtonRadiusRatio,
+                              child: ColoredBox(
+                                color: deviceColorStyle.controlBackgroundColor,
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: CustomPaint(
+                                    size: const Size(20, 10),
+                                    painter: NextButtonCustomPainter(
+                                      color:
+                                          deviceColorStyle.buttonIconColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                    // BOTTOM: Play/Pause Button
                     Expanded(
-                      key: nextButtonGlobalKey,
                       child: GestureDetector(
                         onTap: () async => ref
                             .read(deviceButtonsServiceProvider.notifier)
-                            .setDeviceAction(DeviceAction.seekForward),
-                        onLongPress: () async => ref
-                            .read(deviceButtonsServiceProvider.notifier)
-                            .setDeviceAction(DeviceAction.seekForwardLongPress),
-                        onLongPressEnd: (_) async => ref
-                            .read(deviceButtonsServiceProvider.notifier)
-                            .setDeviceAction(DeviceAction.longPressEnd),
-                        child: SizedBox(
-                          height: screenWidth * selectButtonRadiusRatio,
-                          child: ColoredBox(
-                            color: deviceColorStyle.controlBackgroundColor,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: CustomPaint(
-                                size: const Size(20, 10),
-                                painter: NextButtonCustomPainter(
-                                  color: deviceColorStyle.buttonIconColor,
-                                ),
+                            .playPauseButtonClick(),
+                        child: ColoredBox(
+                          color: deviceColorStyle.controlBackgroundColor,
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: CustomPaint(
+                              key: playPauseButtonGlobalKey,
+                              size: const Size(26, 12),
+                              painter: PlayPauseButtonCustomPainter(
+                                color: deviceColorStyle.buttonIconColor,
                               ),
                             ),
                           ),
@@ -328,31 +406,207 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
                     ),
                   ],
                 ),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () async => ref
-                        .read(deviceButtonsServiceProvider.notifier)
-                        .playPauseButtonClick(),
-                    child: ColoredBox(
-                      color: deviceColorStyle.controlBackgroundColor,
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: CustomPaint(
-                          key: playPauseButtonGlobalKey,
-                          size: const Size(26, 12),
-                          painter: PlayPauseButtonCustomPainter(
-                            color: deviceColorStyle.buttonIconColor,
-                          ),
-                        ),
-                      ),
+              ),
+              // ===== FLOATING LIQUID GLASS ORB =====
+              if (showOrb && orbPosition != Offset.zero)
+                Positioned(
+                  left: orbPosition.dx - orbRadius,
+                  top: orbPosition.dy - orbRadius,
+                  child: IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: _glassOrbController,
+                      builder: (context, _) {
+                        return LiquidGlassOrb(
+                          radius: orbRadius,
+                          progress: _glassOrbController.value,
+                          glassColor: deviceColorStyle.controlBackgroundColor,
+                        );
+                      },
                     ),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
         );
       },
     );
+  }
+}
+
+// Apple Liquid Glass Orb
+class LiquidGlassOrb extends StatelessWidget {
+  final double radius;
+  final double progress;
+  final Color glassColor;
+
+  const LiquidGlassOrb({
+    required this.radius,
+    required this.progress,
+    required this.glassColor,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: radius * 2,
+      height: radius * 2,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Real iOS blur effect
+          BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+            child: Container(
+              width: radius * 2,
+              height: radius * 2,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: glassColor.withValues(alpha: 0.35),
+                border: Border.all(
+                  color: CupertinoColors.white.withValues(alpha: 0.25),
+                  width: 2,
+                ),
+              ),
+            ),
+          ),
+          // Glass painting layer
+          CustomPaint(
+            size: Size(radius * 2, radius * 2),
+            painter: AppleLiquidGlassPainter(
+              radius: radius,
+              progress: progress,
+              glassColor: glassColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AppleLiquidGlassPainter extends CustomPainter {
+  final double radius;
+  final double progress;
+  final Color glassColor;
+
+  AppleLiquidGlassPainter({
+    required this.radius,
+    required this.progress,
+    required this.glassColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(radius, radius);
+
+    // Main glass sphere
+    final mainGradient = RadialGradient(
+      center: Alignment(-0.35, -0.35),
+      radius: 1.3,
+      colors: [
+        CupertinoColors.white.withValues(alpha: 0.45),
+        glassColor.withValues(alpha: 0.2),
+        glassColor.withValues(alpha: 0.05),
+      ],
+      stops: const [0.0, 0.4, 1.0],
+    );
+
+    final mainPaint = Paint()
+      ..shader = mainGradient.createShader(
+        Rect.fromCircle(center: center, radius: radius),
+      )
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(center, radius, mainPaint);
+
+    // Top highlight
+    final highlightGradient = RadialGradient(
+      center: Alignment(-0.4, -0.6),
+      radius: 0.7,
+      colors: [
+        CupertinoColors.white.withValues(alpha: 0.85),
+        CupertinoColors.white.withValues(alpha: 0.25),
+        CupertinoColors.white.withValues(alpha: 0.0),
+      ],
+    );
+
+    final highlightPaint = Paint()
+      ..shader = highlightGradient.createShader(
+        Rect.fromCircle(center: center, radius: radius * 0.8),
+      )
+      ..blendMode = BlendMode.screen;
+
+    canvas.drawCircle(center, radius * 0.65, highlightPaint);
+
+    // Animated aurora glow
+    final glowPhase = progress * math.pi * 2;
+    final glowGradient = RadialGradient(
+      center: Alignment(
+        math.sin(glowPhase) * 0.2,
+        math.cos(glowPhase) * 0.2,
+      ),
+      radius: 1.4,
+      colors: [
+        glassColor.withValues(alpha: 0.35),
+        glassColor.withValues(alpha: 0.12),
+        glassColor.withValues(alpha: 0.0),
+      ],
+    );
+
+    final glowPaint = Paint()
+      ..shader = glowGradient.createShader(
+        Rect.fromCircle(center: center, radius: radius * 1.15),
+      )
+      ..blendMode = BlendMode.lighten;
+
+    canvas.drawCircle(center, radius * 1.15, glowPaint);
+
+    // Depth shadow
+    final shadowGradient = RadialGradient(
+      center: Alignment(0.5, 0.6),
+      radius: 0.8,
+      colors: [
+        CupertinoColors.black.withValues(alpha: 0.12),
+        CupertinoColors.black.withValues(alpha: 0.0),
+      ],
+    );
+
+    final shadowPaint = Paint()
+      ..shader = shadowGradient.createShader(
+        Rect.fromCircle(center: center, radius: radius),
+      )
+      ..blendMode = BlendMode.multiply;
+
+    canvas.drawCircle(center, radius * 0.9, shadowPaint);
+
+    // Subtle ring
+    final ringPaint = Paint()
+      ..color = CupertinoColors.white.withValues(alpha: 0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    canvas.drawCircle(center, radius, ringPaint);
+
+    // Frost particles
+    final frostPaint = Paint()
+      ..color = CupertinoColors.white.withValues(alpha: 0.3)
+      ..style = PaintingStyle.fill;
+
+    for (var i = 0; i < 8; i += 1) {
+      final angle = (i / 8) * math.pi * 2 + glowPhase;
+      final distance = radius * 0.8;
+      final x = center.dx + math.cos(angle) * distance;
+      final y = center.dy + math.sin(angle) * distance;
+      final size = 1.2 + math.sin(angle + progress * math.pi * 2) * 0.6;
+      canvas.drawCircle(Offset(x, y), size, frostPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(AppleLiquidGlassPainter oldDelegate) {
+    return oldDelegate.progress != progress ||
+        oldDelegate.radius != radius ||
+        oldDelegate.glassColor != glassColor;
   }
 }
