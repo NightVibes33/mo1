@@ -23,16 +23,18 @@ import UIKit
       NSLog("mo1 audio session setup failed: \(error.localizedDescription)")
     }
 
+    application.beginReceivingRemoteControlEvents()
+
     GeneratedPluginRegistrant.register(with: self)
     if let controller = window?.rootViewController as? FlutterViewController {
       AppleMusicLookupChannel.register(with: controller.binaryMessenger)
       EqualizerChannel.register(with: controller.binaryMessenger)
       NativeColorPickerChannel.register(with: controller.binaryMessenger)
+      NowPlayingChannel.register(with: controller.binaryMessenger)
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
-
 private enum EqualizerChannel {
   static func register(with messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
@@ -177,6 +179,113 @@ private final class NativeColorPickerSession: NSObject,
       (Int(round(green * 255.0)) << 8) |
       Int(round(blue * 255.0))
     return String(format: "#%06X", rgb)
+  }
+}
+
+private enum NowPlayingChannel {
+  static func register(with messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "mo1/now_playing",
+      binaryMessenger: messenger
+    )
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "updateNowPlaying":
+        let arguments = call.arguments as? [String: Any] ?? [:]
+        updateNowPlaying(using: arguments)
+        result(nil)
+      case "clearNowPlaying":
+        clearNowPlaying()
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func updateNowPlaying(using arguments: [String: Any]) {
+    let title = (arguments["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let artist = (arguments["artist"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let album = (arguments["album"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let artworkPath = arguments["artworkPath"] as? String
+    let identifier = arguments["id"] as? String
+    let durationSeconds = doubleValue(arguments["durationSeconds"])
+    let positionSeconds = max(0, doubleValue(arguments["positionSeconds"]) ?? 0)
+    let isPlaying = arguments["isPlaying"] as? Bool ?? false
+
+    var info: [String: Any] = [:]
+    info[MPMediaItemPropertyTitle] = (title?.isEmpty == false ? title : "Unknown Song")
+
+    if let artist, !artist.isEmpty {
+      info[MPMediaItemPropertyArtist] = artist
+    }
+    if let album, !album.isEmpty {
+      info[MPMediaItemPropertyAlbumTitle] = album
+    }
+    if let identifier, !identifier.isEmpty {
+      info[MPNowPlayingInfoPropertyExternalContentIdentifier] = identifier
+    }
+    if let durationSeconds, durationSeconds > 0 {
+      info[MPMediaItemPropertyPlaybackDuration] = durationSeconds
+    }
+
+    info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = positionSeconds
+    info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+
+    if let artwork = artwork(from: artworkPath) {
+      info[MPMediaItemPropertyArtwork] = artwork
+    }
+
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    if #available(iOS 13.0, *) {
+      MPNowPlayingInfoCenter.default().playbackState = isPlaying ? .playing : .paused
+    }
+  }
+
+  private static func clearNowPlaying() {
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    if #available(iOS 13.0, *) {
+      MPNowPlayingInfoCenter.default().playbackState = .stopped
+    }
+  }
+
+  private static func artwork(from rawPath: String?) -> MPMediaItemArtwork? {
+    guard let rawPath else {
+      return nil
+    }
+
+    let trimmed = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else {
+      return nil
+    }
+
+    if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") {
+      return nil
+    }
+
+    let url: URL
+    if trimmed.hasPrefix("file://"), let fileURL = URL(string: trimmed) {
+      url = fileURL
+    } else {
+      url = URL(fileURLWithPath: trimmed)
+    }
+
+    guard let image = UIImage(contentsOfFile: url.path) else {
+      return nil
+    }
+
+    return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+  }
+
+  private static func doubleValue(_ value: Any?) -> Double? {
+    switch value {
+    case let number as NSNumber:
+      return number.doubleValue
+    case let string as String:
+      return Double(string)
+    default:
+      return nil
+    }
   }
 }
 
