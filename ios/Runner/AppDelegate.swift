@@ -1062,9 +1062,8 @@ private enum AppleMusicLookupChannel {
     if item.playbackDuration.isFinite && item.playbackDuration > 0 {
       result["durationMs"] = Int(item.playbackDuration * 1000)
     }
-    if let dateAdded = item.dateAdded {
-      result["dateAddedMs"] = Int(dateAdded.timeIntervalSince1970 * 1000)
-    }
+    let dateAdded = item.dateAdded
+    result["dateAddedMs"] = Int(dateAdded.timeIntervalSince1970 * 1000)
     if let artworkPath = cachedArtworkPath(for: item, identifier: identifier) {
       result["artworkUrl"] = artworkPath
     }
