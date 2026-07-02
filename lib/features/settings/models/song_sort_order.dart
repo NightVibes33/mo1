@@ -15,7 +15,7 @@ enum SongSortOrder {
       case SongSortOrder.album:
         return 'Album';
       case SongSortOrder.importOrder:
-        return 'Import Order';
+        return 'Date Added';
     }
   }
 
@@ -54,11 +54,11 @@ enum SongSortOrder {
         ]);
       case SongSortOrder.importOrder:
         final dateComparison =
-            a.effectiveAddedAtEpochMs.compareTo(b.effectiveAddedAtEpochMs);
+            b.effectiveAddedAtEpochMs.compareTo(a.effectiveAddedAtEpochMs);
         if (dateComparison != 0) {
           return dateComparison;
         }
-        return a.originalSongIndex.compareTo(b.originalSongIndex);
+        return b.originalSongIndex.compareTo(a.originalSongIndex);
     }
   }
 
@@ -83,7 +83,7 @@ int _compareByValues(
       return comparison;
     }
   }
-  return a.originalSongIndex.compareTo(b.originalSongIndex);
+  return b.originalSongIndex.compareTo(a.originalSongIndex);
 }
 
 String _normalized(String value) => value.trim().toLowerCase();
