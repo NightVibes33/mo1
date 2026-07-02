@@ -210,6 +210,59 @@ class SettingsPreferencesControllerNotifier
     return theme;
   }
 
+  Future<CustomDeviceTheme?> updateCustomDeviceTheme({
+    required String themeId,
+    required String name,
+    required Color primaryColor,
+    required Color secondaryColor,
+  }) async {
+    final themeIndex = state.customDeviceThemes.indexWhere(
+      (theme) => theme.id == themeId,
+    );
+    if (themeIndex < 0) {
+      return null;
+    }
+
+    final trimmedName = name.trim().isEmpty
+        ? state.customDeviceThemes[themeIndex].name
+        : name.trim();
+    final updatedTheme = state.customDeviceThemes[themeIndex].copyWith(
+      name: trimmedName,
+      primaryColorValue: primaryColor.toARGB32(),
+      secondaryColorValue: secondaryColor.toARGB32(),
+    );
+    final updatedThemes = [...state.customDeviceThemes];
+    updatedThemes[themeIndex] = updatedTheme;
+    state = state.copyWith(customDeviceThemes: updatedThemes);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setCustomDeviceThemes(customThemes: updatedThemes);
+    return updatedTheme;
+  }
+
+  Future<void> deleteCustomDeviceTheme(String themeId) async {
+    final updatedThemes = state.customDeviceThemes
+        .where((theme) => theme.id != themeId)
+        .toList(growable: false);
+    if (updatedThemes.length == state.customDeviceThemes.length) {
+      return;
+    }
+
+    final shouldClearActiveTheme = state.activeCustomDeviceThemeId == themeId;
+    state = state.copyWith(
+      customDeviceThemes: updatedThemes,
+      clearActiveCustomDeviceThemeId: shouldClearActiveTheme,
+    );
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setCustomDeviceThemes(customThemes: updatedThemes);
+    if (shouldClearActiveTheme) {
+      await ref
+          .read(settingsPreferencesRepositoryProvider)
+          .setActiveCustomDeviceThemeId(null);
+    }
+  }
+
   Future<void> toggleClickWheelSize() async {
     switch (state.clickWheelSize) {
       case ClickWheelSize.small:

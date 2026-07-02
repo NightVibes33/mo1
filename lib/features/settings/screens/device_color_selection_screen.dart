@@ -56,7 +56,8 @@ class _DeviceColorSelectionScreenState extends ConsumerState
     }
 
     final presetIndex = DeviceColor.values.indexOf(settings.deviceColor);
-    return 1 + settings.customDeviceThemes.length + (presetIndex < 0 ? 0 : presetIndex);
+    return 1 + settings.customDeviceThemes.length +
+        (presetIndex < 0 ? 0 : presetIndex);
   }
 
   Future<void> _handleEntrySelection(int index) async {
@@ -69,7 +70,7 @@ class _DeviceColorSelectionScreenState extends ConsumerState
 
     switch (entry.type) {
       case _ColorSelectionEntryType.createCustom:
-        await _showCreateCustomThemeDialog();
+        await _showCustomThemeDialog();
         break;
       case _ColorSelectionEntryType.preset:
         await ref
@@ -84,13 +85,16 @@ class _DeviceColorSelectionScreenState extends ConsumerState
     }
   }
 
-  Future<void> _showCreateCustomThemeDialog() async {
+  Future<void> _showCustomThemeDialog({CustomDeviceTheme? existingTheme}) async {
     final settings = ref.read(settingsPreferencesControllerProvider);
-    final defaultName = 'Custom ${settings.customDeviceThemes.length + 1}';
     final currentStyle = settings.resolveDeviceColorStyle();
+    final defaultName = existingTheme?.name ??
+        'Custom ${settings.customDeviceThemes.length + 1}';
     final nameController = TextEditingController(text: defaultName);
-    Color primaryColor = currentStyle.frameGradientColors.first;
-    Color secondaryColor = currentStyle.frameGradientColors.last;
+    Color primaryColor =
+        existingTheme?.primaryColor ?? currentStyle.frameGradientColors.first;
+    Color secondaryColor =
+        existingTheme?.secondaryColor ?? currentStyle.frameGradientColors.last;
 
     await showCupertinoDialog<void>(
       context: context,
@@ -116,7 +120,11 @@ class _DeviceColorSelectionScreenState extends ConsumerState
             }
 
             return CupertinoAlertDialog(
-              title: const Text('Create Custom Theme'),
+              title: Text(
+                existingTheme == null
+                    ? 'Create Custom Theme'
+                    : 'Edit Custom Theme',
+              ),
               content: Column(
                 children: [
                   const SizedBox(height: 12),
@@ -153,14 +161,22 @@ class _DeviceColorSelectionScreenState extends ConsumerState
                 CupertinoDialogAction(
                   isDefaultAction: true,
                   onPressed: () async {
-                    final theme = await ref
-                        .read(settingsPreferencesControllerProvider.notifier)
-                        .saveCustomDeviceTheme(
-                          name: nameController.text,
-                          primaryColor: primaryColor,
-                          secondaryColor: secondaryColor,
-                        );
-                    if (!mounted) {
+                    final notifier = ref.read(
+                      settingsPreferencesControllerProvider.notifier,
+                    );
+                    final theme = existingTheme == null
+                        ? await notifier.saveCustomDeviceTheme(
+                            name: nameController.text,
+                            primaryColor: primaryColor,
+                            secondaryColor: secondaryColor,
+                          )
+                        : await notifier.updateCustomDeviceTheme(
+                            themeId: existingTheme.id,
+                            name: nameController.text,
+                            primaryColor: primaryColor,
+                            secondaryColor: secondaryColor,
+                          );
+                    if (!mounted || theme == null) {
                       return;
                     }
                     Navigator.of(context).pop();
@@ -173,7 +189,7 @@ class _DeviceColorSelectionScreenState extends ConsumerState
                       setState(() => selectedDisplayItem = 1 + customIndex);
                     }
                   },
-                  child: const Text('Save'),
+                  child: Text(existingTheme == null ? 'Save' : 'Update'),
                 ),
               ],
             );
@@ -181,6 +197,43 @@ class _DeviceColorSelectionScreenState extends ConsumerState
         );
       },
     );
+  }
+
+  Future<void> _editCustomTheme(CustomDeviceTheme theme) async {
+    await _showCustomThemeDialog(existingTheme: theme);
+  }
+
+  Future<void> _deleteCustomTheme(CustomDeviceTheme theme) async {
+    final shouldDelete = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Delete Custom Theme?'),
+        content: Text('Remove "${theme.name}" from this device?'),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    await ref
+        .read(settingsPreferencesControllerProvider.notifier)
+        .deleteCustomDeviceTheme(theme.id);
+    final settingsAfterDelete = ref.read(settingsPreferencesControllerProvider);
+    setState(() {
+      selectedDisplayItem = _selectedIndexForSettings(settingsAfterDelete);
+    });
   }
 
   @override
@@ -221,19 +274,28 @@ class _DeviceColorSelectionScreenState extends ConsumerState
                   final previewStyle = entry.previewStyle(
                     useColorTextures: settings.useColorTextures,
                   );
-                  final isActiveTheme = entry.type == _ColorSelectionEntryType.custom
+                  final isActiveTheme =
+                      entry.type == _ColorSelectionEntryType.custom
                       ? activeCustomThemeId == entry.customTheme?.id
                       : entry.type == _ColorSelectionEntryType.preset
-                      ? activeCustomThemeId == null && activePreset == entry.deviceColor
+                      ? activeCustomThemeId == null &&
+                            activePreset == entry.deviceColor
                       : false;
 
                   return _ThemeOptionTile(
                     title: entry.title(context),
                     previewStyle: previewStyle,
                     isSelected: isSelected,
-                    isCreateAction: entry.type == _ColorSelectionEntryType.createCustom,
+                    isCreateAction:
+                        entry.type == _ColorSelectionEntryType.createCustom,
                     isActiveTheme: isActiveTheme,
                     onTap: () async => _handleEntrySelection(index),
+                    onEdit: entry.customTheme == null
+                        ? null
+                        : () async => _editCustomTheme(entry.customTheme!),
+                    onDelete: entry.customTheme == null
+                        ? null
+                        : () async => _deleteCustomTheme(entry.customTheme!),
                   );
                 },
               ),
@@ -297,6 +359,8 @@ class _ThemeOptionTile extends StatelessWidget {
   final bool isCreateAction;
   final bool isActiveTheme;
   final VoidCallback onTap;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const _ThemeOptionTile({
     required this.title,
@@ -305,11 +369,17 @@ class _ThemeOptionTile extends StatelessWidget {
     required this.onTap,
     this.isCreateAction = false,
     this.isActiveTheme = false,
+    this.onEdit,
+    this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     final titleColor = isSelected ? CupertinoColors.white : CupertinoColors.black;
+    final actionColor = isSelected
+        ? CupertinoColors.white.withValues(alpha: 0.94)
+        : CupertinoColors.black.withValues(alpha: 0.62);
+
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
@@ -391,6 +461,18 @@ class _ThemeOptionTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (onEdit != null)
+                  _InlineActionButton(
+                    icon: CupertinoIcons.pencil,
+                    color: actionColor,
+                    onTap: onEdit!,
+                  ),
+                if (onDelete != null)
+                  _InlineActionButton(
+                    icon: CupertinoIcons.delete,
+                    color: actionColor,
+                    onTap: onDelete!,
+                  ),
                 if (isSelected)
                   const Icon(
                     CupertinoIcons.right_chevron,
@@ -400,6 +482,29 @@ class _ThemeOptionTile extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _InlineActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _InlineActionButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Icon(icon, size: 16, color: color),
       ),
     );
   }
