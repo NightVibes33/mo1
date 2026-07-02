@@ -160,7 +160,7 @@ class SettingsPreferencesModel {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     languageLocaleCode,
     deviceColor,
     Object.hashAll(customDeviceThemes),
@@ -182,5 +182,5 @@ class SettingsPreferencesModel {
     useColorTextures,
     appTheme,
     fetchOnlineMusic,
-  );
+  ]);
 }
