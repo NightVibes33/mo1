@@ -35,14 +35,14 @@ class NowPlayingWidget extends StatelessWidget {
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final height = constraints.maxHeight;
-          final gap = width < 330 ? 12.0 : 18.0;
-          final reflectionHeight = (height * 0.19).clamp(20.0, 42.0).toDouble();
-          final maxArtForHeight = math.max(104.0, height - reflectionHeight - 10);
-          final artSide = math.min(
-            (width * 0.46).clamp(132.0, 210.0).toDouble(),
-            maxArtForHeight,
-          );
-          final infoWidth = math.max(118.0, width - artSide - gap);
+          final gap = width < 330 ? 14.0 : 20.0;
+          final tentativeArtSide = (width * 0.47).clamp(136.0, 214.0).toDouble();
+          final reflectionHeight = (tentativeArtSide * 0.34)
+              .clamp(34.0, 70.0)
+              .toDouble();
+          final maxArtForHeight = math.max(108.0, height - reflectionHeight - 6);
+          final artSide = math.min(tentativeArtSide, maxArtForHeight);
+          final infoWidth = math.max(112.0, width - artSide - gap);
           final titleSize = (infoWidth * 0.18).clamp(20.0, 30.0).toDouble();
           final metaSize = (infoWidth * 0.14).clamp(14.0, 21.0).toDouble();
           final countSize = (infoWidth * 0.135).clamp(14.0, 20.0).toDouble();
@@ -66,8 +66,8 @@ class NowPlayingWidget extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.only(
-                    top: math.max(8.0, height * 0.12),
-                    bottom: math.max(8.0, height * 0.10),
+                    top: math.max(10.0, height * 0.11),
+                    bottom: math.max(10.0, height * 0.11),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

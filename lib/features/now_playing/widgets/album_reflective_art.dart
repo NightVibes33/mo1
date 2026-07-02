@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:dope/core/constants/app_palette.dart';
 import 'package:dope/core/constants/assets.dart';
 import 'package:dope/core/utils/metadata_artwork.dart';
 import 'package:flutter/cupertino.dart';
@@ -56,23 +55,24 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
     if (widget.tiltedImage) {
       transform = Matrix4.identity()
         ..setEntry(3, 2, 0.003)
-        ..rotateY(-0.12);
+        ..rotateY(-0.11);
     } else {
       transform = Matrix4.identity();
     }
 
     final isDarkTheme =
         CupertinoTheme.of(context).brightness == Brightness.dark;
-    final overlayTopColor = isDarkTheme
-        ? AppPalette.darkReflectionOverlayColor1
-        : const Color(0x66FFFFFF);
-    final overlayBottomColor = isDarkTheme
-        ? AppPalette.darkReflectionOverlayColor2
-        : const Color(0xFFFFFFFF);
-    final overlayBorderColor = isDarkTheme
-        ? CupertinoColors.black
-        : CupertinoColors.white;
     final imageWidth = widget.imageWidth ?? double.infinity;
+    final reflectionOpacity = isDarkTheme ? 0.42 : 0.32;
+    final overlayTopColor = CupertinoColors.black.withValues(
+      alpha: isDarkTheme ? 0.10 : 0.06,
+    );
+    final overlayMidColor = CupertinoColors.black.withValues(
+      alpha: isDarkTheme ? 0.54 : 0.42,
+    );
+    final overlayBottomColor = CupertinoColors.black.withValues(
+      alpha: isDarkTheme ? 0.94 : 0.84,
+    );
 
     Widget artworkImage({double? height, Alignment alignment = Alignment.center}) {
       return Image(
@@ -140,13 +140,16 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
               opacity: _animation,
               child: Stack(
                 clipBehavior: Clip.none,
-                alignment: Alignment.bottomCenter,
+                alignment: Alignment.topCenter,
                 children: [
-                  Transform.flip(
-                    flipY: true,
-                    child: artworkImage(
-                      height: widget.reflectedImageHeight,
-                      alignment: Alignment.bottomCenter,
+                  Opacity(
+                    opacity: reflectionOpacity,
+                    child: Transform.flip(
+                      flipY: true,
+                      child: artworkImage(
+                        height: widget.reflectedImageHeight,
+                        alignment: Alignment.bottomCenter,
+                      ),
                     ),
                   ),
                   SizedBox(
@@ -154,21 +157,15 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
                     width: imageWidth,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        border: Border(
-                          left: BorderSide(color: overlayBorderColor, width: 0),
-                          right: BorderSide(
-                            color: overlayBorderColor,
-                            width: 0,
-                          ),
-                          bottom: BorderSide(
-                            color: overlayBorderColor,
-                            width: 0,
-                          ),
-                        ),
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [overlayTopColor, overlayBottomColor],
+                          stops: const [0.0, 0.38, 1.0],
+                          colors: [
+                            overlayTopColor,
+                            overlayMidColor,
+                            overlayBottomColor,
+                          ],
                         ),
                       ),
                     ),
