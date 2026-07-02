@@ -72,6 +72,24 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
     final overlayBorderColor = isDarkTheme
         ? CupertinoColors.black
         : CupertinoColors.white;
+    final imageWidth = widget.imageWidth ?? double.infinity;
+
+    Widget artworkImage({double? height, Alignment alignment = Alignment.center}) {
+      return Image(
+        image: metadataArtworkProvider(widget.thumbnailPath),
+        errorBuilder: (_, _, _) => Image.asset(
+          Assets.defaultAlbumCoverImage,
+          height: height,
+          width: imageWidth,
+          alignment: alignment,
+          fit: BoxFit.cover,
+        ),
+        height: height,
+        width: imageWidth,
+        alignment: alignment,
+        fit: BoxFit.cover,
+      );
+    }
 
     return Hero(
       tag: widget.heroTag,
@@ -114,26 +132,10 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
           },
       child: Transform(
         transform: transform,
+        alignment: Alignment.center,
         child: Column(
           children: [
-            Flexible(
-              child: Image(
-                image: metadataArtworkProvider(widget.thumbnailPath),
-                errorBuilder: (_, _, _) => Image.asset(
-                  Assets.defaultAlbumCoverImage,
-                  height: widget.imageWidth,
-                  width: widget.imageWidth ?? double.infinity,
-                  fit: (widget.imageWidth == null)
-                      ? BoxFit.fitWidth
-                      : BoxFit.scaleDown,
-                ),
-                height: widget.imageWidth,
-                width: widget.imageWidth ?? double.infinity,
-                fit: (widget.imageWidth == null)
-                    ? BoxFit.fitWidth
-                    : BoxFit.scaleDown,
-              ),
-            ),
+            Flexible(child: artworkImage(height: widget.imageWidth)),
             FadeTransition(
               opacity: _animation,
               child: Stack(
@@ -142,30 +144,14 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
                 children: [
                   Transform.flip(
                     flipY: true,
-                    child: Image(
-                      image: metadataArtworkProvider(widget.thumbnailPath),
-                      errorBuilder: (_, _, _) => Image.asset(
-                        Assets.defaultAlbumCoverImage,
-                        height: widget.reflectedImageHeight,
-                        width: widget.imageWidth != null
-                            ? (widget.imageWidth! - widget.reflectedImageHeight)
-                            : double.infinity,
-                        alignment: Alignment.bottomCenter,
-                        fit: BoxFit.fitWidth,
-                      ),
+                    child: artworkImage(
                       height: widget.reflectedImageHeight,
-                      width: widget.imageWidth != null
-                          ? (widget.imageWidth! - widget.reflectedImageHeight)
-                          : double.infinity,
                       alignment: Alignment.bottomCenter,
-                      fit: BoxFit.fitWidth,
                     ),
                   ),
                   SizedBox(
                     height: widget.reflectedImageHeight,
-                    width: widget.imageWidth != null
-                        ? (widget.imageWidth! - widget.reflectedImageHeight)
-                        : double.infinity,
+                    width: imageWidth,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         border: Border(
