@@ -189,9 +189,9 @@ class _LyricOffsetBar extends StatelessWidget {
         child: Row(
           children: [
             _OffsetButton(
-              label: '-0.5s',
+              label: '-0.15s',
               enabled: canChange,
-              onPressed: () => _changeBy(-500),
+              onPressed: () => _changeBy(-150),
             ),
             Expanded(
               child: Text(
@@ -207,9 +207,9 @@ class _LyricOffsetBar extends StatelessWidget {
               ),
             ),
             _OffsetButton(
-              label: '+0.5s',
+              label: '+0.15s',
               enabled: canChange,
-              onPressed: () => _changeBy(500),
+              onPressed: () => _changeBy(150),
             ),
           ],
         ),
