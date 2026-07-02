@@ -88,16 +88,14 @@ class _SongsScreenState extends ConsumerState<SongsScreen> with CustomScreen {
                 padding: listViewPadding,
                 itemCount: displayItems.length,
                 prototypeItem: SongListTile(
-                  songName: '',
-                  trackArtistNames: '',
+                  songMetadata: displayItems.first,
                   isSelected: false,
                   isCurrentlyPlaying: false,
                   onTap: () {},
                   onLongPress: () {},
                 ),
                 itemBuilder: (context, index) => SongListTile(
-                  songName: displayItems[index].trackName,
-                  trackArtistNames: displayItems[index].getTrackArtistNames,
+                  songMetadata: displayItems[index],
                   isSelected: selectedDisplayItem == index,
                   isCurrentlyPlaying:
                       currentlyPlayingOriginalIndex ==

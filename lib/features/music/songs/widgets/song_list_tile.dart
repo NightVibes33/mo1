@@ -1,10 +1,12 @@
 import 'package:dope/core/constants/app_palette.dart';
+import 'package:dope/core/constants/assets.dart';
 import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/core/models/music_metadata.dart';
+import 'package:dope/core/utils/metadata_artwork.dart';
 import 'package:flutter/cupertino.dart';
 
 class SongListTile extends StatelessWidget {
-  final String? songName;
-  final String? trackArtistNames;
+  final MusicMetadata songMetadata;
   final bool isSelected;
   final bool isCurrentlyPlaying;
   final VoidCallback onTap;
@@ -12,8 +14,7 @@ class SongListTile extends StatelessWidget {
 
   const SongListTile({
     super.key,
-    required this.songName,
-    required this.trackArtistNames,
+    required this.songMetadata,
     required this.isSelected,
     required this.isCurrentlyPlaying,
     required this.onTap,
@@ -55,34 +56,29 @@ class SongListTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Row(
               children: [
+                Image(
+                  image: metadataArtworkProvider(songMetadata.thumbnailPath),
+                  errorBuilder: (_, _, _) => Image.asset(
+                    Assets.defaultAlbumCoverImage,
+                    fit: BoxFit.fitWidth,
+                  ),
+                  height: 54,
+                  width: 54,
+                ),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        songName ?? context.localization.unknownSong,
-                        style: CupertinoTheme.of(context).textTheme.textStyle
-                            .copyWith(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected
-                                  ? context.appInverseTextColor
-                                  : context.appPrimaryTextColor,
-                            ),
-                        maxLines: 1,
-                      ),
-                      Text(
-                        trackArtistNames ?? context.localization.unknownArtist,
-                        style: CupertinoTheme.of(context).textTheme.textStyle
-                            .copyWith(
-                              color: isSelected
-                                  ? context.appInverseTextColor
-                                  : context.appSecondaryTextColor,
-                            ),
-                        maxLines: 1,
-                      ),
-                    ],
+                  child: Text(
+                    songMetadata.trackName ?? context.localization.unknownSong,
+                    style: CupertinoTheme.of(context).textTheme.textStyle
+                        .copyWith(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected
+                              ? context.appInverseTextColor
+                              : context.appPrimaryTextColor,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (isCurrentlyPlaying)
