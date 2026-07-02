@@ -1,10 +1,45 @@
 import 'dart:math' as math;
 
 import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/widgets/marquee_text.dart';
 import 'package:dope/features/now_playing/models/now_playing_model.dart';
 import 'package:dope/features/now_playing/widgets/album_reflective_art.dart';
 import 'package:flutter/cupertino.dart';
+
+class _ScaledLineText extends StatelessWidget {
+  final String text;
+  final double fontSize;
+  final FontWeight fontWeight;
+  final Color color;
+
+  const _ScaledLineText({
+    required this.text,
+    required this.fontSize,
+    required this.fontWeight,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: fontSize * 1.18,
+      child: FittedBox(
+        alignment: Alignment.centerLeft,
+        fit: BoxFit.scaleDown,
+        child: Text(
+          text,
+          maxLines: 1,
+          softWrap: false,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: fontWeight,
+            color: color,
+            height: 1.02,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class NowPlayingWidget extends StatelessWidget {
   final NowPlayingModel nowPlayingDetails;
@@ -37,9 +72,8 @@ class NowPlayingWidget extends StatelessWidget {
           final height = constraints.maxHeight;
           final gap = width < 330 ? 14.0 : 20.0;
           final tentativeArtSide = (width * 0.47).clamp(136.0, 214.0).toDouble();
-          final reflectionHeight = (tentativeArtSide * 0.34)
-              .clamp(34.0, 70.0)
-              .toDouble();
+          final reflectionHeight =
+              (tentativeArtSide * 0.34).clamp(34.0, 70.0).toDouble();
           final maxArtForHeight = math.max(108.0, height - reflectionHeight - 6);
           final artSide = math.min(tentativeArtSide, maxArtForHeight);
           final infoWidth = math.max(112.0, width - artSide - gap);
@@ -73,52 +107,28 @@ class NowPlayingWidget extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      MarqueeText(
-                        currentMetadata?.trackName ??
+                      _ScaledLineText(
+                        text: currentMetadata?.trackName ??
                             context.localization.unknownSong,
-                        fadedBorder: true,
-                        style: TextStyle(
-                          fontSize: titleSize,
-                          fontWeight: FontWeight.w800,
-                          color: context.appPrimaryTextColor,
-                          height: 1.02,
-                        ),
-                        delayBefore: const Duration(milliseconds: 900),
-                        pauseBetween: const Duration(milliseconds: 900),
-                        pauseOnBounce: const Duration(milliseconds: 900),
-                        velocity: const Velocity(
-                          pixelsPerSecond: Offset(24, 0),
-                        ),
+                        fontSize: titleSize,
+                        fontWeight: FontWeight.w800,
+                        color: context.appPrimaryTextColor,
                       ),
                       const SizedBox(height: 8),
-                      MarqueeText(
-                        currentMetadata?.getTrackArtistNames ??
+                      _ScaledLineText(
+                        text: currentMetadata?.getTrackArtistNames ??
                             context.localization.unknownArtist,
-                        fadedBorder: true,
-                        style: TextStyle(
-                          color: context.appSecondaryTextColor,
-                          fontSize: metaSize,
-                          fontWeight: FontWeight.w500,
-                          height: 1.05,
-                        ),
-                        delayBefore: const Duration(milliseconds: 900),
-                        pauseBetween: const Duration(milliseconds: 900),
-                        pauseOnBounce: const Duration(milliseconds: 900),
+                        fontSize: metaSize,
+                        fontWeight: FontWeight.w500,
+                        color: context.appSecondaryTextColor,
                       ),
                       const SizedBox(height: 6),
-                      MarqueeText(
-                        currentMetadata?.albumName ??
+                      _ScaledLineText(
+                        text: currentMetadata?.albumName ??
                             context.localization.unknownAlbum,
-                        fadedBorder: true,
-                        style: TextStyle(
-                          color: context.appSecondaryTextColor,
-                          fontSize: metaSize,
-                          fontWeight: FontWeight.w500,
-                          height: 1.05,
-                        ),
-                        delayBefore: const Duration(milliseconds: 900),
-                        pauseBetween: const Duration(milliseconds: 900),
-                        pauseOnBounce: const Duration(milliseconds: 900),
+                        fontSize: metaSize,
+                        fontWeight: FontWeight.w500,
+                        color: context.appSecondaryTextColor,
                       ),
                       const Spacer(),
                       Text(
