@@ -83,7 +83,7 @@ int _compareByValues(
       return comparison;
     }
   }
-  return b.originalSongIndex.compareTo(a.originalSongIndex);
+  return a.originalSongIndex.compareTo(b.originalSongIndex);
 }
 
 String _normalized(String value) => value.trim().toLowerCase();
