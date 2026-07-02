@@ -2,16 +2,20 @@ import 'package:dope/features/settings/models/app_text_size.dart';
 import 'package:dope/features/settings/models/app_theme.dart';
 import 'package:dope/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:dope/features/settings/models/click_wheel_size.dart';
+import 'package:dope/features/settings/models/custom_device_theme.dart';
 import 'package:dope/features/settings/models/device_color.dart';
 import 'package:dope/features/settings/models/equalizer_preset.dart';
 import 'package:dope/features/settings/models/repeat_mode.dart';
 import 'package:dope/features/settings/models/song_sort_order.dart';
 import 'package:dope/features/settings/models/song_transition_style.dart';
 import 'package:dope/features/settings/models/volume_mode.dart';
+import 'package:flutter/foundation.dart';
 
 class SettingsPreferencesModel {
   final String languageLocaleCode;
   final DeviceColor deviceColor;
+  final List<CustomDeviceTheme> customDeviceThemes;
+  final String? activeCustomDeviceThemeId;
   final ClickWheelSize clickWheelSize;
   final ClickWheelSensitivity clickWheelSensitivity;
   final bool isTouchScreenEnabled;
@@ -33,6 +37,8 @@ class SettingsPreferencesModel {
   SettingsPreferencesModel({
     required this.languageLocaleCode,
     required this.deviceColor,
+    required this.customDeviceThemes,
+    required this.activeCustomDeviceThemeId,
     required this.clickWheelSize,
     required this.clickWheelSensitivity,
     required this.isTouchScreenEnabled,
@@ -52,9 +58,34 @@ class SettingsPreferencesModel {
     this.fetchOnlineMusic = false,
   });
 
+  CustomDeviceTheme? get activeCustomDeviceTheme {
+    if (activeCustomDeviceThemeId == null || activeCustomDeviceThemeId!.isEmpty) {
+      return null;
+    }
+    for (final theme in customDeviceThemes) {
+      if (theme.id == activeCustomDeviceThemeId) {
+        return theme;
+      }
+    }
+    return null;
+  }
+
+  bool get isUsingCustomDeviceTheme => activeCustomDeviceTheme != null;
+
+  DeviceColorStyle resolveDeviceColorStyle() {
+    final customTheme = activeCustomDeviceTheme;
+    if (customTheme != null) {
+      return customTheme.style(useColorTextures: useColorTextures);
+    }
+    return deviceColor.style(useColorTextures: useColorTextures);
+  }
+
   SettingsPreferencesModel copyWith({
     String? languageLocaleCode,
     DeviceColor? deviceColor,
+    List<CustomDeviceTheme>? customDeviceThemes,
+    String? activeCustomDeviceThemeId,
+    bool clearActiveCustomDeviceThemeId = false,
     ClickWheelSize? clickWheelSize,
     ClickWheelSensitivity? clickWheelSensitivity,
     bool? isTouchScreenEnabled,
@@ -76,6 +107,10 @@ class SettingsPreferencesModel {
     return SettingsPreferencesModel(
       languageLocaleCode: languageLocaleCode ?? this.languageLocaleCode,
       deviceColor: deviceColor ?? this.deviceColor,
+      customDeviceThemes: customDeviceThemes ?? this.customDeviceThemes,
+      activeCustomDeviceThemeId: clearActiveCustomDeviceThemeId
+          ? null
+          : activeCustomDeviceThemeId ?? this.activeCustomDeviceThemeId,
       clickWheelSize: clickWheelSize ?? this.clickWheelSize,
       clickWheelSensitivity:
           clickWheelSensitivity ?? this.clickWheelSensitivity,
@@ -86,8 +121,7 @@ class SettingsPreferencesModel {
       volumeMode: volumeMode ?? this.volumeMode,
       equalizerPreset: equalizerPreset ?? this.equalizerPreset,
       songSortOrder: songSortOrder ?? this.songSortOrder,
-      songTransitionStyle:
-          songTransitionStyle ?? this.songTransitionStyle,
+      songTransitionStyle: songTransitionStyle ?? this.songTransitionStyle,
       crossfadeDurationSeconds:
           crossfadeDurationSeconds ?? this.crossfadeDurationSeconds,
       appTextSize: appTextSize ?? this.appTextSize,
@@ -104,6 +138,8 @@ class SettingsPreferencesModel {
     return other is SettingsPreferencesModel &&
         other.languageLocaleCode == languageLocaleCode &&
         other.deviceColor == deviceColor &&
+        listEquals(other.customDeviceThemes, customDeviceThemes) &&
+        other.activeCustomDeviceThemeId == activeCustomDeviceThemeId &&
         other.clickWheelSize == clickWheelSize &&
         other.clickWheelSensitivity == clickWheelSensitivity &&
         other.isTouchScreenEnabled == isTouchScreenEnabled &&
@@ -127,6 +163,8 @@ class SettingsPreferencesModel {
   int get hashCode => Object.hash(
     languageLocaleCode,
     deviceColor,
+    Object.hashAll(customDeviceThemes),
+    activeCustomDeviceThemeId,
     clickWheelSize,
     clickWheelSensitivity,
     isTouchScreenEnabled,

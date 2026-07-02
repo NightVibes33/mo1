@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dope/core/constants/constants.dart';
 import 'package:dope/core/models/shared_preference_keys.dart';
 import 'package:dope/core/providers/shared_preferences_with_cache_provider.dart';
@@ -5,6 +7,7 @@ import 'package:dope/features/settings/models/app_text_size.dart';
 import 'package:dope/features/settings/models/app_theme.dart';
 import 'package:dope/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:dope/features/settings/models/click_wheel_size.dart';
+import 'package:dope/features/settings/models/custom_device_theme.dart';
 import 'package:dope/features/settings/models/device_color.dart';
 import 'package:dope/features/settings/models/equalizer_preset.dart';
 import 'package:dope/features/settings/models/repeat_mode.dart';
@@ -38,6 +41,37 @@ class SettingsPreferencesRepository {
           SharedPreferencesKeys.deviceColor.name,
         ) ??
         DeviceColor.silver.name;
+  }
+
+  List<CustomDeviceTheme> getCustomDeviceThemes() {
+    final rawThemes = _sharedPreferencesWithCache.getString(
+          SharedPreferencesKeys.customDeviceThemes.name,
+        ) ??
+        '[]';
+    try {
+      final decoded = jsonDecode(rawThemes);
+      if (decoded is! List) {
+        return const [];
+      }
+      return decoded
+          .whereType<Map>()
+          .map((theme) => CustomDeviceTheme.fromJson(
+                Map<String, dynamic>.from(theme),
+              ))
+          .toList(growable: false);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  String? getActiveCustomDeviceThemeId() {
+    final rawId = _sharedPreferencesWithCache.getString(
+      SharedPreferencesKeys.activeCustomDeviceThemeId.name,
+    );
+    if (rawId == null || rawId.isEmpty) {
+      return null;
+    }
+    return rawId;
   }
 
   String getClickWheelSize() {
@@ -169,6 +203,25 @@ class SettingsPreferencesRepository {
     );
   }
 
+  Future<void> setCustomDeviceThemes({
+    required List<CustomDeviceTheme> customThemes,
+  }) async {
+    final encoded = jsonEncode(
+      customThemes.map((theme) => theme.toJson()).toList(growable: false),
+    );
+    return _sharedPreferencesWithCache.setString(
+      SharedPreferencesKeys.customDeviceThemes.name,
+      encoded,
+    );
+  }
+
+  Future<void> setActiveCustomDeviceThemeId(String? themeId) async {
+    return _sharedPreferencesWithCache.setString(
+      SharedPreferencesKeys.activeCustomDeviceThemeId.name,
+      themeId ?? '',
+    );
+  }
+
   Future<void> setClickWheelSize({required String clickWheelSizeName}) async {
     return _sharedPreferencesWithCache.setString(
       SharedPreferencesKeys.clickWheelSize.name,
@@ -284,7 +337,9 @@ class SettingsPreferencesRepository {
     );
   }
 
-  Future<void> setUseColorTextures({required bool isUseColorTexturesEnabled}) async {
+  Future<void> setUseColorTextures({
+    required bool isUseColorTexturesEnabled,
+  }) async {
     return _sharedPreferencesWithCache.setBool(
       SharedPreferencesKeys.useColorTextures.name,
       isUseColorTexturesEnabled,

@@ -27,6 +27,7 @@ import UIKit
     if let controller = window?.rootViewController as? FlutterViewController {
       AppleMusicLookupChannel.register(with: controller.binaryMessenger)
       EqualizerChannel.register(with: controller.binaryMessenger)
+      NativeColorPickerChannel.register(with: controller.binaryMessenger)
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
@@ -66,6 +67,140 @@ private enum EqualizerChannel {
   }
 }
 
+private enum NativeColorPickerChannel {
+  static var activeSession: NativeColorPickerSession?
+
+  static func register(with messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "mo1/color_picker",
+      binaryMessenger: messenger
+    )
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "pickColor" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+
+      guard let rootViewController = UIApplication.shared.topMostViewController() else {
+        result(FlutterError(
+          code: "COLOR_PICKER_UNAVAILABLE",
+          message: "Unable to present the native color picker.",
+          details: nil
+        ))
+        return
+      }
+
+      let arguments = call.arguments as? [String: Any] ?? [:]
+      let initialHex = arguments["initialHex"] as? String
+      let session = NativeColorPickerSession(
+        presenter: rootViewController,
+        initialHex: initialHex,
+        result: result
+      )
+      activeSession = session
+      session.present()
+    }
+  }
+}
+
+private final class NativeColorPickerSession: NSObject,
+  UIColorPickerViewControllerDelegate,
+  UIAdaptivePresentationControllerDelegate {
+  private weak var presenter: UIViewController?
+  private let result: FlutterResult
+  private let initialHex: String?
+  private var didFinish = false
+  private let pickerViewController = UIColorPickerViewController()
+
+  init(
+    presenter: UIViewController,
+    initialHex: String?,
+    result: @escaping FlutterResult
+  ) {
+    self.presenter = presenter
+    self.initialHex = initialHex
+    self.result = result
+    super.init()
+  }
+
+  func present() {
+    pickerViewController.delegate = self
+    pickerViewController.supportsAlpha = false
+    pickerViewController.modalPresentationStyle = .formSheet
+    pickerViewController.presentationController?.delegate = self
+
+    if let initialHex,
+       let initialColor = Self.color(from: initialHex) {
+      pickerViewController.selectedColor = initialColor
+    }
+
+    presenter?.present(pickerViewController, animated: true)
+  }
+
+  func colorPickerViewControllerDidFinish(_ viewController: UIColorPickerViewController) {
+    finish(with: viewController.selectedColor)
+  }
+
+  func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+    finish(with: pickerViewController.selectedColor)
+  }
+
+  private func finish(with color: UIColor) {
+    guard !didFinish else {
+      return
+    }
+    didFinish = true
+    NativeColorPickerChannel.activeSession = nil
+    result(Self.hexString(from: color))
+  }
+
+  private static func color(from hex: String) -> UIColor? {
+    let normalized = hex.replacingOccurrences(of: "#", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+    guard normalized.count == 6, let value = Int(normalized, radix: 16) else {
+      return nil
+    }
+
+    let red = CGFloat((value >> 16) & 0xFF) / 255.0
+    let green = CGFloat((value >> 8) & 0xFF) / 255.0
+    let blue = CGFloat(value & 0xFF) / 255.0
+    return UIColor(red: red, green: green, blue: blue, alpha: 1)
+  }
+
+  private static func hexString(from color: UIColor) -> String {
+    var red: CGFloat = 0
+    var green: CGFloat = 0
+    var blue: CGFloat = 0
+    var alpha: CGFloat = 0
+    color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+
+    let rgb = (Int(round(red * 255.0)) << 16) |
+      (Int(round(green * 255.0)) << 8) |
+      Int(round(blue * 255.0))
+    return String(format: "#%06X", rgb)
+  }
+}
+
+private extension UIApplication {
+  func topMostViewController(
+    base: UIViewController? = UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap(\.windows)
+      .first(where: \.isKeyWindow)?
+      .rootViewController
+  ) -> UIViewController? {
+    if let navigationController = base as? UINavigationController {
+      return topMostViewController(base: navigationController.visibleViewController)
+    }
+    if let tabBarController = base as? UITabBarController,
+       let selectedViewController = tabBarController.selectedViewController {
+      return topMostViewController(base: selectedViewController)
+    }
+    if let presentedViewController = base?.presentedViewController {
+      return topMostViewController(base: presentedViewController)
+    }
+    return base
+  }
+}
 private enum AppleMusicLookupChannel {
   private enum PlaybackBackend {
     case mediaPlayer

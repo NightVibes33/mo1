@@ -15,6 +15,7 @@ import 'package:dope/features/settings/models/app_text_size.dart';
 import 'package:dope/features/settings/models/app_theme.dart';
 import 'package:dope/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:dope/features/settings/models/click_wheel_size.dart';
+import 'package:dope/features/settings/models/custom_device_theme.dart';
 import 'package:dope/features/settings/models/device_color.dart';
 import 'package:dope/features/settings/models/equalizer_preset.dart';
 import 'package:dope/features/settings/models/repeat_mode.dart';
@@ -53,6 +54,9 @@ class SettingsPreferencesControllerNotifier
       deviceColor: DeviceColor.fromName(
         settingsPreferencesRepository.getDeviceColor(),
       ),
+      customDeviceThemes: settingsPreferencesRepository.getCustomDeviceThemes(),
+      activeCustomDeviceThemeId:
+          settingsPreferencesRepository.getActiveCustomDeviceThemeId(),
       clickWheelSize: ClickWheelSize.values.byName(
         settingsPreferencesRepository.getClickWheelSize(),
       ),
@@ -131,7 +135,6 @@ class SettingsPreferencesControllerNotifier
             .setLoopMode(LoopMode.off);
         break;
       case RepeatMode.one:
-        // in case app starts with repeat mode one, set the loop mode to all
         await ref
             .read(settingsPreferencesRepositoryProvider)
             .setRepeatMode(repeatModeName: RepeatMode.all.name);
@@ -152,13 +155,59 @@ class SettingsPreferencesControllerNotifier
   }
 
   Future<void> setDeviceColor(DeviceColor deviceColor) async {
-    if (state.deviceColor == deviceColor) {
+    if (state.deviceColor == deviceColor && !state.isUsingCustomDeviceTheme) {
       return;
     }
-    state = state.copyWith(deviceColor: deviceColor);
+    state = state.copyWith(
+      deviceColor: deviceColor,
+      clearActiveCustomDeviceThemeId: true,
+    );
     await ref
         .read(settingsPreferencesRepositoryProvider)
         .setDeviceColor(deviceColorName: deviceColor.name);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setActiveCustomDeviceThemeId(null);
+  }
+
+  Future<void> selectCustomDeviceTheme(String themeId) async {
+    final themeExists = state.customDeviceThemes.any((theme) => theme.id == themeId);
+    if (!themeExists) {
+      return;
+    }
+    if (state.activeCustomDeviceThemeId == themeId) {
+      return;
+    }
+    state = state.copyWith(activeCustomDeviceThemeId: themeId);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setActiveCustomDeviceThemeId(themeId);
+  }
+
+  Future<CustomDeviceTheme> saveCustomDeviceTheme({
+    required String name,
+    required Color primaryColor,
+    required Color secondaryColor,
+  }) async {
+    final trimmedName = name.trim().isEmpty ? 'Custom Theme' : name.trim();
+    final theme = CustomDeviceTheme(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      name: trimmedName,
+      primaryColorValue: primaryColor.toARGB32(),
+      secondaryColorValue: secondaryColor.toARGB32(),
+    );
+    final updatedThemes = [...state.customDeviceThemes, theme];
+    state = state.copyWith(
+      customDeviceThemes: updatedThemes,
+      activeCustomDeviceThemeId: theme.id,
+    );
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setCustomDeviceThemes(customThemes: updatedThemes);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setActiveCustomDeviceThemeId(theme.id);
+    return theme;
   }
 
   Future<void> toggleClickWheelSize() async {
@@ -406,6 +455,12 @@ class SettingsPreferencesControllerNotifier
         .setDeviceColor(deviceColorName: DeviceColor.silver.name);
     await ref
         .read(settingsPreferencesRepositoryProvider)
+        .setCustomDeviceThemes(customThemes: const []);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setActiveCustomDeviceThemeId(null);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
         .setTouchScreenEnabled(isTouchScreenEnabled: true);
     await ref
         .read(settingsPreferencesRepositoryProvider)
@@ -452,11 +507,15 @@ class SettingsPreferencesControllerNotifier
       songTransitionStyle: SongTransitionStyle.off,
       crossfadeDurationSeconds: defaultCrossfadeDurationSeconds,
       useColorTextures: true,
+      customDeviceThemes: const [],
+      clearActiveCustomDeviceThemeId: true,
     );
     await ref.read(audioEqualizerServiceProvider).applyPreset(
           EqualizerPreset.off,
         );
-    await ref.read(audioPlayerServiceProvider.notifier).syncSongTransitionStyle();
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .syncSongTransitionStyle();
     ref.invalidateSelf();
   }
 

@@ -361,7 +361,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   ) {
     switch (settingsItem) {
       case _SettingsDisplayItems.deviceColor:
-        return settingsState.deviceColor.title(context);
+        return settingsState.activeCustomDeviceTheme?.name ??
+            settingsState.deviceColor.title(context);
       case _SettingsDisplayItems.gradientTextures:
         return settingsState.useColorTextures
             ? context.localization.tileValueOn

@@ -1,24 +1,27 @@
-import 'package:dope/core/constants/app_palette.dart';
 import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class StatusBar extends StatelessWidget {
+class StatusBar extends ConsumerWidget {
   final String title;
 
   const StatusBar({super.key, required this.title});
 
   @override
-  Widget build(BuildContext context) {
-    final isDarkTheme =
-        CupertinoTheme.of(context).brightness == Brightness.dark;
-    final borderColor = isDarkTheme
-        ? AppPalette.darkStatusBarBorderColor.withValues(alpha: 0.35)
-        : AppPalette.statusBarBorderColor.withValues(alpha: 0.18);
-    final backgroundColor = isDarkTheme
-        ? const Color(0xCC101217)
-        : const Color(0xF6FFFFFF);
-    final textColor = isDarkTheme
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsPreferencesControllerProvider);
+    final deviceColorStyle = settings.resolveDeviceColorStyle();
+    final borderColor = deviceColorStyle.isDark
+        ? CupertinoColors.white.withValues(alpha: 0.12)
+        : CupertinoColors.black.withValues(alpha: 0.10);
+    final backgroundColor = Color.lerp(
+          deviceColorStyle.frameGradientColors.first,
+          deviceColorStyle.frameGradientColors.last,
+          0.36,
+        )
+        ?.withValues(alpha: deviceColorStyle.isDark ? 0.90 : 0.94);
+    final textColor = deviceColorStyle.isDark
         ? CupertinoColors.white
         : const Color(0xFF111418);
 
@@ -61,12 +64,16 @@ class StatusBar extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isPlaying
                           ? const Color(0x1626D98B)
-                          : CupertinoColors.black.withValues(alpha: 0.05),
+                          : (deviceColorStyle.isDark
+                                ? CupertinoColors.white.withValues(alpha: 0.08)
+                                : CupertinoColors.black.withValues(alpha: 0.05)),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
                         color: isPlaying
                             ? const Color(0x3326D98B)
-                            : CupertinoColors.black.withValues(alpha: 0.06),
+                            : (deviceColorStyle.isDark
+                                  ? CupertinoColors.white.withValues(alpha: 0.12)
+                                  : CupertinoColors.black.withValues(alpha: 0.06)),
                       ),
                     ),
                     child: Row(

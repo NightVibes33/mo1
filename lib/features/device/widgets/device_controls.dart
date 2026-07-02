@@ -13,7 +13,6 @@ import 'package:dope/features/device/services/device_buttons_service_provider.da
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:dope/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:dope/features/settings/models/click_wheel_size.dart';
-import 'package:dope/features/settings/models/device_color.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -108,29 +107,10 @@ class _DeviceControlsState extends ConsumerState<DeviceControls> {
 
   @override
   Widget build(BuildContext context) {
-    final DeviceColor deviceColor = ref.watch(
-      settingsPreferencesControllerProvider.select(
-        (settings) => settings.deviceColor,
-      ),
-    );
-    final useColorTextures = ref.watch(
-      settingsPreferencesControllerProvider.select(
-        (settings) => settings.useColorTextures,
-      ),
-    );
-    final deviceColorStyle = deviceColor.style(
-      useColorTextures: useColorTextures,
-    );
-    final clickWheelSize = ref.watch(
-      settingsPreferencesControllerProvider.select(
-        (settings) => settings.clickWheelSize,
-      ),
-    );
-    final clickWheelSensitivity = ref.watch(
-      settingsPreferencesControllerProvider.select(
-        (settings) => settings.clickWheelSensitivity,
-      ),
-    );
+    final settings = ref.watch(settingsPreferencesControllerProvider);
+    final deviceColorStyle = settings.resolveDeviceColorStyle();
+    final clickWheelSize = settings.clickWheelSize;
+    final clickWheelSensitivity = settings.clickWheelSensitivity;
     late final double clickWheelRadiusRatio;
     late final double selectButtonRadiusRatio;
     switch (clickWheelSize) {

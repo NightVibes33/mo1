@@ -146,7 +146,8 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
         splitScreenWidget = IconPreviewWidget(
           titleText: context.localization.deviceColorSettingTitle,
           icon: CupertinoIcons.device_phone_portrait,
-          contentText: currentSettings.deviceColor.title(context),
+          contentText: currentSettings.activeCustomDeviceTheme?.name ??
+              currentSettings.deviceColor.title(context),
         );
       } else if (splitScreenType == SplitScreenType.gradientTextures) {
         splitScreenWidget = IconPreviewWidget(
