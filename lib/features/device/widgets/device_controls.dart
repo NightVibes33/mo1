@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:dope/core/constants/assets.dart';
 import 'package:dope/core/constants/constants.dart';
@@ -19,7 +18,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:ui' as ui;
 
 class DeviceControls extends ConsumerStatefulWidget {
   const DeviceControls({super.key});
@@ -28,30 +26,8 @@ class DeviceControls extends ConsumerStatefulWidget {
   ConsumerState createState() => _DeviceControlsState();
 }
 
-class _DeviceControlsState extends ConsumerState<DeviceControls>
-    with SingleTickerProviderStateMixin {
+class _DeviceControlsState extends ConsumerState<DeviceControls> {
   Duration durationSinceLastScroll = Duration.zero;
-  late AnimationController _glassOrbController;
-  bool showOrb = false;
-  bool controlsVisible = true;
-  Timer? _controlsRestoreTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _glassOrbController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6),
-    );
-    _glassOrbController.repeat();
-  }
-
-  @override
-  void dispose() {
-    _controlsRestoreTimer?.cancel();
-    _glassOrbController.dispose();
-    super.dispose();
-  }
 
   Future<void> onClickWheelScroll({
     required DragUpdateDetails dragUpdateDetails,
@@ -59,11 +35,6 @@ class _DeviceControlsState extends ConsumerState<DeviceControls>
     required double smallThresholdRotationalChange,
     required double bigThresholdRotationalChange,
   }) async {
-    setState(() {
-      showOrb = true;
-      controlsVisible = false;
-    });
-    _controlsRestoreTimer?.cancel();
 
     // Pan location on the wheel
     final bool onTop = dragUpdateDetails.localPosition.dy <= radius;
@@ -134,15 +105,6 @@ class _DeviceControlsState extends ConsumerState<DeviceControls>
     }
   }
 
-  void _restoreControlsSoon() {
-    _controlsRestoreTimer?.cancel();
-    _controlsRestoreTimer = Timer(const Duration(milliseconds: 220), () {
-      if (!mounted) return;
-      setState(() {
-        controlsVisible = true;
-      });
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -218,31 +180,17 @@ class _DeviceControlsState extends ConsumerState<DeviceControls>
     return LayoutBuilder(
       builder: (context, constraints) {
         final double screenWidth = constraints.maxWidth + 40;
-        final double orbRadius = 75.0;
 
         return SizedBox(
           height: screenWidth * clickWheelRadiusRatio,
           width: screenWidth * clickWheelRadiusRatio,
           child: GestureDetector(
-          onPanStart: (_) {
-            setState(() {
-              showOrb = true;
-              controlsVisible = false;
-            });
-            _controlsRestoreTimer?.cancel();
-          },
           onPanUpdate: (dragUpdateDetails) => onClickWheelScroll(
             dragUpdateDetails: dragUpdateDetails,
             radius: (screenWidth * clickWheelRadiusRatio) / 2,
             smallThresholdRotationalChange: smallThresholdRotationalChange,
             bigThresholdRotationalChange: bigThresholdRotationalChange,
           ),
-          onPanEnd: (_) {
-            setState(() {
-              showOrb = false;
-            });
-            _restoreControlsSoon();
-          },
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -258,35 +206,37 @@ class _DeviceControlsState extends ConsumerState<DeviceControls>
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
-                            center: const Alignment(-0.28, -0.35),
-                            radius: 1.08,
+                            center: const Alignment(-0.34, -0.42),
+                            radius: 1.05,
                             colors: [
-                              CupertinoColors.white.withValues(alpha: 0.75),
+                              CupertinoColors.white.withValues(alpha: 0.46),
                               deviceColorStyle.controlBackgroundColor.withValues(
-                                alpha: 0.88,
+                                alpha: 0.84,
                               ),
                               deviceColorStyle.controlBackgroundColor.withValues(
-                                alpha: 0.58,
+                                alpha: 0.72,
                               ),
                             ],
                           ),
                           border: Border.all(
-                            color: CupertinoColors.white.withValues(alpha: 0.35),
-                            width: 1.4,
+                            color: CupertinoColors.white.withValues(alpha: 0.28),
+                            width: 1.2,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: CupertinoColors.black.withValues(alpha: 0.22),
-                              blurRadius: 28,
-                              offset: const Offset(0, 18),
+                              color: CupertinoColors.black.withValues(alpha: 0.16),
+                              blurRadius: 20,
+                              offset: const Offset(0, 12),
+                            ),
+                            BoxShadow(
+                              color: CupertinoColors.white.withValues(alpha: 0.16),
+                              blurRadius: 10,
+                              offset: const Offset(-3, -4),
                             ),
                           ],
                         ),
                       ),
-                      AnimatedOpacity(
-                        opacity: controlsVisible ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 180),
-                        child: Padding(
+                      Padding(
                           padding: const EdgeInsets.all(12),
                           child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,245 +418,15 @@ class _DeviceControlsState extends ConsumerState<DeviceControls>
                           ],
                         ),
                       ),
-                      ),
-                      IgnorePointer(
-                        child: Container(
-                          width: screenWidth * (selectButtonRadiusRatio * 1.8),
-                          height: screenWidth * (selectButtonRadiusRatio * 1.8),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                              center: const Alignment(-0.2, -0.2),
-                              radius: 1.05,
-                              colors: [
-                                CupertinoColors.white.withValues(alpha: 0.55),
-                                deviceColorStyle.controlBackgroundColor.withValues(
-                                  alpha: 0.16,
-                                ),
-                                deviceColorStyle.controlBackgroundColor.withValues(
-                                  alpha: 0.02,
-                                ),
-                              ],
-                            ),
-                            border: Border.all(
-                              color: CupertinoColors.white.withValues(alpha: 0.18),
-                              width: 1.1,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
               ),
-              // ===== FLOATING LIQUID GLASS ORB =====
-              if (showOrb)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Center(
-                      child: AnimatedBuilder(
-                        animation: _glassOrbController,
-                        builder: (context, _) {
-                          return LiquidGlassOrb(
-                            radius: orbRadius,
-                            progress: _glassOrbController.value,
-                            glassColor: deviceColorStyle.controlBackgroundColor,
-                            tintColor: deviceColorStyle.buttonAccentColor,
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
           ),
         );
       },
     );
-  }
-}
-
-// Apple Liquid Glass Orb
-class LiquidGlassOrb extends StatelessWidget {
-  final double radius;
-  final double progress;
-  final Color glassColor;
-  final Color tintColor;
-
-  const LiquidGlassOrb({
-    required this.radius,
-    required this.progress,
-    required this.glassColor,
-    required this.tintColor,
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: radius * 2,
-      height: radius * 2,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Real iOS blur effect
-          BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 25, sigmaY: 25),
-            child: Container(
-              width: radius * 2,
-              height: radius * 2,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: glassColor.withValues(alpha: 0.32),
-                border: Border.all(
-                  color: CupertinoColors.white.withValues(alpha: 0.25),
-                  width: 2,
-                ),
-              ),
-            ),
-          ),
-          // Glass painting layer
-          CustomPaint(
-            size: Size(radius * 2, radius * 2),
-            painter: AppleLiquidGlassPainter(
-              radius: radius,
-              progress: progress,
-              tintColor: tintColor,
-              glassColor: glassColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class AppleLiquidGlassPainter extends CustomPainter {
-  final double radius;
-  final double progress;
-  final Color glassColor;
-  final Color tintColor;
-
-  AppleLiquidGlassPainter({
-    required this.radius,
-    required this.progress,
-    required this.glassColor,
-    required this.tintColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(radius, radius);
-
-    // Main glass sphere
-    final mainGradient = RadialGradient(
-      center: Alignment(-0.35, -0.35),
-      radius: 1.3,
-      colors: [
-        CupertinoColors.white.withValues(alpha: 0.45),
-        glassColor.withValues(alpha: 0.2),
-        glassColor.withValues(alpha: 0.05),
-      ],
-      stops: const [0.0, 0.4, 1.0],
-    );
-
-    final mainPaint = Paint()
-      ..shader = mainGradient.createShader(
-        Rect.fromCircle(center: center, radius: radius),
-      )
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(center, radius, mainPaint);
-
-    // Top highlight
-    final highlightGradient = RadialGradient(
-      center: Alignment(-0.4, -0.6),
-      radius: 0.7,
-      colors: [
-        CupertinoColors.white.withValues(alpha: 0.85),
-        CupertinoColors.white.withValues(alpha: 0.25),
-        CupertinoColors.white.withValues(alpha: 0.0),
-      ],
-    );
-
-    final highlightPaint = Paint()
-      ..shader = highlightGradient.createShader(
-        Rect.fromCircle(center: center, radius: radius * 0.8),
-      )
-      ..blendMode = BlendMode.screen;
-
-    canvas.drawCircle(center, radius * 0.65, highlightPaint);
-
-    // Animated aurora glow
-    final glowPhase = progress * math.pi * 2;
-    final glowGradient = RadialGradient(
-      center: Alignment(
-        math.sin(glowPhase) * 0.2,
-        math.cos(glowPhase) * 0.2,
-      ),
-      radius: 1.4,
-      colors: [
-        glassColor.withValues(alpha: 0.35),
-        glassColor.withValues(alpha: 0.12),
-        glassColor.withValues(alpha: 0.0),
-      ],
-    );
-
-    final glowPaint = Paint()
-      ..shader = glowGradient.createShader(
-        Rect.fromCircle(center: center, radius: radius * 1.15),
-      )
-      ..blendMode = BlendMode.lighten;
-
-    canvas.drawCircle(center, radius * 1.15, glowPaint);
-
-    // Depth shadow
-    final shadowGradient = RadialGradient(
-      center: Alignment(0.5, 0.6),
-      radius: 0.8,
-      colors: [
-        CupertinoColors.black.withValues(alpha: 0.12),
-        CupertinoColors.black.withValues(alpha: 0.0),
-      ],
-    );
-
-    final shadowPaint = Paint()
-      ..shader = shadowGradient.createShader(
-        Rect.fromCircle(center: center, radius: radius),
-      )
-      ..blendMode = BlendMode.multiply;
-
-    canvas.drawCircle(center, radius * 0.9, shadowPaint);
-
-    // Subtle ring
-    final ringPaint = Paint()
-      ..color = tintColor.withValues(alpha: 0.28)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    canvas.drawCircle(center, radius, ringPaint);
-
-    // Frost particles
-    final frostPaint = Paint()
-      ..color = CupertinoColors.white.withValues(alpha: 0.3)
-      ..style = PaintingStyle.fill;
-
-    for (var i = 0; i < 8; i += 1) {
-      final angle = (i / 8) * math.pi * 2 + glowPhase;
-      final distance = radius * 0.8;
-      final x = center.dx + math.cos(angle) * distance;
-      final y = center.dy + math.sin(angle) * distance;
-      final size = 1.2 + math.sin(angle + progress * math.pi * 2) * 0.6;
-      canvas.drawCircle(Offset(x, y), size, frostPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(AppleLiquidGlassPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.radius != radius ||
-        oldDelegate.glassColor != glassColor ||
-        oldDelegate.tintColor != tintColor;
   }
 }
