@@ -327,6 +327,11 @@ class AudioFilesServiceNotifier
       thumbnailPath: _mergedAppleMusicThumbnailPath(existing, incoming),
       isOnDevice: false,
       lyrics: incoming.lyrics,
+      sourceCreatedAtEpochMs:
+          incoming.sourceCreatedAtEpochMs ?? existing.sourceCreatedAtEpochMs,
+      sourceModifiedAtEpochMs:
+          incoming.sourceModifiedAtEpochMs ?? existing.sourceModifiedAtEpochMs,
+      importedAtEpochMs: incoming.importedAtEpochMs ?? existing.importedAtEpochMs,
     );
   }
 

@@ -446,6 +446,7 @@ MusicMetadataMatch _appleMusicMatchFromJson(Map<String, dynamic> json) {
     previewUrl: _stringOrNull(json['previewUrl']),
     catalogUrl: _stringOrNull(json['catalogUrl']),
     isrc: _stringOrNull(json['isrc']),
+    dateAddedEpochMs: _integer(json['dateAddedMs']),
   );
 }
 
