@@ -5,6 +5,44 @@ import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/utils/metadata_artwork.dart';
 import 'package:flutter/cupertino.dart';
 
+class _ScaledTileText extends StatelessWidget {
+  final String text;
+  final double height;
+  final double fontSize;
+  final FontWeight fontWeight;
+  final Color color;
+
+  const _ScaledTileText({
+    required this.text,
+    required this.height,
+    required this.fontSize,
+    required this.fontWeight,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: FittedBox(
+        alignment: Alignment.centerLeft,
+        fit: BoxFit.scaleDown,
+        child: Text(
+          text,
+          maxLines: 1,
+          softWrap: false,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: fontWeight,
+            color: color,
+            height: 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class SongListTile extends StatelessWidget {
   final MusicMetadata songMetadata;
   final bool isSelected;
@@ -31,6 +69,12 @@ class SongListTile extends StatelessWidget {
     final Border? tileBorder = isSelected
         ? null
         : Border(bottom: BorderSide(color: borderColor));
+    final primaryColor = isSelected
+        ? context.appInverseTextColor
+        : context.appPrimaryTextColor;
+    final secondaryColor = isSelected
+        ? context.appInverseTextColor
+        : context.appSecondaryTextColor;
 
     return GestureDetector(
       onTap: onTap,
@@ -67,24 +111,30 @@ class SongListTile extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: SizedBox(
-                    height: 26,
-                    child: FittedBox(
-                      alignment: Alignment.centerLeft,
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        songMetadata.trackName ?? context.localization.unknownSong,
-                        style: CupertinoTheme.of(context).textTheme.textStyle
-                            .copyWith(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected
-                                  ? context.appInverseTextColor
-                                  : context.appPrimaryTextColor,
-                            ),
-                        maxLines: 1,
-                        softWrap: false,
-                      ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ScaledTileText(
+                          text: songMetadata.getTrackArtistNames ??
+                              context.localization.unknownArtist,
+                          height: 16,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: secondaryColor,
+                        ),
+                        const SizedBox(height: 2),
+                        _ScaledTileText(
+                          text: songMetadata.trackName ??
+                              context.localization.unknownSong,
+                          height: 20,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -92,9 +142,7 @@ class SongListTile extends StatelessWidget {
                   Icon(
                     CupertinoIcons.volume_up,
                     size: 18,
-                    color: isSelected
-                        ? context.appInverseTextColor
-                        : context.appPrimaryTextColor,
+                    color: primaryColor,
                   ),
               ],
             ),
