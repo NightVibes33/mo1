@@ -83,6 +83,16 @@ class ImportLocalAudioResult {
   }
 }
 
+class _SourceFileDates {
+  final int? createdAtEpochMs;
+  final int? modifiedAtEpochMs;
+
+  const _SourceFileDates({
+    this.createdAtEpochMs,
+    this.modifiedAtEpochMs,
+  });
+}
+
 class AudioFilesServiceNotifier
     extends AsyncNotifier<UnmodifiableListView<MusicMetadata>> {
   static const List<String> _importableExtensions = [
@@ -256,6 +266,7 @@ class AudioFilesServiceNotifier
       final imported = metadata.copyWith(
         originalSongIndex: metadataBox.length + importedMetadata.length,
         isOnDevice: false,
+        importedAtEpochMs: DateTime.now().millisecondsSinceEpoch,
       );
       importedMetadata.add(imported);
       final importedIndex = metadataBox.length + importedMetadata.length - 1;
@@ -421,6 +432,7 @@ class AudioFilesServiceNotifier
 
     final metadataReaderRepository = ref.read(metadataReaderRepositoryProvider);
     final importedDisplayNamesByPath = <String, String>{};
+    final importedSourceDatesByPath = <String, _SourceFileDates>{};
     final List<String> importedAudioPaths = [];
     final selectedFingerprints = <String>{};
     var duplicateCount = 0;
@@ -473,6 +485,7 @@ class AudioFilesServiceNotifier
         continue;
       }
 
+      final sourceDates = _sourceFileDates(sourceFile);
       final fingerprint = _fileFingerprint(displayName, byteLength);
       if (existingFingerprints.contains(fingerprint) ||
           !selectedFingerprints.add(fingerprint)) {
@@ -499,6 +512,7 @@ class AudioFilesServiceNotifier
         );
         importedAudioPaths.add(copied.path);
         importedDisplayNamesByPath[copied.path] = displayName;
+        importedSourceDatesByPath[copied.path] = sourceDates;
         existingFingerprints.add(fingerprint);
         debugLogService.info(
           'import',
@@ -563,8 +577,12 @@ class AudioFilesServiceNotifier
         duplicateCount++;
         continue;
       }
+      final sourceDates = importedSourceDatesByPath[metadata.filePath];
       final repairedMetadata = metadata.copyWith(
         originalSongIndex: startIndex + importedMetadata.length,
+        sourceCreatedAtEpochMs: sourceDates?.createdAtEpochMs,
+        sourceModifiedAtEpochMs: sourceDates?.modifiedAtEpochMs,
+        importedAtEpochMs: DateTime.now().millisecondsSinceEpoch,
       );
       importedMetadata.add(repairedMetadata);
       debugLogService.info(
@@ -673,6 +691,26 @@ class AudioFilesServiceNotifier
 
   String _fileFingerprint(String pathOrName, int byteLength) {
     return '${_normalizedStem(pathOrName)}:$byteLength';
+  }
+
+  _SourceFileDates _sourceFileDates(File file) {
+    try {
+      final stat = file.statSync();
+      return _SourceFileDates(
+        createdAtEpochMs: _epochFromDateTime(stat.changed),
+        modifiedAtEpochMs: _epochFromDateTime(stat.modified),
+      );
+    } catch (_) {
+      return const _SourceFileDates();
+    }
+  }
+
+  int? _epochFromDateTime(DateTime? value) {
+    if (value == null) {
+      return null;
+    }
+    final epoch = value.millisecondsSinceEpoch;
+    return epoch <= 0 ? null : epoch;
   }
 
   String? _fingerprintForExistingMetadata(MusicMetadata metadata) {

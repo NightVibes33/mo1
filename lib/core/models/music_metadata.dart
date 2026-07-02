@@ -296,6 +296,9 @@ class MusicMetadata extends HiveObject {
   final int rating;
 
   final String? lyrics;
+  final int? sourceCreatedAtEpochMs;
+  final int? sourceModifiedAtEpochMs;
+  final int? importedAtEpochMs;
 
   MusicMetadata({
     this.trackName,
@@ -316,6 +319,9 @@ class MusicMetadata extends HiveObject {
     this.isOnDevice = true,
     this.rating = 0,
     this.lyrics,
+    this.sourceCreatedAtEpochMs,
+    this.sourceModifiedAtEpochMs,
+    this.importedAtEpochMs,
   });
 
   factory MusicMetadata.fromAudioMetadata(
@@ -366,6 +372,7 @@ class MusicMetadata extends HiveObject {
       lyrics:
           _cleanMetadataString(audioMetadata.lyrics) ??
           _cleanMetadataString(fallbackLyrics),
+      importedAtEpochMs: DateTime.now().millisecondsSinceEpoch,
     );
   }
 
@@ -391,6 +398,7 @@ class MusicMetadata extends HiveObject {
       filePath: path,
       originalSongIndex: originalSongIndex,
       lyrics: _cleanMetadataString(fallbackLyrics),
+      importedAtEpochMs: DateTime.now().millisecondsSinceEpoch,
     );
   }
 
@@ -417,6 +425,9 @@ class MusicMetadata extends HiveObject {
     isOnDevice: map['isOnDevice'],
     rating: map['rating'],
     lyrics: _cleanMetadataString(map['lyrics']),
+    sourceCreatedAtEpochMs: parseInteger(map['sourceCreatedAtEpochMs']),
+    sourceModifiedAtEpochMs: parseInteger(map['sourceModifiedAtEpochMs']),
+    importedAtEpochMs: parseInteger(map['importedAtEpochMs']),
   );
 
   Map<String, dynamic> toMap() => {
@@ -438,6 +449,9 @@ class MusicMetadata extends HiveObject {
     'isOnDevice': isOnDevice,
     'rating': rating,
     'lyrics': lyrics,
+    'sourceCreatedAtEpochMs': sourceCreatedAtEpochMs,
+    'sourceModifiedAtEpochMs': sourceModifiedAtEpochMs,
+    'importedAtEpochMs': importedAtEpochMs,
   };
 
   factory MusicMetadata.fromJson(String source) =>
@@ -464,6 +478,9 @@ class MusicMetadata extends HiveObject {
     bool? isOnDevice,
     int? rating,
     String? lyrics,
+    int? sourceCreatedAtEpochMs,
+    int? sourceModifiedAtEpochMs,
+    int? importedAtEpochMs,
   }) {
     return MusicMetadata(
       trackName: trackName ?? this.trackName,
@@ -484,6 +501,11 @@ class MusicMetadata extends HiveObject {
       isOnDevice: isOnDevice ?? this.isOnDevice,
       rating: rating ?? this.rating,
       lyrics: lyrics ?? this.lyrics,
+      sourceCreatedAtEpochMs:
+          sourceCreatedAtEpochMs ?? this.sourceCreatedAtEpochMs,
+      sourceModifiedAtEpochMs:
+          sourceModifiedAtEpochMs ?? this.sourceModifiedAtEpochMs,
+      importedAtEpochMs: importedAtEpochMs ?? this.importedAtEpochMs,
     );
   }
 
@@ -540,6 +562,9 @@ class MusicMetadata extends HiveObject {
       isOnDevice: isOnDevice,
       rating: rating,
       lyrics: lyrics,
+      sourceCreatedAtEpochMs: sourceCreatedAtEpochMs,
+      sourceModifiedAtEpochMs: sourceModifiedAtEpochMs,
+      importedAtEpochMs: importedAtEpochMs,
     );
   }
 
@@ -619,6 +644,13 @@ class MusicMetadata extends HiveObject {
     return artists == null || artists.isEmpty ? null : artists;
   }
 
+  int get effectiveAddedAtEpochMs {
+    return sourceCreatedAtEpochMs ??
+        sourceModifiedAtEpochMs ??
+        importedAtEpochMs ??
+        originalSongIndex;
+  }
+
   String get getMainGenre {
     return genres.isNotEmpty ? genres[0] : "Unknown Genre";
   }
@@ -681,7 +713,10 @@ class MusicMetadata extends HiveObject {
         bitrate == other.bitrate &&
         filePath == other.filePath &&
         rating == other.rating &&
-        lyrics == other.lyrics;
+        lyrics == other.lyrics &&
+        sourceCreatedAtEpochMs == other.sourceCreatedAtEpochMs &&
+        sourceModifiedAtEpochMs == other.sourceModifiedAtEpochMs &&
+        importedAtEpochMs == other.importedAtEpochMs;
   }
 
   @override
@@ -701,6 +736,9 @@ class MusicMetadata extends HiveObject {
     filePath,
     rating,
     lyrics,
+    sourceCreatedAtEpochMs,
+    sourceModifiedAtEpochMs,
+    importedAtEpochMs,
   );
 }
 

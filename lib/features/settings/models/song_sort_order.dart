@@ -53,6 +53,11 @@ enum SongSortOrder {
           (song) => song.getTrackName,
         ]);
       case SongSortOrder.importOrder:
+        final dateComparison =
+            a.effectiveAddedAtEpochMs.compareTo(b.effectiveAddedAtEpochMs);
+        if (dateComparison != 0) {
+          return dateComparison;
+        }
         return a.originalSongIndex.compareTo(b.originalSongIndex);
     }
   }
