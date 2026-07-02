@@ -51,7 +51,7 @@
   "@aboutScreenTitle": {
     "description": "The title of the about screen"
   },
-  "coverFlowScreenTitle": "Cover Flow",
+  "coverFlowScreenTitle": "Album Motion",
   "@coverFlowScreenTitle": {
     "description": "The title of the cover flow screen"
   },
