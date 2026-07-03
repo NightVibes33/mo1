@@ -27,7 +27,7 @@ class _AnimatedAlbumArtScrollerState
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.5);
+    _pageController = PageController(viewportFraction: 0.56);
     _pageController.addListener(_updateCurrentPage);
   }
 
@@ -154,57 +154,81 @@ class _AlbumArtCarousel extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableHeight = constraints.maxHeight;
-          final flowHeight = (availableHeight - 44)
-              .clamp(160.0, 250.0)
+          final availableWidth = constraints.maxWidth;
+          const textBlockHeight = 52.0;
+          const bottomTextGap = 8.0;
+          final previewHeight =
+              (availableHeight - textBlockHeight - bottomTextGap)
+                  .clamp(156.0, 236.0)
+                  .toDouble();
+          final pageWidth = availableWidth * 0.56;
+          final artWidth = (previewHeight * 0.82)
+              .clamp(128.0, pageWidth * 0.76)
               .toDouble();
-          final artWidth = (flowHeight * 0.92).clamp(145.0, 232.0).toDouble();
+          final reflectionHeight = (artWidth * 0.18)
+              .clamp(24.0, 32.0)
+              .toDouble();
+          final artStackHeight = artWidth + reflectionHeight;
 
           return Stack(
-            clipBehavior: Clip.none,
+            clipBehavior: Clip.hardEdge,
             children: [
-              Align(
-                alignment: Alignment.topCenter,
-                child: SizedBox(
-                  height: flowHeight,
-                  child: PageView.builder(
-                    controller: pageController,
-                    itemCount: albums.length,
-                    padEnds: true,
-                    allowImplicitScrolling: true,
-                    physics: const BouncingScrollPhysics(),
-                    itemBuilder: (context, index) {
-                      final relativePosition = (index - currentPage)
-                          .clamp(-1.5, 1.5)
-                          .toDouble();
-                      final distance = relativePosition.abs();
-                      final scale = (1 - distance * 0.16)
-                          .clamp(0.74, 1.0)
-                          .toDouble();
-                      final album = albums[index];
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: textBlockHeight + bottomTextGap,
+                child: Center(
+                  child: SizedBox(
+                    height: artStackHeight,
+                    child: PageView.builder(
+                      controller: pageController,
+                      itemCount: albums.length,
+                      padEnds: true,
+                      allowImplicitScrolling: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemBuilder: (context, index) {
+                        final relativePosition = (index - currentPage)
+                            .clamp(-1.5, 1.5)
+                            .toDouble();
+                        final distance = relativePosition.abs();
+                        final scale = (1 - distance * 0.16)
+                            .clamp(0.74, 1.0)
+                            .toDouble();
+                        final album = albums[index];
 
-                      return Transform(
-                        transform: Matrix4.identity()
-                          ..setEntry(3, 2, 0.0022)
-                          ..translate(
-                            relativePosition * -10,
-                            0.0,
-                            -distance * 72,
-                          )
-                          ..scaleByDouble(scale, scale, scale, 1)
-                          ..rotateY(relativePosition * 0.72),
-                        alignment: relativePosition >= 0
-                            ? Alignment.centerLeft
-                            : Alignment.centerRight,
-                        child: AlbumReflectiveArt(
-                          imageWidth: artWidth,
-                          reflectedImageHeight: 34,
-                          thumbnailPath: album.albumArtPath,
-                          isOnDevice: album.isOnDevice(),
-                          heroTag:
-                              'preview-${album.albumName}-${album.albumArtistName}',
-                        ),
-                      );
-                    },
+                        return Transform(
+                          transform: Matrix4.identity()
+                            ..setEntry(3, 2, 0.0022)
+                            ..translate(
+                              relativePosition * -8,
+                              0.0,
+                              -distance * 60,
+                            )
+                            ..scaleByDouble(scale, scale, scale, 1)
+                            ..rotateY(relativePosition * 0.62),
+                          alignment: relativePosition >= 0
+                              ? Alignment.centerLeft
+                              : Alignment.centerRight,
+                          child: Center(
+                            child: SizedBox(
+                              width: artWidth,
+                              height: artStackHeight,
+                              child: AlbumReflectiveArt(
+                                imageWidth: artWidth,
+                                reflectedImageHeight: reflectionHeight,
+                                thumbnailPath: album.albumArtPath,
+                                isOnDevice: album.isOnDevice(),
+                                heroTag:
+                                    'preview-${album.albumName}-${album.albumArtistName}',
+                                artworkFit: BoxFit.contain,
+                                clipArtwork: true,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -266,14 +290,23 @@ class _AlbumArtFallback extends StatelessWidget {
           final flowHeight = constraints.maxHeight
               .clamp(160.0, 250.0)
               .toDouble();
-          final artWidth = (flowHeight * 0.82).clamp(130.0, 205.0).toDouble();
+          final artWidth = (flowHeight * 0.74).clamp(124.0, 172.0).toDouble();
+          final reflectionHeight = (artWidth * 0.18)
+              .clamp(20.0, 28.0)
+              .toDouble();
 
           return Center(
-            child: AlbumReflectiveArt(
-              imageWidth: artWidth,
-              reflectedImageHeight: 34,
-              thumbnailPath: null,
-              heroTag: 'preview-default-album-art',
+            child: SizedBox(
+              width: artWidth,
+              height: artWidth + reflectionHeight,
+              child: AlbumReflectiveArt(
+                imageWidth: artWidth,
+                reflectedImageHeight: reflectionHeight,
+                thumbnailPath: null,
+                heroTag: 'preview-default-album-art',
+                artworkFit: BoxFit.contain,
+                clipArtwork: true,
+              ),
             ),
           );
         },
