@@ -13,6 +13,7 @@ class AlbumReflectiveArt extends StatefulWidget {
   final String heroTag;
   final bool tiltedImage;
   final BoxFit artworkFit;
+  final bool clipArtwork;
 
   const AlbumReflectiveArt({
     super.key,
@@ -23,6 +24,7 @@ class AlbumReflectiveArt extends StatefulWidget {
     required this.heroTag,
     this.tiltedImage = false,
     this.artworkFit = BoxFit.cover,
+    this.clipArtwork = false,
   });
 
   @override
@@ -77,7 +79,7 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
     );
 
     Widget artworkImage({double? height, Alignment alignment = Alignment.center}) {
-      return Image(
+      final image = Image(
         image: metadataArtworkProvider(widget.thumbnailPath),
         errorBuilder: (_, _, _) => Image.asset(
           Assets.defaultAlbumCoverImage,
@@ -90,6 +92,18 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
         width: imageWidth,
         alignment: alignment,
         fit: widget.artworkFit,
+      );
+
+      if (!widget.clipArtwork) {
+        return image;
+      }
+
+      return SizedBox(
+        height: height,
+        width: imageWidth,
+        child: ClipRect(
+          child: image,
+        ),
       );
     }
 
