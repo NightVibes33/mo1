@@ -155,7 +155,7 @@ class _AlbumArtCarousel extends StatelessWidget {
           final flowHeight = (availableHeight - textBlockHeight - topPadding)
               .clamp(144.0, 196.0)
               .toDouble();
-          final artWidth = (flowHeight * 0.72).clamp(118.0, 164.0).toDouble();
+          final artWidth = (flowHeight * 0.8).clamp(128.0, 182.0).toDouble();
           final reflectionHeight = (artWidth * 0.22).clamp(18.0, 26.0).toDouble();
 
           const bottomPadding = 8.0;
