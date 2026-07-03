@@ -84,6 +84,14 @@
       to { transform: translate3d(16px, -22px, 0) scale(1.08); }
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .orb { animation: none; }
+      .nav a,
+      .button,
+      .chip { transition: none; }
+    }
+
     .shell {
       position: relative;
       z-index: 1;
@@ -236,13 +244,30 @@
       flex-direction: column;
       gap: 18px;
       justify-content: space-between;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .status-card::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02));
+      opacity: 0.22;
+      pointer-events: none;
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      padding: 1px;
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
     }
 
     .metric {
       padding: 18px;
       border-radius: 20px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025));
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
     }
 
     .metric-label {
@@ -265,6 +290,130 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 16px;
       margin: 22px 0 0;
+    }
+
+    .showcase {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+      align-items: stretch;
+      margin-top: 4px;
+    }
+
+    .showcase-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .showcase-card {
+      position: relative;
+      min-height: 148px;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+      background:
+        radial-gradient(circle at 20% 15%, rgba(93,181,255,0.22), transparent 30%),
+        radial-gradient(circle at 80% 25%, rgba(139,124,255,0.18), transparent 34%),
+        linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    .showcase-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -30px -40px auto;
+      width: 140px;
+      height: 140px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(255,255,255,0.14), transparent 72%);
+      pointer-events: none;
+    }
+
+    .device-mini {
+      position: absolute;
+      inset: 18px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 22px;
+      background: rgba(6, 9, 14, 0.72);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+    }
+
+    .device-bar {
+      height: 10px;
+      width: 46%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.92), rgba(255,255,255,0.28));
+    }
+
+    .device-screen {
+      border-radius: 18px;
+      background:
+        linear-gradient(135deg, rgba(93,181,255,0.28), rgba(139,124,255,0.18)),
+        rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .device-screen::before,
+    .device-screen::after {
+      content: "";
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.18);
+    }
+
+    .device-screen::before { top: 18px; }
+    .device-screen::after { top: 40px; width: 58%; }
+
+    .device-wheel {
+      place-self: center;
+      width: 58px;
+      height: 58px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.24), rgba(255,255,255,0.06));
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+    }
+
+    .showcase-copy {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 16px;
+      z-index: 1;
+    }
+
+    .showcase-kicker {
+      margin: 0 0 6px;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+      font-weight: 700;
+    }
+
+    .showcase-title {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.02;
+      letter-spacing: -0.05em;
+      font-weight: 800;
+    }
+
+    .showcase-body {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+      max-width: 28ch;
     }
 
     .support-note {
@@ -392,6 +541,11 @@
         position: static;
       }
 
+      .support-grid,
+      .showcase {
+        grid-template-columns: 1fr;
+      }
+
       h1 {
         font-size: clamp(36px, 12vw, 56px);
       }
@@ -457,17 +611,33 @@
       </article>
 
       <aside class="hero-card status-card">
-        <div class="metric">
-          <div class="metric-label">Support Contact</div>
-          <div class="metric-value">NightVibes33@proton.me</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Supported Platform</div>
-          <div class="metric-value">iPhone</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">Core Features</div>
-          <div class="metric-value">Local MP3 playback, Apple Music library access, lyrics, metadata, themes</div>
+        <div class="showcase">
+          <div class="showcase-card">
+            <div class="device-mini" aria-hidden="true">
+              <div class="device-bar"></div>
+              <div class="device-screen"></div>
+              <div class="device-wheel"></div>
+            </div>
+            <div class="showcase-copy">
+              <p class="showcase-kicker">Product Support</p>
+              <p class="showcase-title">Built for fast issue triage.</p>
+              <p class="showcase-body">Playback, import, metadata, artwork, Apple Music access, and review-related issues all route through one clear support channel.</p>
+            </div>
+          </div>
+          <div class="showcase-stack">
+            <div class="metric">
+              <div class="metric-label">Support Contact</div>
+              <div class="metric-value">NightVibes33@proton.me</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Supported Platform</div>
+              <div class="metric-value">iPhone</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Core Features</div>
+              <div class="metric-value">Local MP3 playback, Apple Music library access, lyrics, metadata, themes</div>
+            </div>
+          </div>
         </div>
       </aside>
     </section>
