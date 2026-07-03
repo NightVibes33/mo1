@@ -127,6 +127,18 @@ class SettingsPreferencesControllerNotifier
     });
   }
 
+  Future<void> initializeVolume() async {
+    if (state.volumeMode != VolumeMode.app) {
+      return;
+    }
+
+    final player = ref.read(audioPlayerProvider);
+    final currentVolume = player.volume;
+    if (currentVolume <= 0) {
+      await player.setVolume(1);
+    }
+  }
+
   Future<void> setInitialRepeatMode() async {
     switch (state.repeatMode) {
       case RepeatMode.off:

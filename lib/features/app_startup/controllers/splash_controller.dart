@@ -75,6 +75,9 @@ class SplashControllerNotifier extends AsyncNotifier<void> {
     await ref
         .read(settingsPreferencesControllerProvider.notifier)
         .setInitialRepeatMode();
+    await ref
+        .read(settingsPreferencesControllerProvider.notifier)
+        .initializeVolume();
 
     // Invalidate the providers that depend on the audio files metadata
     ref.invalidate(albumDetailsProvider);
