@@ -143,83 +143,74 @@ class _AlbumArtCarousel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selectedIndex = currentPage.round().clamp(0, albums.length - 1).toInt();
+    final selectedIndex = currentPage
+        .round()
+        .clamp(0, albums.length - 1)
+        .toInt();
     final selectedAlbum = albums[selectedIndex];
 
     return _AlbumArtBackdrop(
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableHeight = constraints.maxHeight;
-          const textBlockHeight = 60.0;
-          const topPadding = 8.0;
-          final flowHeight = (availableHeight - textBlockHeight - topPadding)
-              .clamp(144.0, 196.0)
+          final flowHeight = (availableHeight - 44)
+              .clamp(160.0, 250.0)
               .toDouble();
-          final artWidth = (flowHeight * 0.8).clamp(128.0, 182.0).toDouble();
-          final reflectionHeight = (artWidth * 0.22).clamp(18.0, 26.0).toDouble();
-
-          const bottomPadding = 8.0;
-          final previewAreaHeight =
-              availableHeight - textBlockHeight - topPadding - bottomPadding;
+          final artWidth = (flowHeight * 0.92).clamp(145.0, 232.0).toDouble();
 
           return Stack(
+            clipBehavior: Clip.none,
             children: [
-              Positioned(
-                left: 0,
-                right: 0,
-                top: topPadding,
-                bottom: textBlockHeight + bottomPadding,
-                child: Center(
-                  child: SizedBox(
-                    height: flowHeight.clamp(0.0, previewAreaHeight),
-                    child: PageView.builder(
-                      controller: pageController,
-                      itemCount: albums.length,
-                      padEnds: true,
-                      allowImplicitScrolling: true,
-                      physics: const BouncingScrollPhysics(),
-                      itemBuilder: (context, index) {
-                        final relativePosition =
-                            (index - currentPage).clamp(-1.35, 1.35).toDouble();
-                        final distance = relativePosition.abs();
-                        final scale = (1 - distance * 0.12).clamp(0.84, 1.0).toDouble();
-                        final album = albums[index];
+              Align(
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  height: flowHeight,
+                  child: PageView.builder(
+                    controller: pageController,
+                    itemCount: albums.length,
+                    padEnds: true,
+                    allowImplicitScrolling: true,
+                    physics: const BouncingScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      final relativePosition = (index - currentPage)
+                          .clamp(-1.5, 1.5)
+                          .toDouble();
+                      final distance = relativePosition.abs();
+                      final scale = (1 - distance * 0.16)
+                          .clamp(0.74, 1.0)
+                          .toDouble();
+                      final album = albums[index];
 
-                        return Center(
-                          child: Transform(
-                            transform: Matrix4.identity()
-                              ..setEntry(3, 2, 0.002)
-                              ..translate(
-                                relativePosition * -4,
-                                0.0,
-                                -distance * 36,
-                              )
-                              ..scaleByDouble(scale, scale, scale, 1)
-                              ..rotateY(relativePosition * 0.44),
-                            alignment: relativePosition >= 0
-                                ? Alignment.centerLeft
-                                : Alignment.centerRight,
-                            child: AlbumReflectiveArt(
-                              imageWidth: artWidth,
-                              reflectedImageHeight: reflectionHeight,
-                              thumbnailPath: album.albumArtPath,
-                              isOnDevice: album.isOnDevice(),
-                              heroTag:
-                                  'preview-${album.albumName}-${album.albumArtistName}',
-                              artworkFit: BoxFit.cover,
-                              clipArtwork: true,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                      return Transform(
+                        transform: Matrix4.identity()
+                          ..setEntry(3, 2, 0.0022)
+                          ..translate(
+                            relativePosition * -10,
+                            0.0,
+                            -distance * 72,
+                          )
+                          ..scaleByDouble(scale, scale, scale, 1)
+                          ..rotateY(relativePosition * 0.72),
+                        alignment: relativePosition >= 0
+                            ? Alignment.centerLeft
+                            : Alignment.centerRight,
+                        child: AlbumReflectiveArt(
+                          imageWidth: artWidth,
+                          reflectedImageHeight: 34,
+                          thumbnailPath: album.albumArtPath,
+                          isOnDevice: album.isOnDevice(),
+                          heroTag:
+                              'preview-${album.albumName}-${album.albumArtistName}',
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
               Positioned(
-                left: 10,
-                right: 10,
-                bottom: bottomPadding,
+                left: 8,
+                right: 8,
+                bottom: 6,
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 260),
                   child: Column(
