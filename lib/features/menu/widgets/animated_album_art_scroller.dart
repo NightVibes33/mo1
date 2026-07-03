@@ -27,7 +27,7 @@ class _AnimatedAlbumArtScrollerState
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.5);
+    _pageController = PageController(viewportFraction: 0.56);
     _pageController.addListener(_updateCurrentPage);
   }
 
@@ -159,12 +159,13 @@ class _AlbumArtCarousel extends StatelessWidget {
           final previewHeight = (availableHeight - textBlockHeight - bottomTextGap)
               .clamp(148.0, 250.0)
               .toDouble();
-          final pageWidth = availableWidth * 0.5;
+          final pageWidth = availableWidth * 0.56;
           final flowHeight = previewHeight.clamp(148.0, 250.0).toDouble();
           final artWidth = (flowHeight * 0.92)
-              .clamp(132.0, pageWidth * 0.92)
+              .clamp(136.0, pageWidth * 0.82)
               .toDouble();
           final reflectionHeight = (artWidth * 0.18).clamp(24.0, 34.0).toDouble();
+          final artStackHeight = artWidth + reflectionHeight;
 
           return Stack(
             clipBehavior: Clip.hardEdge,
@@ -176,7 +177,7 @@ class _AlbumArtCarousel extends StatelessWidget {
                 bottom: textBlockHeight + bottomTextGap,
                 child: Center(
                   child: SizedBox(
-                    height: flowHeight,
+                    height: artStackHeight,
                     child: PageView.builder(
                       controller: pageController,
                       itemCount: albums.length,
@@ -206,14 +207,19 @@ class _AlbumArtCarousel extends StatelessWidget {
                           alignment: relativePosition >= 0
                               ? Alignment.centerLeft
                               : Alignment.centerRight,
-                          child: AlbumReflectiveArt(
-                            imageWidth: artWidth,
-                            reflectedImageHeight: reflectionHeight,
-                            thumbnailPath: album.albumArtPath,
-                            isOnDevice: album.isOnDevice(),
-                            heroTag:
-                                'preview-${album.albumName}-${album.albumArtistName}',
-                            clipArtwork: true,
+                          child: Center(
+                            child: SizedBox(
+                              width: artWidth,
+                              height: artStackHeight,
+                              child: AlbumReflectiveArt(
+                                imageWidth: artWidth,
+                                reflectedImageHeight: reflectionHeight,
+                                thumbnailPath: album.albumArtPath,
+                                isOnDevice: album.isOnDevice(),
+                                heroTag:
+                                    'preview-${album.albumName}-${album.albumArtistName}',
+                              ),
+                            ),
                           ),
                         );
                       },
@@ -277,17 +283,20 @@ class _AlbumArtFallback extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final flowHeight = constraints.maxHeight.clamp(160.0, 250.0).toDouble();
-          final artWidth = (flowHeight * 0.74).clamp(118.0, 168.0).toDouble();
-          final reflectionHeight = (artWidth * 0.22).clamp(18.0, 26.0).toDouble();
+          final artWidth = (flowHeight * 0.78).clamp(126.0, 178.0).toDouble();
+          final reflectionHeight = (artWidth * 0.18).clamp(20.0, 28.0).toDouble();
 
           return Center(
-            child: AlbumReflectiveArt(
-              imageWidth: artWidth,
-              reflectedImageHeight: reflectionHeight,
-              thumbnailPath: null,
-              heroTag: 'preview-default-album-art',
-              artworkFit: BoxFit.cover,
-              clipArtwork: true,
+            child: SizedBox(
+              width: artWidth,
+              height: artWidth + reflectionHeight,
+              child: AlbumReflectiveArt(
+                imageWidth: artWidth,
+                reflectedImageHeight: reflectionHeight,
+                thumbnailPath: null,
+                heroTag: 'preview-default-album-art',
+                artworkFit: BoxFit.cover,
+              ),
             ),
           );
         },
