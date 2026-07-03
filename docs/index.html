@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>døPe Support</title>
+  <meta name="description" content="Official support page for døPe, the iPhone and iPad music player for imported audio, Apple Music access, lyrics, themes, and local playback.">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #06070b;
+      --panel: rgba(18, 20, 28, 0.72);
+      --panel-strong: rgba(18, 20, 28, 0.88);
+      --line: rgba(255,255,255,0.10);
+      --text: #f7f8fc;
+      --muted: #aeb5c8;
+      --accent: #5db5ff;
+      --accent-2: #8b7cff;
+      --accent-3: #45e0b1;
+      --shadow: 0 24px 80px rgba(0,0,0,0.42);
+      --radius: 26px;
+      --radius-sm: 18px;
+      --max: 1120px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(93,181,255,0.18), transparent 30%),
+        radial-gradient(circle at 85% 20%, rgba(139,124,255,0.20), transparent 34%),
+        radial-gradient(circle at 50% 100%, rgba(69,224,177,0.16), transparent 28%),
+        linear-gradient(180deg, #0a0d14 0%, #06070b 42%, #040509 100%);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(40px);
+      opacity: 0.42;
+      animation: drift 16s ease-in-out infinite alternate;
+    }
+
+    .orb.one {
+      width: 280px;
+      height: 280px;
+      background: rgba(93,181,255,0.22);
+      top: 80px;
+      left: -40px;
+    }
+
+    .orb.two {
+      width: 340px;
+      height: 340px;
+      background: rgba(139,124,255,0.18);
+      top: 180px;
+      right: -100px;
+      animation-duration: 18s;
+    }
+
+    .orb.three {
+      width: 240px;
+      height: 240px;
+      background: rgba(69,224,177,0.16);
+      bottom: 40px;
+      left: 48%;
+      animation-duration: 20s;
+    }
+
+    @keyframes drift {
+      from { transform: translate3d(0, 0, 0) scale(1); }
+      to { transform: translate3d(16px, -22px, 0) scale(1.08); }
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 28px 20px 80px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding: 12px 16px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(10, 12, 18, 0.55);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: linear-gradient(145deg, rgba(93,181,255,0.28), rgba(139,124,255,0.24));
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .nav a,
+    .button,
+    .chip {
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      border-radius: 999px;
+      padding: 10px 14px;
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+
+    .nav a:hover,
+    .button:hover,
+    .chip:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.16);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      align-items: stretch;
+      margin-bottom: 28px;
+    }
+
+    .hero-card,
+    .panel,
+    .faq-item,
+    .contact-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card {
+      padding: 34px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .hero-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -10% -40% auto;
+      width: 280px;
+      height: 280px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(93,181,255,0.16), transparent 70%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      margin-bottom: 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.05);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: clamp(42px, 6vw, 72px);
+      line-height: 0.94;
+      letter-spacing: -0.06em;
+    }
+
+    .lead {
+      margin: 0;
+      max-width: 56ch;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.65;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .button.primary {
+      background: linear-gradient(135deg, rgba(93,181,255,0.24), rgba(139,124,255,0.22));
+      border-color: rgba(93,181,255,0.35);
+    }
+
+    .status-card {
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      justify-content: space-between;
+    }
+
+    .metric {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    .metric-value {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .col-8 { grid-column: span 8; }
+    .col-4 { grid-column: span 4; }
+    .col-6 { grid-column: span 6; }
+    .col-12 { grid-column: span 12; }
+
+    .panel {
+      padding: 24px;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: clamp(24px, 3vw, 34px);
+      letter-spacing: -0.05em;
+    }
+
+    .panel p,
+    .panel li,
+    .faq-item p,
+    .contact-card p {
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    .feature-list,
+    .steps,
+    .contact-list {
+      display: grid;
+      gap: 12px;
+      padding: 0;
+      margin: 18px 0 0;
+      list-style: none;
+    }
+
+    .feature-list li,
+    .steps li,
+    .contact-list li {
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.035);
+    }
+
+    .faq {
+      display: grid;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .faq-item {
+      padding: 20px 22px;
+    }
+
+    .faq-item h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+    }
+
+    .contact-card {
+      padding: 24px;
+      position: sticky;
+      top: 22px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .mail-link,
+    .inline-link,
+    footer a {
+      color: #b6d8ff;
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    footer {
+      margin-top: 26px;
+      padding: 24px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 900px) {
+      .hero,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .col-8,
+      .col-6,
+      .col-4,
+      .col-12 {
+        grid-column: auto;
+      }
+
+      .topbar {
+        border-radius: 24px;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .contact-card {
+        position: static;
+      }
+
+      h1 {
+        font-size: clamp(36px, 12vw, 56px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true">
+    <div class="orb one"></div>
+    <div class="orb two"></div>
+    <div class="orb three"></div>
+  </div>
+
+  <main class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">♫</div>
+        <div>
+          <div>døPe Support</div>
+          <div class="small">Official iPhone and iPad support portal</div>
+        </div>
+      </div>
+      <nav class="nav" aria-label="Support navigation">
+        <a href="#help">Help</a>
+        <a href="#faq">FAQ</a>
+        <a href="#contact">Contact</a>
+        <a href="./privacy/">Privacy</a>
+        <a href="./terms/">Terms</a>
+      </nav>
+    </div>
+
+    <section class="hero">
+      <article class="hero-card">
+        <div class="eyebrow">Support • 2026</div>
+        <h1>Help for døPe, without the runaround.</h1>
+        <p class="lead">
+          døPe is a local-first music player for iPhone and iPad built around imported audio, Apple Music access,
+          lyrics, metadata, custom themes, and click-wheel style playback controls. This page is the official place
+          to get help, report issues, and understand how the app works.
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="mailto:bobbytatum12345@gmail.com?subject=d%C3%B8Pe%20Support">Email support</a>
+          <a class="button" href="#faq">Read FAQs</a>
+          <a class="button" href="#contact">Troubleshooting steps</a>
+        </div>
+      </article>
+
+      <aside class="hero-card status-card">
+        <div class="metric">
+          <div class="metric-label">Support Contact</div>
+          <div class="metric-value">bobbytatum12345@gmail.com</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Supported Platform</div>
+          <div class="metric-value">iPhone and iPad</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Core Features</div>
+          <div class="metric-value">Local MP3 playback, Apple Music library access, lyrics, metadata, themes</div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="grid" id="help">
+      <article class="panel col-8">
+        <h2>What døPe supports</h2>
+        <p>
+          døPe is designed for users who want a high-control music experience on iOS. The app focuses on imported audio,
+          Apple Music library access where available, detailed song metadata, synchronized lyrics, and customizable visual themes.
+        </p>
+        <ul class="feature-list">
+          <li><strong>Imported music:</strong> Bring audio files into the app and browse them through albums, artists, playlists, songs, and cover flow.</li>
+          <li><strong>Apple Music access:</strong> If you authorize Apple Music, døPe can surface music tied to your own Apple Music account and library access.</li>
+          <li><strong>Now Playing controls:</strong> Playback controls include track navigation, progress control, lyrics viewing, rating states, shuffle, repeat, and volume modes.</li>
+          <li><strong>Customization:</strong> Users can choose preset device colors, create custom themes, and save multiple color combinations directly on-device.</li>
+          <li><strong>Metadata and artwork:</strong> døPe supports metadata edits, album artwork updates, and date-added style sorting for imported and Apple Music library content where available.</li>
+        </ul>
+      </article>
+
+      <aside class="panel col-4">
+        <h2>Fast support checklist</h2>
+        <ol class="steps">
+          <li>Update to the newest App Store or TestFlight build.</li>
+          <li>Restart the app and retry the same action once.</li>
+          <li>Confirm the issue is reproducible and note the exact screen.</li>
+          <li>Include device model, iOS or iPadOS version, and whether the issue involves imported files or Apple Music.</li>
+          <li>Email support with screenshots or a short video when possible.</li>
+        </ol>
+      </aside>
+    </section>
+
+    <section class="grid" id="faq">
+      <article class="panel col-8">
+        <h2>Frequently asked questions</h2>
+        <div class="faq">
+          <div class="faq-item">
+            <h3>How do I import my own music files?</h3>
+            <p>Use the in-app music import flow to pick audio files from the Files app. Imported tracks are then indexed in the app library and become available under albums, artists, songs, playlists, and other browsing views.</p>
+          </div>
+          <div class="faq-item">
+            <h3>Does døPe support Apple Music?</h3>
+            <p>Yes. If you grant Apple Music access and have an active Apple Music setup on your device, døPe can use Apple frameworks to surface Apple Music content tied to your account and library access.</p>
+          </div>
+          <div class="faq-item">
+            <h3>Why does a song appear without artwork or full metadata?</h3>
+            <p>Imported audio quality varies by source. Some files contain incomplete tags. You can update metadata and artwork from within the app, and artwork availability may differ between imported local files and Apple Music-backed content.</p>
+          </div>
+          <div class="faq-item">
+            <h3>How does sorting by date added work?</h3>
+            <p>For imported files, døPe uses the best available added-date information from the source file and import time. For Apple Music library items, døPe uses the date the item was added to the user’s Apple Music library when that native library metadata is available.</p>
+          </div>
+          <div class="faq-item">
+            <h3>Where are my custom themes stored?</h3>
+            <p>Custom themes are stored locally on your device. You can create, save, edit, and delete user-created themes inside the app. Default built-in themes remain protected.</p>
+          </div>
+          <div class="faq-item">
+            <h3>What should I send if I report a bug?</h3>
+            <p>Send the device model, iOS or iPadOS version, app build number, what screen you were on, whether the issue involves imported music or Apple Music, and the exact steps to reproduce the problem.</p>
+          </div>
+        </div>
+      </article>
+
+      <aside class="contact-card col-4" id="contact">
+        <h2>Contact support</h2>
+        <p>
+          For help, bug reports, or App Store support questions, use the email below. Include as much detail as possible so the issue can be reproduced quickly.
+        </p>
+        <ul class="contact-list">
+          <li><strong>Email:</strong><br><a class="mail-link" href="mailto:bobbytatum12345@gmail.com?subject=d%C3%B8Pe%20Support">bobbytatum12345@gmail.com</a></li>
+          <li><strong>Include:</strong><br>Device model, OS version, app version, screenshots, and steps to reproduce.</li>
+          <li><strong>Good examples:</strong><br>Import issue, Apple Music library mismatch, playback bug, lyrics sync issue, theme/save bug, metadata display issue.</li>
+        </ul>
+        <p class="small">Support page updated for the current døPe App Store submission and UI as of July 2026.</p>
+      </aside>
+    </section>
+
+    <section class="grid">
+      <article class="panel col-6">
+        <h2>Privacy</h2>
+        <p>
+          døPe is designed as a local-first music app. Imported files, playlists, theme settings, metadata edits, and lyrics-related app data are primarily stored on-device. Apple Music authorization and playback behavior follow Apple’s own platform rules when you choose to enable that integration.
+        </p>
+        <a class="inline-link" href="./privacy/">Read the privacy policy</a>
+      </article>
+
+      <article class="panel col-6">
+        <h2>Terms</h2>
+        <p>
+          The support site also includes the current app terms page so users and reviewers can find the basic usage, ownership, and service information tied to the app experience.
+        </p>
+        <a class="inline-link" href="./terms/">Read the terms</a>
+      </article>
+    </section>
+
+    <footer>
+      døPe Support • iPhone and iPad music player support portal • <a href="mailto:bobbytatum12345@gmail.com">Contact support</a>
+    </footer>
+  </main>
+</body>
+</html>
