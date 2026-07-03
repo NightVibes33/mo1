@@ -151,100 +151,104 @@ class _AlbumArtCarousel extends StatelessWidget {
         builder: (context, constraints) {
           final availableHeight = constraints.maxHeight;
           const textBlockHeight = 60.0;
-          const topPadding = 8.0;
-          final flowHeight = (availableHeight - textBlockHeight - topPadding)
-              .clamp(144.0, 196.0)
+          const previewSpacing = 14.0;
+          final flowHeight = (availableHeight - textBlockHeight - previewSpacing)
+              .clamp(136.0, 186.0)
               .toDouble();
-          final artWidth = (flowHeight * 0.72).clamp(118.0, 164.0).toDouble();
-          final reflectionHeight = (artWidth * 0.22).clamp(18.0, 26.0).toDouble();
+          final artWidth = (flowHeight * 0.72).clamp(112.0, 156.0).toDouble();
+          final reflectionHeight = (artWidth * 0.22).clamp(18.0, 24.0).toDouble();
+          final previewHeight = flowHeight + textBlockHeight + previewSpacing;
 
-          return Stack(
-            children: [
-              Positioned.fill(
-                bottom: textBlockHeight,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: topPadding),
-                  child: PageView.builder(
-                    controller: pageController,
-                    itemCount: albums.length,
-                    padEnds: true,
-                    allowImplicitScrolling: true,
-                    physics: const BouncingScrollPhysics(),
-                    itemBuilder: (context, index) {
-                      final relativePosition =
-                          (index - currentPage).clamp(-1.35, 1.35).toDouble();
-                      final distance = relativePosition.abs();
-                      final scale = (1 - distance * 0.12).clamp(0.84, 1.0).toDouble();
-                      final album = albums[index];
+          return Center(
+            child: SizedBox(
+              height: previewHeight.clamp(0.0, availableHeight),
+              width: double.infinity,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    height: flowHeight,
+                    child: PageView.builder(
+                      controller: pageController,
+                      itemCount: albums.length,
+                      padEnds: true,
+                      allowImplicitScrolling: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemBuilder: (context, index) {
+                        final relativePosition =
+                            (index - currentPage).clamp(-1.35, 1.35).toDouble();
+                        final distance = relativePosition.abs();
+                        final scale = (1 - distance * 0.12).clamp(0.84, 1.0).toDouble();
+                        final album = albums[index];
 
-                      return Center(
-                        child: Transform(
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.002)
-                            ..translate(
-                              relativePosition * -4,
-                              0.0,
-                              -distance * 36,
-                            )
-                            ..scaleByDouble(scale, scale, scale, 1)
-                            ..rotateY(relativePosition * 0.44),
-                          alignment: relativePosition >= 0
-                              ? Alignment.centerLeft
-                              : Alignment.centerRight,
-                          child: AlbumReflectiveArt(
-                            imageWidth: artWidth,
-                            reflectedImageHeight: reflectionHeight,
-                            thumbnailPath: album.albumArtPath,
-                            isOnDevice: album.isOnDevice(),
-                            heroTag:
-                                'preview-${album.albumName}-${album.albumArtistName}',
+                        return Center(
+                          child: Transform(
+                            transform: Matrix4.identity()
+                              ..setEntry(3, 2, 0.002)
+                              ..translate(
+                                relativePosition * -4,
+                                0.0,
+                                -distance * 36,
+                              )
+                              ..scaleByDouble(scale, scale, scale, 1)
+                              ..rotateY(relativePosition * 0.44),
+                            alignment: relativePosition >= 0
+                                ? Alignment.centerLeft
+                                : Alignment.centerRight,
+                            child: AlbumReflectiveArt(
+                              imageWidth: artWidth,
+                              reflectedImageHeight: reflectionHeight,
+                              thumbnailPath: album.albumArtPath,
+                              isOnDevice: album.isOnDevice(),
+                              heroTag:
+                                  'preview-${album.albumName}-${album.albumArtistName}',
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 10,
-                right: 10,
-                bottom: 8,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 260),
-                  child: Column(
-                    key: ValueKey(
-                      '${selectedAlbum.albumName}-${selectedAlbum.albumArtistName}',
+                        );
+                      },
                     ),
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        selectedAlbum.albumName,
-                        maxLines: 1,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: context.appPrimaryTextColor,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        selectedAlbum.albumArtistName,
-                        maxLines: 1,
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: context.appPrimaryTextColor,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
                   ),
-                ),
+                  const SizedBox(height: previewSpacing),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 260),
+                      child: Column(
+                        key: ValueKey(
+                          '${selectedAlbum.albumName}-${selectedAlbum.albumArtistName}',
+                        ),
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            selectedAlbum.albumName,
+                            maxLines: 1,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context.appPrimaryTextColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            selectedAlbum.albumArtistName,
+                            maxLines: 1,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context.appPrimaryTextColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           );
         },
       ),
