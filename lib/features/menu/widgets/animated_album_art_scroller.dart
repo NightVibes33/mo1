@@ -158,57 +158,66 @@ class _AlbumArtCarousel extends StatelessWidget {
           final artWidth = (flowHeight * 0.72).clamp(118.0, 164.0).toDouble();
           final reflectionHeight = (artWidth * 0.22).clamp(18.0, 26.0).toDouble();
 
+          const bottomPadding = 8.0;
+          final previewAreaHeight =
+              availableHeight - textBlockHeight - topPadding - bottomPadding;
+
           return Stack(
             children: [
-              Positioned.fill(
-                bottom: textBlockHeight,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: topPadding),
-                  child: PageView.builder(
-                    controller: pageController,
-                    itemCount: albums.length,
-                    padEnds: true,
-                    allowImplicitScrolling: true,
-                    physics: const BouncingScrollPhysics(),
-                    itemBuilder: (context, index) {
-                      final relativePosition =
-                          (index - currentPage).clamp(-1.35, 1.35).toDouble();
-                      final distance = relativePosition.abs();
-                      final scale = (1 - distance * 0.12).clamp(0.84, 1.0).toDouble();
-                      final album = albums[index];
+              Positioned(
+                left: 0,
+                right: 0,
+                top: topPadding,
+                bottom: textBlockHeight + bottomPadding,
+                child: Center(
+                  child: SizedBox(
+                    height: flowHeight.clamp(0.0, previewAreaHeight),
+                    child: PageView.builder(
+                      controller: pageController,
+                      itemCount: albums.length,
+                      padEnds: true,
+                      allowImplicitScrolling: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemBuilder: (context, index) {
+                        final relativePosition =
+                            (index - currentPage).clamp(-1.35, 1.35).toDouble();
+                        final distance = relativePosition.abs();
+                        final scale = (1 - distance * 0.12).clamp(0.84, 1.0).toDouble();
+                        final album = albums[index];
 
-                      return Center(
-                        child: Transform(
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.002)
-                            ..translate(
-                              relativePosition * -4,
-                              0.0,
-                              -distance * 36,
-                            )
-                            ..scaleByDouble(scale, scale, scale, 1)
-                            ..rotateY(relativePosition * 0.44),
-                          alignment: relativePosition >= 0
-                              ? Alignment.centerLeft
-                              : Alignment.centerRight,
-                          child: AlbumReflectiveArt(
-                            imageWidth: artWidth,
-                            reflectedImageHeight: reflectionHeight,
-                            thumbnailPath: album.albumArtPath,
-                            isOnDevice: album.isOnDevice(),
-                            heroTag:
-                                'preview-${album.albumName}-${album.albumArtistName}',
+                        return Center(
+                          child: Transform(
+                            transform: Matrix4.identity()
+                              ..setEntry(3, 2, 0.002)
+                              ..translate(
+                                relativePosition * -4,
+                                0.0,
+                                -distance * 36,
+                              )
+                              ..scaleByDouble(scale, scale, scale, 1)
+                              ..rotateY(relativePosition * 0.44),
+                            alignment: relativePosition >= 0
+                                ? Alignment.centerLeft
+                                : Alignment.centerRight,
+                            child: AlbumReflectiveArt(
+                              imageWidth: artWidth,
+                              reflectedImageHeight: reflectionHeight,
+                              thumbnailPath: album.albumArtPath,
+                              isOnDevice: album.isOnDevice(),
+                              heroTag:
+                                  'preview-${album.albumName}-${album.albumArtistName}',
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
               Positioned(
                 left: 10,
                 right: 10,
-                bottom: 8,
+                bottom: bottomPadding,
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 260),
                   child: Column(
