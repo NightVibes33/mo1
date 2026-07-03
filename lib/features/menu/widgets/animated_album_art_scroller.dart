@@ -206,6 +206,7 @@ class _AlbumArtCarousel extends StatelessWidget {
                               isOnDevice: album.isOnDevice(),
                               heroTag:
                                   'preview-${album.albumName}-${album.albumArtistName}',
+                              artworkFit: BoxFit.contain,
                             ),
                           ),
                         );
@@ -279,6 +280,7 @@ class _AlbumArtFallback extends StatelessWidget {
               reflectedImageHeight: reflectionHeight,
               thumbnailPath: null,
               heroTag: 'preview-default-album-art',
+              artworkFit: BoxFit.contain,
             ),
           );
         },

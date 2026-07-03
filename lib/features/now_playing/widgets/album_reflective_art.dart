@@ -12,6 +12,7 @@ class AlbumReflectiveArt extends StatefulWidget {
   final double? imageWidth;
   final String heroTag;
   final bool tiltedImage;
+  final BoxFit artworkFit;
 
   const AlbumReflectiveArt({
     super.key,
@@ -21,6 +22,7 @@ class AlbumReflectiveArt extends StatefulWidget {
     this.imageWidth,
     required this.heroTag,
     this.tiltedImage = false,
+    this.artworkFit = BoxFit.cover,
   });
 
   @override
@@ -82,12 +84,12 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
           height: height,
           width: imageWidth,
           alignment: alignment,
-          fit: BoxFit.cover,
+          fit: widget.artworkFit,
         ),
         height: height,
         width: imageWidth,
         alignment: alignment,
-        fit: BoxFit.cover,
+        fit: widget.artworkFit,
       );
     }
 
