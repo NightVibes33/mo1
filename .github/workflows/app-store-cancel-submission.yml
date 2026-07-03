@@ -1,0 +1,26 @@
+name: App Store Cancel Submission
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cancel-submission:
+    name: Cancel active App Store submission
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cancel active App Store submission
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          DOPI_APP_BUNDLE_ID: app.mo1.player.39A8Q3T3TR
+          DOPI_PLATFORM: IOS
+        run: ruby tool/app_store_connect_cancel_submission.rb
