@@ -27,7 +27,7 @@ class _AnimatedAlbumArtScrollerState
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.5);
+    _pageController = PageController(viewportFraction: 0.52);
     _pageController.addListener(_updateCurrentPage);
   }
 
@@ -154,31 +154,30 @@ class _AlbumArtCarousel extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableHeight = constraints.maxHeight;
-          final availableWidth = constraints.maxWidth;
-          const textBlockHeight = 52.0;
-          const bottomTextGap = 8.0;
-          final previewHeight =
-              (availableHeight - textBlockHeight - bottomTextGap)
-                  .clamp(156.0, 236.0)
-                  .toDouble();
-          final pageWidth = availableWidth * 0.5;
-          final artWidth = (previewHeight * 0.78)
-              .clamp(132.0, pageWidth * 0.78)
+          const textBlockHeight = 60.0;
+          const topPadding = 8.0;
+          final flowHeight = (availableHeight - textBlockHeight - topPadding)
+              .clamp(144.0, 196.0)
               .toDouble();
-          const reflectionHeight = 34.0;
-          final artStackHeight = artWidth + reflectionHeight;
+          final artWidth = (flowHeight * 0.8).clamp(128.0, 182.0).toDouble();
+          final reflectionHeight = (artWidth * 0.22)
+              .clamp(18.0, 26.0)
+              .toDouble();
+
+          const bottomPadding = 8.0;
+          final previewAreaHeight =
+              availableHeight - textBlockHeight - topPadding - bottomPadding;
 
           return Stack(
-            clipBehavior: Clip.hardEdge,
             children: [
               Positioned(
                 left: 0,
                 right: 0,
-                top: 0,
-                bottom: textBlockHeight + bottomTextGap,
+                top: topPadding,
+                bottom: textBlockHeight + bottomPadding,
                 child: Center(
                   child: SizedBox(
-                    height: artStackHeight,
+                    height: flowHeight.clamp(0.0, previewAreaHeight),
                     child: PageView.builder(
                       controller: pageController,
                       itemCount: albums.length,
@@ -187,39 +186,37 @@ class _AlbumArtCarousel extends StatelessWidget {
                       physics: const BouncingScrollPhysics(),
                       itemBuilder: (context, index) {
                         final relativePosition = (index - currentPage)
-                            .clamp(-1.5, 1.5)
+                            .clamp(-1.35, 1.35)
                             .toDouble();
                         final distance = relativePosition.abs();
-                        final scale = (1 - distance * 0.16)
-                            .clamp(0.74, 1.0)
+                        final scale = (1 - distance * 0.12)
+                            .clamp(0.84, 1.0)
                             .toDouble();
                         final album = albums[index];
 
-                        return Transform(
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.0022)
-                            ..translate(
-                              relativePosition * -8,
-                              0.0,
-                              -distance * 58,
-                            )
-                            ..scaleByDouble(scale, scale, scale, 1)
-                            ..rotateY(relativePosition * 0.62),
-                          alignment: relativePosition >= 0
-                              ? Alignment.centerLeft
-                              : Alignment.centerRight,
-                          child: Center(
-                            child: SizedBox(
-                              width: artWidth,
-                              height: artStackHeight,
-                              child: AlbumReflectiveArt(
-                                imageWidth: artWidth,
-                                reflectedImageHeight: reflectionHeight,
-                                thumbnailPath: album.albumArtPath,
-                                isOnDevice: album.isOnDevice(),
-                                heroTag:
-                                    'preview-${album.albumName}-${album.albumArtistName}',
-                              ),
+                        return Center(
+                          child: Transform(
+                            transform: Matrix4.identity()
+                              ..setEntry(3, 2, 0.002)
+                              ..translate(
+                                relativePosition * -4,
+                                0.0,
+                                -distance * 36,
+                              )
+                              ..scaleByDouble(scale, scale, scale, 1)
+                              ..rotateY(relativePosition * 0.44),
+                            alignment: relativePosition >= 0
+                                ? Alignment.centerLeft
+                                : Alignment.centerRight,
+                            child: AlbumReflectiveArt(
+                              imageWidth: artWidth,
+                              reflectedImageHeight: reflectionHeight,
+                              thumbnailPath: album.albumArtPath,
+                              isOnDevice: album.isOnDevice(),
+                              heroTag:
+                                  'preview-${album.albumName}-${album.albumArtistName}',
+                              artworkFit: BoxFit.cover,
+                              clipArtwork: true,
                             ),
                           ),
                         );
@@ -229,9 +226,9 @@ class _AlbumArtCarousel extends StatelessWidget {
                 ),
               ),
               Positioned(
-                left: 8,
-                right: 8,
-                bottom: 6,
+                left: 10,
+                right: 10,
+                bottom: bottomPadding,
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 260),
                   child: Column(
@@ -286,18 +283,19 @@ class _AlbumArtFallback extends StatelessWidget {
           final flowHeight = constraints.maxHeight
               .clamp(160.0, 250.0)
               .toDouble();
-          final artWidth = (flowHeight * 0.74).clamp(124.0, 172.0).toDouble();
+          final artWidth = (flowHeight * 0.74).clamp(118.0, 168.0).toDouble();
+          final reflectionHeight = (artWidth * 0.22)
+              .clamp(18.0, 26.0)
+              .toDouble();
 
           return Center(
-            child: SizedBox(
-              width: artWidth,
-              height: artWidth + 34,
-              child: AlbumReflectiveArt(
-                imageWidth: artWidth,
-                reflectedImageHeight: 34,
-                thumbnailPath: null,
-                heroTag: 'preview-default-album-art',
-              ),
+            child: AlbumReflectiveArt(
+              imageWidth: artWidth,
+              reflectedImageHeight: reflectionHeight,
+              thumbnailPath: null,
+              heroTag: 'preview-default-album-art',
+              artworkFit: BoxFit.cover,
+              clipArtwork: true,
             ),
           );
         },
@@ -315,18 +313,20 @@ class _AlbumArtBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     return RepaintBoundary(
       key: const ValueKey(SplitScreenType.albumArt),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              context.appDeviceScreenBackgroundColor.withValues(alpha: 0.96),
-              const Color(0xFF101215).withValues(alpha: 0.92),
-            ],
+      child: ClipRect(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                context.appDeviceScreenBackgroundColor.withValues(alpha: 0.96),
+                const Color(0xFF101215).withValues(alpha: 0.92),
+              ],
+            ),
           ),
+          child: child,
         ),
-        child: child,
       ),
     );
   }
