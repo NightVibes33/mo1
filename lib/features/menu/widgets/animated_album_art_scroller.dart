@@ -27,7 +27,7 @@ class _AnimatedAlbumArtScrollerState
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.56);
+    _pageController = PageController(viewportFraction: 0.5);
     _pageController.addListener(_updateCurrentPage);
   }
 
@@ -161,13 +161,11 @@ class _AlbumArtCarousel extends StatelessWidget {
               (availableHeight - textBlockHeight - bottomTextGap)
                   .clamp(156.0, 236.0)
                   .toDouble();
-          final pageWidth = availableWidth * 0.56;
-          final artWidth = (previewHeight * 0.82)
-              .clamp(128.0, pageWidth * 0.76)
+          final pageWidth = availableWidth * 0.5;
+          final artWidth = (previewHeight * 0.78)
+              .clamp(132.0, pageWidth * 0.78)
               .toDouble();
-          final reflectionHeight = (artWidth * 0.18)
-              .clamp(24.0, 32.0)
-              .toDouble();
+          const reflectionHeight = 34.0;
           final artStackHeight = artWidth + reflectionHeight;
 
           return Stack(
@@ -203,7 +201,7 @@ class _AlbumArtCarousel extends StatelessWidget {
                             ..translate(
                               relativePosition * -8,
                               0.0,
-                              -distance * 60,
+                              -distance * 58,
                             )
                             ..scaleByDouble(scale, scale, scale, 1)
                             ..rotateY(relativePosition * 0.62),
@@ -221,8 +219,6 @@ class _AlbumArtCarousel extends StatelessWidget {
                                 isOnDevice: album.isOnDevice(),
                                 heroTag:
                                     'preview-${album.albumName}-${album.albumArtistName}',
-                                artworkFit: BoxFit.contain,
-                                clipArtwork: true,
                               ),
                             ),
                           ),
@@ -291,21 +287,16 @@ class _AlbumArtFallback extends StatelessWidget {
               .clamp(160.0, 250.0)
               .toDouble();
           final artWidth = (flowHeight * 0.74).clamp(124.0, 172.0).toDouble();
-          final reflectionHeight = (artWidth * 0.18)
-              .clamp(20.0, 28.0)
-              .toDouble();
 
           return Center(
             child: SizedBox(
               width: artWidth,
-              height: artWidth + reflectionHeight,
+              height: artWidth + 34,
               child: AlbumReflectiveArt(
                 imageWidth: artWidth,
-                reflectedImageHeight: reflectionHeight,
+                reflectedImageHeight: 34,
                 thumbnailPath: null,
                 heroTag: 'preview-default-album-art',
-                artworkFit: BoxFit.contain,
-                clipArtwork: true,
               ),
             ),
           );
