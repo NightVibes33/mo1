@@ -8,6 +8,7 @@ import 'package:dope/core/widgets/empty_state_widget.dart';
 import 'package:dope/features/menu/models/split_screen_type.dart';
 import 'package:dope/features/music/album/models/album_model.dart';
 import 'package:dope/features/music/album/providers/album_details_provider.dart';
+import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -100,6 +101,9 @@ class _AnimatedAlbumArtScrollerState
   @override
   Widget build(BuildContext context) {
     final metadataState = ref.watch(filteredAudioFilesProvider);
+    final currentMetadata = ref.watch(
+      nowPlayingDetailsProvider.select((e) => e.currentMetadata),
+    );
 
     return metadataState.when(
       data: (_) {
@@ -120,11 +124,15 @@ class _AnimatedAlbumArtScrollerState
       },
       loading: () {
         _stopAlbumRotation();
-        return const _AlbumArtFallback();
+        return _AlbumArtFallback(
+          currentArtworkPath: currentMetadata?.thumbnailPath,
+        );
       },
       error: (_, _) {
         _stopAlbumRotation();
-        return const _AlbumArtFallback();
+        return _AlbumArtFallback(
+          currentArtworkPath: currentMetadata?.thumbnailPath,
+        );
       },
     );
   }
@@ -271,7 +279,9 @@ class _AlbumArtCarousel extends StatelessWidget {
 }
 
 class _AlbumArtFallback extends StatelessWidget {
-  const _AlbumArtFallback();
+  final String? currentArtworkPath;
+
+  const _AlbumArtFallback({this.currentArtworkPath});
 
   @override
   Widget build(BuildContext context) {
@@ -290,7 +300,7 @@ class _AlbumArtFallback extends StatelessWidget {
             child: _PreviewAlbumReflectiveArt(
               imageWidth: artWidth,
               reflectedImageHeight: reflectionHeight,
-              thumbnailPath: null,
+              thumbnailPath: currentArtworkPath,
             ),
           );
         },
