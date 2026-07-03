@@ -1,14 +1,12 @@
 import 'dart:async';
 
-import 'package:dope/core/constants/assets.dart';
 import 'package:dope/core/extensions/build_context_extensions.dart';
 import 'package:dope/core/providers/filtered_audio_files_provider.dart';
-import 'package:dope/core/utils/metadata_artwork.dart';
 import 'package:dope/core/widgets/empty_state_widget.dart';
 import 'package:dope/features/menu/models/split_screen_type.dart';
 import 'package:dope/features/music/album/models/album_model.dart';
 import 'package:dope/features/music/album/providers/album_details_provider.dart';
-import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dope/features/now_playing/widgets/album_reflective_art.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -29,7 +27,7 @@ class _AnimatedAlbumArtScrollerState
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(viewportFraction: 0.56);
+    _pageController = PageController(viewportFraction: 0.5);
     _pageController.addListener(_updateCurrentPage);
   }
 
@@ -101,9 +99,6 @@ class _AnimatedAlbumArtScrollerState
   @override
   Widget build(BuildContext context) {
     final metadataState = ref.watch(filteredAudioFilesProvider);
-    final currentMetadata = ref.watch(
-      nowPlayingDetailsProvider.select((e) => e.currentMetadata),
-    );
 
     return metadataState.when(
       data: (_) {
@@ -124,14 +119,12 @@ class _AnimatedAlbumArtScrollerState
       },
       loading: () {
         _stopAlbumRotation();
-        return _AlbumArtFallback(
-          currentArtworkPath: currentMetadata?.thumbnailPath,
-        );
+        return const _AlbumArtFallback();
       },
       error: (_, _) {
         _stopAlbumRotation();
-        return _AlbumArtFallback(
-          currentArtworkPath: currentMetadata?.thumbnailPath,
+        return EmptyStateWidget(
+          emptyDescription: context.localization.noMusicFilesFound,
         );
       },
     );
@@ -161,73 +154,57 @@ class _AlbumArtCarousel extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableHeight = constraints.maxHeight;
-          final availableWidth = constraints.maxWidth;
-          const textBlockHeight = 52.0;
-          const bottomTextGap = 8.0;
-          final previewHeight =
-              (availableHeight - textBlockHeight - bottomTextGap)
-                  .clamp(148.0, 250.0)
-                  .toDouble();
-          final pageWidth = availableWidth * 0.56;
-          final flowHeight = previewHeight.clamp(148.0, 250.0).toDouble();
-          final artWidth = (flowHeight * 0.92)
-              .clamp(136.0, pageWidth * 0.82)
+          final flowHeight = (availableHeight - 44)
+              .clamp(160.0, 250.0)
               .toDouble();
-          final reflectionHeight = (artWidth * 0.18)
-              .clamp(24.0, 34.0)
-              .toDouble();
-          final artStackHeight = artWidth + reflectionHeight;
+          final artWidth = (flowHeight * 0.92).clamp(145.0, 232.0).toDouble();
 
           return Stack(
-            clipBehavior: Clip.hardEdge,
+            clipBehavior: Clip.none,
             children: [
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                bottom: textBlockHeight + bottomTextGap,
-                child: Center(
-                  child: SizedBox(
-                    height: artStackHeight,
-                    child: PageView.builder(
-                      controller: pageController,
-                      itemCount: albums.length,
-                      padEnds: true,
-                      allowImplicitScrolling: true,
-                      physics: const BouncingScrollPhysics(),
-                      itemBuilder: (context, index) {
-                        final relativePosition = (index - currentPage)
-                            .clamp(-1.5, 1.5)
-                            .toDouble();
-                        final distance = relativePosition.abs();
-                        final scale = (1 - distance * 0.16)
-                            .clamp(0.74, 1.0)
-                            .toDouble();
-                        final album = albums[index];
+              Align(
+                alignment: Alignment.topCenter,
+                child: SizedBox(
+                  height: flowHeight,
+                  child: PageView.builder(
+                    controller: pageController,
+                    itemCount: albums.length,
+                    padEnds: true,
+                    allowImplicitScrolling: true,
+                    physics: const BouncingScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      final relativePosition = (index - currentPage)
+                          .clamp(-1.5, 1.5)
+                          .toDouble();
+                      final distance = relativePosition.abs();
+                      final scale = (1 - distance * 0.16)
+                          .clamp(0.74, 1.0)
+                          .toDouble();
+                      final album = albums[index];
 
-                        return Transform(
-                          transform: Matrix4.identity()
-                            ..setEntry(3, 2, 0.0022)
-                            ..translate(
-                              relativePosition * -10,
-                              0.0,
-                              -distance * 72,
-                            )
-                            ..scaleByDouble(scale, scale, scale, 1)
-                            ..rotateY(relativePosition * 0.72),
-                          alignment: relativePosition >= 0
-                              ? Alignment.centerLeft
-                              : Alignment.centerRight,
-                          child: Center(
-                            child: _PreviewAlbumReflectiveArt(
-                              imageWidth: artWidth,
-                              reflectedImageHeight: reflectionHeight,
-                              thumbnailPath: album.albumArtPath,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                      return Transform(
+                        transform: Matrix4.identity()
+                          ..setEntry(3, 2, 0.0022)
+                          ..translate(
+                            relativePosition * -10,
+                            0.0,
+                            -distance * 72,
+                          )
+                          ..scaleByDouble(scale, scale, scale, 1)
+                          ..rotateY(relativePosition * 0.72),
+                        alignment: relativePosition >= 0
+                            ? Alignment.centerLeft
+                            : Alignment.centerRight,
+                        child: AlbumReflectiveArt(
+                          imageWidth: artWidth,
+                          reflectedImageHeight: 34,
+                          thumbnailPath: album.albumArtPath,
+                          isOnDevice: album.isOnDevice(),
+                          heroTag:
+                              'preview-${album.albumName}-${album.albumArtistName}',
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -279,9 +256,7 @@ class _AlbumArtCarousel extends StatelessWidget {
 }
 
 class _AlbumArtFallback extends StatelessWidget {
-  final String? currentArtworkPath;
-
-  const _AlbumArtFallback({this.currentArtworkPath});
+  const _AlbumArtFallback();
 
   @override
   Widget build(BuildContext context) {
@@ -291,16 +266,14 @@ class _AlbumArtFallback extends StatelessWidget {
           final flowHeight = constraints.maxHeight
               .clamp(160.0, 250.0)
               .toDouble();
-          final artWidth = (flowHeight * 0.78).clamp(126.0, 178.0).toDouble();
-          final reflectionHeight = (artWidth * 0.18)
-              .clamp(20.0, 28.0)
-              .toDouble();
+          final artWidth = (flowHeight * 0.82).clamp(130.0, 205.0).toDouble();
 
           return Center(
-            child: _PreviewAlbumReflectiveArt(
+            child: AlbumReflectiveArt(
               imageWidth: artWidth,
-              reflectedImageHeight: reflectionHeight,
-              thumbnailPath: currentArtworkPath,
+              reflectedImageHeight: 34,
+              thumbnailPath: null,
+              heroTag: 'preview-default-album-art',
             ),
           );
         },
@@ -318,118 +291,18 @@ class _AlbumArtBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     return RepaintBoundary(
       key: const ValueKey(SplitScreenType.albumArt),
-      child: ClipRect(
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                context.appDeviceScreenBackgroundColor.withValues(alpha: 0.96),
-                const Color(0xFF101215).withValues(alpha: 0.92),
-              ],
-            ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              context.appDeviceScreenBackgroundColor.withValues(alpha: 0.96),
+              const Color(0xFF101215).withValues(alpha: 0.92),
+            ],
           ),
-          child: child,
         ),
-      ),
-    );
-  }
-}
-
-class _PreviewAlbumReflectiveArt extends StatelessWidget {
-  final String? thumbnailPath;
-  final double imageWidth;
-  final double reflectedImageHeight;
-
-  const _PreviewAlbumReflectiveArt({
-    required this.thumbnailPath,
-    required this.imageWidth,
-    required this.reflectedImageHeight,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDarkTheme =
-        CupertinoTheme.of(context).brightness == Brightness.dark;
-    final reflectionOpacity = isDarkTheme ? 0.42 : 0.32;
-    final overlayTopColor = CupertinoColors.black.withValues(
-      alpha: isDarkTheme ? 0.10 : 0.06,
-    );
-    final overlayMidColor = CupertinoColors.black.withValues(
-      alpha: isDarkTheme ? 0.54 : 0.42,
-    );
-    final overlayBottomColor = CupertinoColors.black.withValues(
-      alpha: isDarkTheme ? 0.94 : 0.84,
-    );
-
-    Widget artworkImage({
-      required double height,
-      Alignment alignment = Alignment.center,
-    }) {
-      return Image(
-        image: metadataArtworkProvider(thumbnailPath),
-        errorBuilder: (_, _, _) => Image.asset(
-          Assets.defaultAlbumCoverImage,
-          height: height,
-          width: imageWidth,
-          alignment: alignment,
-          fit: BoxFit.cover,
-        ),
-        height: height,
-        width: imageWidth,
-        alignment: alignment,
-        fit: BoxFit.cover,
-      );
-    }
-
-    return SizedBox(
-      width: imageWidth,
-      height: imageWidth + reflectedImageHeight,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ClipRect(
-            child: SizedBox(
-              width: imageWidth,
-              height: imageWidth,
-              child: artworkImage(height: imageWidth),
-            ),
-          ),
-          SizedBox(
-            width: imageWidth,
-            height: reflectedImageHeight,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Opacity(
-                  opacity: reflectionOpacity,
-                  child: Transform.flip(
-                    flipY: true,
-                    child: artworkImage(
-                      height: reflectedImageHeight,
-                      alignment: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      stops: const [0.0, 0.38, 1.0],
-                      colors: [
-                        overlayTopColor,
-                        overlayMidColor,
-                        overlayBottomColor,
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        child: child,
       ),
     );
   }
