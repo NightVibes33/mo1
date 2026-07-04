@@ -1,0 +1,252 @@
+import 'package:dope/core/constants/assets.dart';
+import 'package:dope/core/custom_painter/next_button_custom_painter.dart';
+import 'package:dope/core/custom_painter/play_pause_button_custom_painter.dart';
+import 'package:dope/core/custom_painter/previous_button_custom_painter.dart';
+import 'package:dope/features/settings/models/device_color.dart';
+import 'package:dope/features/settings/models/wheel_style.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+
+class WheelSkinVisual extends StatelessWidget {
+  final WheelStyle wheelStyle;
+  final double wheelSize;
+  final double selectButtonSize;
+  final DeviceColorStyle deviceColorStyle;
+  final Future<void> Function()? onMenuTap;
+  final Future<void> Function()? onMenuLongPress;
+  final Future<void> Function()? onPreviousTap;
+  final Future<void> Function()? onPreviousLongPress;
+  final Future<void> Function()? onSelectTap;
+  final Future<void> Function()? onSelectLongPress;
+  final Future<void> Function()? onNextTap;
+  final Future<void> Function()? onNextLongPress;
+  final Future<void> Function()? onLongPressEnd;
+  final Future<void> Function()? onPlayPauseTap;
+  final Key? menuKey;
+  final Key? previousKey;
+  final Key? centerKey;
+  final Key? nextKey;
+  final Key? playPauseKey;
+
+  const WheelSkinVisual({
+    super.key,
+    required this.wheelStyle,
+    required this.wheelSize,
+    required this.selectButtonSize,
+    required this.deviceColorStyle,
+    this.onMenuTap,
+    this.onMenuLongPress,
+    this.onPreviousTap,
+    this.onPreviousLongPress,
+    this.onSelectTap,
+    this.onSelectLongPress,
+    this.onNextTap,
+    this.onNextLongPress,
+    this.onLongPressEnd,
+    this.onPlayPauseTap,
+    this.menuKey,
+    this.previousKey,
+    this.centerKey,
+    this.nextKey,
+    this.playPauseKey,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isModern = wheelStyle == WheelStyle.modern;
+    final shellDecoration = isModern
+        ? BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              center: const Alignment(-0.34, -0.42),
+              radius: 1.05,
+              colors: [
+                CupertinoColors.white.withValues(alpha: 0.46),
+                deviceColorStyle.controlBackgroundColor.withValues(alpha: 0.84),
+                deviceColorStyle.controlBackgroundColor.withValues(alpha: 0.72),
+              ],
+            ),
+            border: Border.all(
+              color: CupertinoColors.white.withValues(alpha: 0.28),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: CupertinoColors.black.withValues(alpha: 0.16),
+                blurRadius: 20,
+                offset: const Offset(0, 12),
+              ),
+              BoxShadow(
+                color: CupertinoColors.white.withValues(alpha: 0.16),
+                blurRadius: 10,
+                offset: const Offset(-3, -4),
+              ),
+            ],
+          )
+        : BoxDecoration(
+            shape: BoxShape.circle,
+            color: deviceColorStyle.controlBackgroundColor,
+          );
+
+    final centerDecoration = BoxDecoration(
+      shape: BoxShape.circle,
+      border: Border.all(color: deviceColorStyle.controlBorderColor),
+      image: const DecorationImage(
+        image: AssetImage(Assets.noiseImage),
+        fit: BoxFit.cover,
+      ),
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: deviceColorStyle.innerButtonGradientColors,
+      ),
+      boxShadow: isModern
+          ? [
+              BoxShadow(
+                color: CupertinoColors.black.withValues(alpha: 0.18),
+                blurRadius: 14,
+                offset: const Offset(0, 8),
+              ),
+            ]
+          : null,
+    );
+
+    final segmentBackgroundColor = isModern
+        ? Colors.transparent
+        : deviceColorStyle.controlBackgroundColor;
+
+    return Center(
+      child: Container(
+        height: wheelSize,
+        width: wheelSize,
+        padding: const EdgeInsets.all(12),
+        decoration: shellDecoration,
+        clipBehavior: Clip.hardEdge,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: _wrap(
+                onTap: onMenuTap,
+                onLongPress: onMenuLongPress,
+                child: ColoredBox(
+                  color: segmentBackgroundColor,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: Icon(
+                      CupertinoIcons.back,
+                      key: menuKey,
+                      color: deviceColorStyle.buttonAccentColor,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  key: previousKey,
+                  child: _wrap(
+                    onTap: onPreviousTap,
+                    onLongPress: onPreviousLongPress,
+                    onLongPressEnd: onLongPressEnd,
+                    child: SizedBox(
+                      height: wheelSize * 0.2175,
+                      child: ColoredBox(
+                        color: segmentBackgroundColor,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: CustomPaint(
+                            size: const Size(20, 10),
+                            painter: PreviousButtonCustomPainter(
+                              color: deviceColorStyle.buttonIconColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                _wrap(
+                  onTap: onSelectTap,
+                  onLongPress: onSelectLongPress,
+                  onLongPressEnd: onLongPressEnd,
+                  child: SizedBox(
+                    key: centerKey,
+                    height: selectButtonSize,
+                    width: selectButtonSize,
+                    child: DecoratedBox(decoration: centerDecoration),
+                  ),
+                ),
+                Expanded(
+                  key: nextKey,
+                  child: _wrap(
+                    onTap: onNextTap,
+                    onLongPress: onNextLongPress,
+                    onLongPressEnd: onLongPressEnd,
+                    child: SizedBox(
+                      height: selectButtonSize,
+                      child: ColoredBox(
+                        color: segmentBackgroundColor,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: CustomPaint(
+                            size: const Size(20, 10),
+                            painter: NextButtonCustomPainter(
+                              color: deviceColorStyle.buttonIconColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Expanded(
+              child: _wrap(
+                onTap: onPlayPauseTap,
+                child: ColoredBox(
+                  color: segmentBackgroundColor,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: CustomPaint(
+                      key: playPauseKey,
+                      size: const Size(26, 12),
+                      painter: PlayPauseButtonCustomPainter(
+                        color: deviceColorStyle.buttonIconColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _wrap({
+    required Widget child,
+    Future<void> Function()? onTap,
+    Future<void> Function()? onLongPress,
+    Future<void> Function()? onLongPressEnd,
+  }) {
+    if (onTap == null && onLongPress == null && onLongPressEnd == null) {
+      return child;
+    }
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      onLongPressEnd: onLongPressEnd == null
+          ? null
+          : (_) {
+              onLongPressEnd();
+            },
+      child: child,
+    );
+  }
+}
