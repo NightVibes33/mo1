@@ -10,6 +10,7 @@ import 'package:dope/features/device/widgets/wheel_skin_visual.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:dope/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:dope/features/settings/models/click_wheel_size.dart';
+import 'package:dope/features/settings/models/device_color.dart';
 import 'package:dope/features/settings/models/wheel_style.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
