@@ -342,10 +342,10 @@ class _PreviewAlbumReflectiveArt extends StatelessWidget {
         CupertinoTheme.of(context).brightness == Brightness.dark;
     final reflectionOpacity = isDarkTheme ? 0.42 : 0.32;
     final overlayTopColor = CupertinoColors.black.withValues(
-      alpha: isDarkTheme ? 0.03 : 0.02,
+      alpha: isDarkTheme ? 0.10 : 0.06,
     );
     final overlayMidColor = CupertinoColors.black.withValues(
-      alpha: isDarkTheme ? 0.46 : 0.34,
+      alpha: isDarkTheme ? 0.54 : 0.42,
     );
     final overlayBottomColor = CupertinoColors.black.withValues(
       alpha: isDarkTheme ? 0.94 : 0.84,
@@ -384,7 +384,7 @@ class _PreviewAlbumReflectiveArt extends StatelessWidget {
             child: artworkImage(height: imageWidth),
           ),
           Transform.translate(
-            offset: const Offset(0, -32),
+            offset: const Offset(0, -30),
             child: SizedBox(
               width: imageWidth,
               height: reflectedImageHeight,
