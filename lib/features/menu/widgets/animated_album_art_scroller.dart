@@ -354,6 +354,7 @@ class _PreviewAlbumReflectiveArt extends StatelessWidget {
     Widget artworkImage({
       required double height,
       Alignment alignment = Alignment.center,
+      BoxFit fit = BoxFit.contain,
     }) {
       return Image(
         image: metadataArtworkProvider(thumbnailPath),
@@ -362,12 +363,12 @@ class _PreviewAlbumReflectiveArt extends StatelessWidget {
           height: height,
           width: imageWidth,
           alignment: alignment,
-          fit: BoxFit.contain,
+          fit: fit,
         ),
         height: height,
         width: imageWidth,
         alignment: alignment,
-        fit: BoxFit.contain,
+        fit: fit,
       );
     }
 
@@ -395,6 +396,7 @@ class _PreviewAlbumReflectiveArt extends StatelessWidget {
                     child: artworkImage(
                       height: reflectedImageHeight,
                       alignment: Alignment.bottomCenter,
+                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
