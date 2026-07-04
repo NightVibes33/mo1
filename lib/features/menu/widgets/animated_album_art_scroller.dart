@@ -384,7 +384,7 @@ class _PreviewAlbumReflectiveArt extends StatelessWidget {
             child: artworkImage(height: imageWidth),
           ),
           Transform.translate(
-            offset: const Offset(0, -26),
+            offset: const Offset(0, -30),
             child: SizedBox(
               width: imageWidth,
               height: reflectedImageHeight,
