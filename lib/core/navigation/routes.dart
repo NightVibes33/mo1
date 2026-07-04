@@ -250,7 +250,7 @@ final routerProvider = Provider(
                       GoRoute(
                         path: Routes.wheelStyle.name,
                         name: Routes.wheelStyle.name,
-                        parentNavigatorKey: menuNavigatorKey,
+                        parentNavigatorKey: rootNavigatorKey,
                         pageBuilder: (context, state) => const CupertinoPage(
                           child: WheelStyleSelectionScreen(),
                         ),

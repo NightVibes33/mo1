@@ -28,31 +28,55 @@ class WheelStyleSelectionScreen extends ConsumerWidget {
         children: [
           StatusBar(title: Routes.wheelStyle.title(context)),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
-              children: [
-                _WheelStyleCard(
-                  title: 'Modern',
-                  subtitle: 'Current default controls dock',
-                  isSelected: activeStyle == WheelStyle.modern,
-                  preview: _WheelPreview(
-                    wheelStyle: WheelStyle.modern,
-                    deviceColorStyle: deviceColorStyle,
-                  ),
-                  onTap: () => selectStyle(WheelStyle.modern),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    context.appScreenBackgroundGradientColor1,
+                    context.appScreenBackgroundGradientColor2,
+                  ],
                 ),
-                const SizedBox(height: 14),
-                _WheelStyleCard(
-                  title: 'Classic',
-                  subtitle: 'Legacy circular wheel',
-                  isSelected: activeStyle == WheelStyle.classic,
-                  preview: _WheelPreview(
-                    wheelStyle: WheelStyle.classic,
-                    deviceColorStyle: deviceColorStyle,
-                  ),
-                  onTap: () => selectStyle(WheelStyle.classic),
+              ),
+              child: SafeArea(
+                top: false,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                  children: [
+                    Text(
+                      'Choose how the controls look.',
+                      style: CupertinoTheme.of(context).textTheme.textStyle
+                          .copyWith(
+                            fontSize: 15,
+                            color: context.appSecondaryTextColor,
+                          ),
+                    ),
+                    const SizedBox(height: 16),
+                    _WheelStyleCard(
+                      title: 'Modern',
+                      subtitle: 'Current default controls dock',
+                      isSelected: activeStyle == WheelStyle.modern,
+                      preview: _WheelPreview(
+                        wheelStyle: WheelStyle.modern,
+                        deviceColorStyle: deviceColorStyle,
+                      ),
+                      onTap: () => selectStyle(WheelStyle.modern),
+                    ),
+                    const SizedBox(height: 18),
+                    _WheelStyleCard(
+                      title: 'Classic',
+                      subtitle: 'Legacy circular wheel',
+                      isSelected: activeStyle == WheelStyle.classic,
+                      preview: _WheelPreview(
+                        wheelStyle: WheelStyle.classic,
+                        deviceColorStyle: deviceColorStyle,
+                      ),
+                      onTap: () => selectStyle(WheelStyle.classic),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -82,28 +106,29 @@ class _WheelStyleCard extends StatelessWidget {
       onTap: onTap,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: context.appSurfaceColor,
-          borderRadius: BorderRadius.circular(22),
+          color: context.appSurfaceColor.withValues(alpha: 0.96),
+          borderRadius: BorderRadius.circular(28),
           border: Border.all(
             color: isSelected
-                ? context.appPrimaryTextColor.withValues(alpha: 0.22)
-                : context.appOutlineColor.withValues(alpha: 0.32),
+                ? context.appPrimaryTextColor.withValues(alpha: 0.26)
+                : context.appOutlineColor.withValues(alpha: 0.28),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: CupertinoColors.black.withValues(alpha: 0.08),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
+              color: CupertinoColors.black.withValues(alpha: 0.12),
+              blurRadius: 20,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
@@ -115,30 +140,33 @@ class _WheelStyleCard extends StatelessWidget {
                               .textTheme
                               .navTitleTextStyle
                               .copyWith(
-                                fontSize: 20,
+                                fontSize: 28,
                                 color: context.appPrimaryTextColor,
                               ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           subtitle,
                           style: CupertinoTheme.of(context).textTheme.textStyle
                               .copyWith(
-                                fontSize: 13,
+                                fontSize: 15,
                                 color: context.appSecondaryTextColor,
                               ),
                         ),
                       ],
                     ),
                   ),
-                  Icon(
-                    isSelected
-                        ? CupertinoIcons.check_mark_circled_solid
-                        : CupertinoIcons.circle,
-                    color: isSelected
-                        ? context.appPrimaryTextColor
-                        : context.appSecondaryTextColor.withValues(alpha: 0.55),
-                    size: 24,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(
+                      isSelected
+                          ? CupertinoIcons.check_mark_circled_solid
+                          : CupertinoIcons.circle,
+                      color: isSelected
+                          ? context.appPrimaryTextColor
+                          : context.appSecondaryTextColor.withValues(alpha: 0.55),
+                      size: 28,
+                    ),
                   ),
                 ],
               ),
@@ -163,17 +191,10 @@ class _WheelPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wheel = WheelSkinVisual(
-      wheelStyle: wheelStyle,
-      wheelSize: wheelStyle == WheelStyle.modern ? 150 : 170,
-      selectButtonSize: wheelStyle == WheelStyle.modern ? 64 : 70,
-      deviceColorStyle: deviceColorStyle,
-    );
-
     if (wheelStyle == WheelStyle.modern) {
       return DecoratedBox(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(32),
           color: deviceColorStyle.isDark
               ? CupertinoColors.black.withValues(alpha: 0.24)
               : CupertinoColors.white.withValues(alpha: 0.18),
@@ -191,12 +212,30 @@ class _WheelPreview extends StatelessWidget {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
-          child: SizedBox(width: 250, child: wheel),
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 22),
+          child: SizedBox(
+            width: 280,
+            child: WheelSkinVisual(
+              wheelStyle: WheelStyle.modern,
+              wheelSize: 200,
+              selectButtonSize: 84,
+              deviceColorStyle: deviceColorStyle,
+            ),
+          ),
         ),
       );
     }
 
-    return wheel;
+    return SizedBox(
+      width: 280,
+      child: Center(
+        child: WheelSkinVisual(
+          wheelStyle: WheelStyle.classic,
+          wheelSize: 220,
+          selectButtonSize: 92,
+          deviceColorStyle: deviceColorStyle,
+        ),
+      ),
+    );
   }
 }
