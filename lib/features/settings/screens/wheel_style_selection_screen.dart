@@ -1,5 +1,8 @@
 import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/core/extensions/go_router_extensions.dart';
 import 'package:dope/core/navigation/routes.dart';
+import 'package:dope/features/device/models/device_action.dart';
+import 'package:dope/features/device/services/device_buttons_service_provider.dart';
 import 'package:dope/features/device/widgets/wheel_skin_visual.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:dope/features/settings/models/device_color.dart';
@@ -7,12 +10,22 @@ import 'package:dope/features/settings/models/wheel_style.dart';
 import 'package:dope/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class WheelStyleSelectionScreen extends ConsumerWidget {
   const WheelStyleSelectionScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(deviceButtonsServiceProvider, (prevState, newState) {
+      if (newState == null ||
+          context.router.locationNamed != Routes.wheelStyle.name) {
+        return;
+      }
+      if (newState == DeviceAction.menu) {
+        context.pop();
+      }
+    });
     final settings = ref.watch(settingsPreferencesControllerProvider);
     final deviceColorStyle = settings.resolveDeviceColorStyle();
     final activeStyle = settings.wheelStyle;
