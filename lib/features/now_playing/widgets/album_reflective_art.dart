@@ -78,7 +78,10 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
       alpha: isDarkTheme ? 0.94 : 0.84,
     );
 
-    Widget artworkImage({double? height, Alignment alignment = Alignment.center}) {
+    Widget artworkImage({
+      double? height,
+      Alignment alignment = Alignment.center,
+    }) {
       final image = Image(
         image: metadataArtworkProvider(widget.thumbnailPath),
         errorBuilder: (_, _, _) => Image.asset(
@@ -101,9 +104,7 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
       return SizedBox(
         height: height,
         width: imageWidth,
-        child: ClipRect(
-          child: image,
-        ),
+        child: ClipRect(child: image),
       );
     }
 
@@ -149,47 +150,60 @@ class _AlbumReflectiveArtState extends State<AlbumReflectiveArt>
       child: Transform(
         transform: transform,
         alignment: Alignment.center,
-        child: Column(
-          children: [
-            Flexible(child: artworkImage(height: widget.imageWidth)),
-            FadeTransition(
-              opacity: _animation,
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.topCenter,
-                children: [
-                  Opacity(
-                    opacity: reflectionOpacity,
-                    child: Transform.flip(
-                      flipY: true,
-                      child: artworkImage(
-                        height: widget.reflectedImageHeight,
-                        alignment: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    height: widget.reflectedImageHeight,
-                    width: imageWidth,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          stops: const [0.0, 0.38, 1.0],
-                          colors: [
-                            overlayTopColor,
-                            overlayMidColor,
-                            overlayBottomColor,
-                          ],
+        child: SizedBox(
+          width: imageWidth,
+          height: (widget.imageWidth ?? 0) + widget.reflectedImageHeight,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: imageWidth,
+                height: widget.imageWidth,
+                child: artworkImage(height: widget.imageWidth),
+              ),
+              FadeTransition(
+                opacity: _animation,
+                child: SizedBox(
+                  width: imageWidth,
+                  height: widget.reflectedImageHeight,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.topCenter,
+                    children: [
+                      Opacity(
+                        opacity: reflectionOpacity,
+                        child: Transform.flip(
+                          flipY: true,
+                          child: artworkImage(
+                            height: widget.reflectedImageHeight,
+                            alignment: Alignment.bottomCenter,
+                          ),
                         ),
                       ),
-                    ),
+                      SizedBox(
+                        height: widget.reflectedImageHeight,
+                        width: imageWidth,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              stops: const [0.0, 0.38, 1.0],
+                              colors: [
+                                overlayTopColor,
+                                overlayMidColor,
+                                overlayBottomColor,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
