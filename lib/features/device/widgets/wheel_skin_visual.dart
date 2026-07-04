@@ -59,76 +59,41 @@ class WheelSkinVisual extends StatelessWidget {
           child: SizedBox(
             height: wheelSize,
             width: wheelSize,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.34, -0.42),
-                      radius: 1.05,
-                      colors: [
-                        CupertinoColors.white.withValues(alpha: 0.46),
-                        deviceColorStyle.controlBackgroundColor.withValues(
-                          alpha: 0.84,
-                        ),
-                        deviceColorStyle.controlBackgroundColor.withValues(
-                          alpha: 0.72,
-                        ),
-                      ],
-                    ),
-                    border: Border.all(
-                      color: CupertinoColors.white.withValues(alpha: 0.28),
-                      width: 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: CupertinoColors.black.withValues(alpha: 0.16),
-                        blurRadius: 20,
-                        offset: const Offset(0, 12),
-                      ),
-                      BoxShadow(
-                        color: CupertinoColors.white.withValues(alpha: 0.16),
-                        blurRadius: 10,
-                        offset: const Offset(-3, -4),
-                      ),
-                    ],
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: _WheelContent(
+                wheelSize: wheelSize,
+                selectButtonSize: selectButtonSize,
+                deviceColorStyle: deviceColorStyle,
+                segmentBackgroundColor: Colors.transparent,
+                centerShadow: [
+                  BoxShadow(
+                    color: CupertinoColors.black.withValues(alpha: 0.14),
+                    blurRadius: 16,
+                    offset: const Offset(0, 10),
                   ),
-                  child: const SizedBox.expand(),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: _WheelContent(
-                    wheelSize: wheelSize,
-                    selectButtonSize: selectButtonSize,
-                    deviceColorStyle: deviceColorStyle,
-                    segmentBackgroundColor: Colors.transparent,
-                    centerShadow: [
-                      BoxShadow(
-                        color: CupertinoColors.black.withValues(alpha: 0.18),
-                        blurRadius: 14,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                    onMenuTap: onMenuTap,
-                    onMenuLongPress: onMenuLongPress,
-                    onPreviousTap: onPreviousTap,
-                    onPreviousLongPress: onPreviousLongPress,
-                    onSelectTap: onSelectTap,
-                    onSelectLongPress: onSelectLongPress,
-                    onNextTap: onNextTap,
-                    onNextLongPress: onNextLongPress,
-                    onLongPressEnd: onLongPressEnd,
-                    onPlayPauseTap: onPlayPauseTap,
-                    menuKey: menuKey,
-                    previousKey: previousKey,
-                    centerKey: centerKey,
-                    nextKey: nextKey,
-                    playPauseKey: playPauseKey,
+                  BoxShadow(
+                    color: CupertinoColors.white.withValues(alpha: 0.26),
+                    blurRadius: 8,
+                    offset: const Offset(0, -3),
                   ),
-                ),
-              ],
+                ],
+                onMenuTap: onMenuTap,
+                onMenuLongPress: onMenuLongPress,
+                onPreviousTap: onPreviousTap,
+                onPreviousLongPress: onPreviousLongPress,
+                onSelectTap: onSelectTap,
+                onSelectLongPress: onSelectLongPress,
+                onNextTap: onNextTap,
+                onNextLongPress: onNextLongPress,
+                onLongPressEnd: onLongPressEnd,
+                onPlayPauseTap: onPlayPauseTap,
+                menuKey: menuKey,
+                previousKey: previousKey,
+                centerKey: centerKey,
+                nextKey: nextKey,
+                playPauseKey: playPauseKey,
+              ),
             ),
           ),
         );

@@ -1,7 +1,7 @@
 import 'package:dope/core/extensions/build_context_extensions.dart';
 import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:dope/features/device/widgets/wheel_skin_visual.dart';
+import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:dope/features/settings/models/device_color.dart';
 import 'package:dope/features/settings/models/wheel_style.dart';
 import 'package:dope/features/status_bar/widgets/status_bar.dart';
@@ -33,7 +33,7 @@ class WheelStyleSelectionScreen extends ConsumerWidget {
               children: [
                 _WheelStyleCard(
                   title: 'Modern',
-                  subtitle: 'Current default wheel',
+                  subtitle: 'Current default controls dock',
                   isSelected: activeStyle == WheelStyle.modern,
                   preview: _WheelPreview(
                     wheelStyle: WheelStyle.modern,
@@ -44,7 +44,7 @@ class WheelStyleSelectionScreen extends ConsumerWidget {
                 const SizedBox(height: 14),
                 _WheelStyleCard(
                   title: 'Classic',
-                  subtitle: 'Circular wheel from the older design',
+                  subtitle: 'Legacy circular wheel',
                   isSelected: activeStyle == WheelStyle.classic,
                   preview: _WheelPreview(
                     wheelStyle: WheelStyle.classic,
@@ -163,11 +163,40 @@ class _WheelPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WheelSkinVisual(
+    final wheel = WheelSkinVisual(
       wheelStyle: wheelStyle,
-      wheelSize: 170,
-      selectButtonSize: 70,
+      wheelSize: wheelStyle == WheelStyle.modern ? 150 : 170,
+      selectButtonSize: wheelStyle == WheelStyle.modern ? 64 : 70,
       deviceColorStyle: deviceColorStyle,
     );
+
+    if (wheelStyle == WheelStyle.modern) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          color: deviceColorStyle.isDark
+              ? CupertinoColors.black.withValues(alpha: 0.24)
+              : CupertinoColors.white.withValues(alpha: 0.18),
+          border: Border.all(
+            color: deviceColorStyle.isDark
+                ? CupertinoColors.white.withValues(alpha: 0.10)
+                : CupertinoColors.black.withValues(alpha: 0.08),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: CupertinoColors.black.withValues(alpha: 0.16),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+          child: SizedBox(width: 250, child: wheel),
+        ),
+      );
+    }
+
+    return wheel;
   }
 }
