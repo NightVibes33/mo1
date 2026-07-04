@@ -1,12 +1,13 @@
 import 'dart:async';
 
+import 'package:dope/core/constants/assets.dart';
 import 'package:dope/core/extensions/build_context_extensions.dart';
 import 'package:dope/core/providers/filtered_audio_files_provider.dart';
+import 'package:dope/core/utils/metadata_artwork.dart';
 import 'package:dope/core/widgets/empty_state_widget.dart';
 import 'package:dope/features/menu/models/split_screen_type.dart';
 import 'package:dope/features/music/album/models/album_model.dart';
 import 'package:dope/features/music/album/providers/album_details_provider.dart';
-import 'package:dope/features/now_playing/widgets/album_reflective_art.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -208,14 +209,10 @@ class _AlbumArtCarousel extends StatelessWidget {
                             alignment: relativePosition >= 0
                                 ? Alignment.centerLeft
                                 : Alignment.centerRight,
-                            child: AlbumReflectiveArt(
+                            child: _PreviewAlbumReflectiveArt(
                               imageWidth: artWidth,
                               reflectedImageHeight: reflectionHeight,
                               thumbnailPath: album.albumArtPath,
-                              isOnDevice: album.isOnDevice(),
-                              heroTag:
-                                  'preview-${album.albumName}-${album.albumArtistName}',
-                              artworkFit: BoxFit.contain,
                             ),
                           ),
                         );
@@ -288,12 +285,10 @@ class _AlbumArtFallback extends StatelessWidget {
               .toDouble();
 
           return Center(
-            child: AlbumReflectiveArt(
+            child: _PreviewAlbumReflectiveArt(
               imageWidth: artWidth,
               reflectedImageHeight: reflectionHeight,
               thumbnailPath: null,
-              heroTag: 'preview-default-album-art',
-              artworkFit: BoxFit.contain,
             ),
           );
         },
@@ -325,6 +320,102 @@ class _AlbumArtBackdrop extends StatelessWidget {
           ),
           child: child,
         ),
+      ),
+    );
+  }
+}
+
+class _PreviewAlbumReflectiveArt extends StatelessWidget {
+  final String? thumbnailPath;
+  final double imageWidth;
+  final double reflectedImageHeight;
+
+  const _PreviewAlbumReflectiveArt({
+    required this.thumbnailPath,
+    required this.imageWidth,
+    required this.reflectedImageHeight,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkTheme =
+        CupertinoTheme.of(context).brightness == Brightness.dark;
+    final reflectionOpacity = isDarkTheme ? 0.42 : 0.32;
+    final overlayTopColor = CupertinoColors.black.withValues(
+      alpha: isDarkTheme ? 0.10 : 0.06,
+    );
+    final overlayMidColor = CupertinoColors.black.withValues(
+      alpha: isDarkTheme ? 0.54 : 0.42,
+    );
+    final overlayBottomColor = CupertinoColors.black.withValues(
+      alpha: isDarkTheme ? 0.94 : 0.84,
+    );
+
+    Widget artworkImage({
+      required double height,
+      Alignment alignment = Alignment.center,
+    }) {
+      return Image(
+        image: metadataArtworkProvider(thumbnailPath),
+        errorBuilder: (_, __, ___) => Image.asset(
+          Assets.defaultAlbumCoverImage,
+          height: height,
+          width: imageWidth,
+          alignment: alignment,
+          fit: BoxFit.contain,
+        ),
+        height: height,
+        width: imageWidth,
+        alignment: alignment,
+        fit: BoxFit.contain,
+      );
+    }
+
+    return SizedBox(
+      width: imageWidth,
+      height: imageWidth + reflectedImageHeight,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: imageWidth,
+            height: imageWidth,
+            child: artworkImage(height: imageWidth),
+          ),
+          SizedBox(
+            width: imageWidth,
+            height: reflectedImageHeight,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Opacity(
+                  opacity: reflectionOpacity,
+                  child: Transform.flip(
+                    flipY: true,
+                    child: artworkImage(
+                      height: reflectedImageHeight,
+                      alignment: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.0, 0.38, 1.0],
+                      colors: [
+                        overlayTopColor,
+                        overlayMidColor,
+                        overlayBottomColor,
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
