@@ -383,38 +383,41 @@ class _PreviewAlbumReflectiveArt extends StatelessWidget {
             height: imageWidth,
             child: artworkImage(height: imageWidth),
           ),
-          SizedBox(
-            width: imageWidth,
-            height: reflectedImageHeight,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Opacity(
-                  opacity: reflectionOpacity,
-                  child: Transform.flip(
-                    flipY: true,
-                    child: artworkImage(
-                      height: reflectedImageHeight,
-                      alignment: Alignment.bottomCenter,
-                      fit: BoxFit.cover,
+          Transform.translate(
+            offset: const Offset(0, -6),
+            child: SizedBox(
+              width: imageWidth,
+              height: reflectedImageHeight,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Opacity(
+                    opacity: reflectionOpacity,
+                    child: Transform.flip(
+                      flipY: true,
+                      child: artworkImage(
+                        height: reflectedImageHeight,
+                        alignment: Alignment.bottomCenter,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
-                ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      stops: const [0.0, 0.38, 1.0],
-                      colors: [
-                        overlayTopColor,
-                        overlayMidColor,
-                        overlayBottomColor,
-                      ],
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: const [0.0, 0.38, 1.0],
+                        colors: [
+                          overlayTopColor,
+                          overlayMidColor,
+                          overlayBottomColor,
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
