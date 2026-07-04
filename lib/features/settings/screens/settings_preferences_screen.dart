@@ -32,6 +32,7 @@ enum _SettingsDisplayItems {
   deviceColor,
   gradientTextures,
   clickWheelSize,
+  wheelStyle,
   clickWheelSensitivity,
   isTouchScreenEnabled,
   vibrate,
@@ -77,6 +78,8 @@ enum _SettingsDisplayItems {
         return "Gradient Textures";
       case clickWheelSize:
         return context.localization.clickWheelSizeSettingTitle;
+      case wheelStyle:
+        return 'Wheel Style';
       case clickWheelSensitivity:
         return context.localization.clickWheelSensitivitySettingTitle;
       case volumeMode:
@@ -185,6 +188,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         await ref
             .read(settingsPreferencesControllerProvider.notifier)
             .toggleClickWheelSize();
+        break;
+      case _SettingsDisplayItems.wheelStyle:
+        await ref
+            .read(settingsPreferencesControllerProvider.notifier)
+            .toggleWheelStyle();
         break;
       case _SettingsDisplayItems.clickWheelSensitivity:
         await ref
@@ -369,6 +377,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             : context.localization.tileValueOff;
       case _SettingsDisplayItems.clickWheelSize:
         return settingsState.clickWheelSize.title(context);
+      case _SettingsDisplayItems.wheelStyle:
+        return settingsState.wheelStyle.title(context);
       case _SettingsDisplayItems.clickWheelSensitivity:
         return settingsState.clickWheelSensitivity.title(context);
       case _SettingsDisplayItems.appTheme:

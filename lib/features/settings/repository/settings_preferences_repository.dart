@@ -14,6 +14,7 @@ import 'package:dope/features/settings/models/repeat_mode.dart';
 import 'package:dope/features/settings/models/song_sort_order.dart';
 import 'package:dope/features/settings/models/song_transition_style.dart';
 import 'package:dope/features/settings/models/volume_mode.dart';
+import 'package:dope/features/settings/models/wheel_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -44,7 +45,8 @@ class SettingsPreferencesRepository {
   }
 
   List<CustomDeviceTheme> getCustomDeviceThemes() {
-    final rawThemes = _sharedPreferencesWithCache.getString(
+    final rawThemes =
+        _sharedPreferencesWithCache.getString(
           SharedPreferencesKeys.customDeviceThemes.name,
         ) ??
         '[]';
@@ -55,9 +57,10 @@ class SettingsPreferencesRepository {
       }
       return decoded
           .whereType<Map>()
-          .map((theme) => CustomDeviceTheme.fromJson(
-                Map<String, dynamic>.from(theme),
-              ))
+          .map(
+            (theme) =>
+                CustomDeviceTheme.fromJson(Map<String, dynamic>.from(theme)),
+          )
           .toList(growable: false);
     } catch (_) {
       return const [];
@@ -152,7 +155,8 @@ class SettingsPreferencesRepository {
   }
 
   int getCrossfadeDurationSeconds() {
-    final seconds = _sharedPreferencesWithCache.getInt(
+    final seconds =
+        _sharedPreferencesWithCache.getInt(
           SharedPreferencesKeys.crossfadeDurationSeconds.name,
         ) ??
         defaultCrossfadeDurationSeconds;
@@ -185,6 +189,13 @@ class SettingsPreferencesRepository {
           SharedPreferencesKeys.useColorTextures.name,
         ) ??
         true;
+  }
+
+  String getWheelStyle() {
+    return _sharedPreferencesWithCache.getString(
+          SharedPreferencesKeys.wheelStyle.name,
+        ) ??
+        WheelStyle.modern.name;
   }
 
   Future<void> setLanguageLocaleCode({
@@ -343,6 +354,13 @@ class SettingsPreferencesRepository {
     return _sharedPreferencesWithCache.setBool(
       SharedPreferencesKeys.useColorTextures.name,
       isUseColorTexturesEnabled,
+    );
+  }
+
+  Future<void> setWheelStyle({required String wheelStyleName}) async {
+    return _sharedPreferencesWithCache.setString(
+      SharedPreferencesKeys.wheelStyle.name,
+      wheelStyleName,
     );
   }
 }

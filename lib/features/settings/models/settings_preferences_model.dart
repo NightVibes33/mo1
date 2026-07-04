@@ -9,6 +9,7 @@ import 'package:dope/features/settings/models/repeat_mode.dart';
 import 'package:dope/features/settings/models/song_sort_order.dart';
 import 'package:dope/features/settings/models/song_transition_style.dart';
 import 'package:dope/features/settings/models/volume_mode.dart';
+import 'package:dope/features/settings/models/wheel_style.dart';
 import 'package:flutter/foundation.dart';
 
 class SettingsPreferencesModel {
@@ -33,6 +34,7 @@ class SettingsPreferencesModel {
   final bool useColorTextures;
   final bool fetchOnlineMusic;
   final AppTheme appTheme;
+  final WheelStyle wheelStyle;
 
   SettingsPreferencesModel({
     required this.languageLocaleCode,
@@ -55,11 +57,13 @@ class SettingsPreferencesModel {
     required this.immersiveMode,
     required this.useColorTextures,
     required this.appTheme,
+    required this.wheelStyle,
     this.fetchOnlineMusic = false,
   });
 
   CustomDeviceTheme? get activeCustomDeviceTheme {
-    if (activeCustomDeviceThemeId == null || activeCustomDeviceThemeId!.isEmpty) {
+    if (activeCustomDeviceThemeId == null ||
+        activeCustomDeviceThemeId!.isEmpty) {
       return null;
     }
     for (final theme in customDeviceThemes) {
@@ -103,6 +107,7 @@ class SettingsPreferencesModel {
     bool? useColorTextures,
     bool? fetchOnlineMusic,
     AppTheme? appTheme,
+    WheelStyle? wheelStyle,
   }) {
     return SettingsPreferencesModel(
       languageLocaleCode: languageLocaleCode ?? this.languageLocaleCode,
@@ -129,6 +134,7 @@ class SettingsPreferencesModel {
       immersiveMode: immersiveMode ?? this.immersiveMode,
       useColorTextures: useColorTextures ?? this.useColorTextures,
       appTheme: appTheme ?? this.appTheme,
+      wheelStyle: wheelStyle ?? this.wheelStyle,
       fetchOnlineMusic: fetchOnlineMusic ?? this.fetchOnlineMusic,
     );
   }
@@ -156,7 +162,8 @@ class SettingsPreferencesModel {
         other.immersiveMode == immersiveMode &&
         other.useColorTextures == useColorTextures &&
         other.fetchOnlineMusic == fetchOnlineMusic &&
-        other.appTheme == appTheme;
+        other.appTheme == appTheme &&
+        other.wheelStyle == wheelStyle;
   }
 
   @override
@@ -181,6 +188,7 @@ class SettingsPreferencesModel {
     immersiveMode,
     useColorTextures,
     appTheme,
+    wheelStyle,
     fetchOnlineMusic,
   ]);
 }

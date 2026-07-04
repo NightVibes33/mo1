@@ -23,6 +23,7 @@ import 'package:dope/features/settings/models/settings_preferences_model.dart';
 import 'package:dope/features/settings/models/song_sort_order.dart';
 import 'package:dope/features/settings/models/song_transition_style.dart';
 import 'package:dope/features/settings/models/volume_mode.dart';
+import 'package:dope/features/settings/models/wheel_style.dart';
 import 'package:dope/features/settings/repository/settings_preferences_repository.dart';
 import 'package:dope/features/tutorial/controller/tutorial_controller.dart';
 import 'package:flutter/cupertino.dart';
@@ -55,8 +56,8 @@ class SettingsPreferencesControllerNotifier
         settingsPreferencesRepository.getDeviceColor(),
       ),
       customDeviceThemes: settingsPreferencesRepository.getCustomDeviceThemes(),
-      activeCustomDeviceThemeId:
-          settingsPreferencesRepository.getActiveCustomDeviceThemeId(),
+      activeCustomDeviceThemeId: settingsPreferencesRepository
+          .getActiveCustomDeviceThemeId(),
       clickWheelSize: ClickWheelSize.values.byName(
         settingsPreferencesRepository.getClickWheelSize(),
       ),
@@ -82,8 +83,8 @@ class SettingsPreferencesControllerNotifier
       songTransitionStyle: SongTransitionStyle.fromName(
         settingsPreferencesRepository.getSongTransitionStyle(),
       ),
-      crossfadeDurationSeconds:
-          settingsPreferencesRepository.getCrossfadeDurationSeconds(),
+      crossfadeDurationSeconds: settingsPreferencesRepository
+          .getCrossfadeDurationSeconds(),
       appTextSize: AppTextSize.fromName(
         settingsPreferencesRepository.getTextSize(),
       ),
@@ -91,6 +92,9 @@ class SettingsPreferencesControllerNotifier
       immersiveMode: settingsPreferencesRepository.getImmersiveMode(),
       useColorTextures: settingsPreferencesRepository.getUseColorTextures(),
       appTheme: AppTheme.fromName(settingsPreferencesRepository.getAppTheme()),
+      wheelStyle: WheelStyle.fromName(
+        settingsPreferencesRepository.getWheelStyle(),
+      ),
     );
   }
 
@@ -183,7 +187,9 @@ class SettingsPreferencesControllerNotifier
   }
 
   Future<void> selectCustomDeviceTheme(String themeId) async {
-    final themeExists = state.customDeviceThemes.any((theme) => theme.id == themeId);
+    final themeExists = state.customDeviceThemes.any(
+      (theme) => theme.id == themeId,
+    );
     if (!themeExists) {
       return;
     }
@@ -493,6 +499,23 @@ class SettingsPreferencesControllerNotifier
         .setTextSize(textSizeName: updatedTextSize.name);
   }
 
+  Future<void> setWheelStyle(WheelStyle wheelStyle) async {
+    if (state.wheelStyle == wheelStyle) {
+      return;
+    }
+    state = state.copyWith(wheelStyle: wheelStyle);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setWheelStyle(wheelStyleName: wheelStyle.name);
+  }
+
+  Future<void> toggleWheelStyle() async {
+    final updatedStyle = state.wheelStyle == WheelStyle.modern
+        ? WheelStyle.classic
+        : WheelStyle.modern;
+    await setWheelStyle(updatedStyle);
+  }
+
   Future<void> toggleImmersiveMode() async {
     state = state.copyWith(immersiveMode: !state.immersiveMode);
     await ref
@@ -549,9 +572,7 @@ class SettingsPreferencesControllerNotifier
         );
     await ref
         .read(settingsPreferencesRepositoryProvider)
-        .setCrossfadeDurationSeconds(
-          seconds: defaultCrossfadeDurationSeconds,
-        );
+        .setCrossfadeDurationSeconds(seconds: defaultCrossfadeDurationSeconds);
     await ref
         .read(settingsPreferencesRepositoryProvider)
         .setTextSize(textSizeName: AppTextSize.medium.name);
@@ -568,16 +589,20 @@ class SettingsPreferencesControllerNotifier
     await ref
         .read(settingsPreferencesRepositoryProvider)
         .setAppTheme(appThemeName: AppTheme.light.name);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setWheelStyle(wheelStyleName: WheelStyle.modern.name);
     state = state.copyWith(
       songTransitionStyle: SongTransitionStyle.off,
       crossfadeDurationSeconds: defaultCrossfadeDurationSeconds,
       useColorTextures: true,
       customDeviceThemes: const [],
       clearActiveCustomDeviceThemeId: true,
+      wheelStyle: WheelStyle.modern,
     );
-    await ref.read(audioEqualizerServiceProvider).applyPreset(
-          EqualizerPreset.off,
-        );
+    await ref
+        .read(audioEqualizerServiceProvider)
+        .applyPreset(EqualizerPreset.off);
     await ref
         .read(audioPlayerServiceProvider.notifier)
         .syncSongTransitionStyle();
