@@ -154,21 +154,17 @@ class _AlbumArtCarousel extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableHeight = constraints.maxHeight;
-          final availableWidth = constraints.maxWidth;
           const textBlockHeight = 60.0;
-          const topPadding = 8.0;
-          const bottomPadding = 8.0;
+          const topPadding = 28.0;
           final flowHeight = (availableHeight - textBlockHeight - topPadding)
               .clamp(144.0, 196.0)
               .toDouble();
-          final pageWidth = availableWidth * 0.52;
-          final artWidth = (flowHeight * 0.8)
-              .clamp(96.0, pageWidth * 0.86)
-              .toDouble();
+          final artWidth = (flowHeight * 0.8).clamp(128.0, 182.0).toDouble();
           final reflectionHeight = (artWidth * 0.22)
               .clamp(18.0, 26.0)
               .toDouble();
 
+          const bottomPadding = 8.0;
           final previewAreaHeight =
               availableHeight - textBlockHeight - topPadding - bottomPadding;
 
@@ -181,11 +177,7 @@ class _AlbumArtCarousel extends StatelessWidget {
                 bottom: textBlockHeight + bottomPadding,
                 child: Center(
                   child: SizedBox(
-                    width: availableWidth,
-                    height: (artWidth + reflectionHeight).clamp(
-                      0.0,
-                      previewAreaHeight,
-                    ),
+                    height: flowHeight.clamp(0.0, previewAreaHeight),
                     child: PageView.builder(
                       controller: pageController,
                       itemCount: albums.length,
@@ -197,8 +189,8 @@ class _AlbumArtCarousel extends StatelessWidget {
                             .clamp(-1.35, 1.35)
                             .toDouble();
                         final distance = relativePosition.abs();
-                        final scale = (1 - distance * 0.1)
-                            .clamp(0.86, 1.0)
+                        final scale = (1 - distance * 0.12)
+                            .clamp(0.84, 1.0)
                             .toDouble();
                         final album = albums[index];
 
@@ -207,12 +199,12 @@ class _AlbumArtCarousel extends StatelessWidget {
                             transform: Matrix4.identity()
                               ..setEntry(3, 2, 0.002)
                               ..translate(
-                                relativePosition * -3,
+                                relativePosition * -4,
                                 0.0,
-                                -distance * 30,
+                                -distance * 36,
                               )
                               ..scaleByDouble(scale, scale, scale, 1)
-                              ..rotateY(relativePosition * 0.38),
+                              ..rotateY(relativePosition * 0.44),
                             alignment: relativePosition >= 0
                                 ? Alignment.centerLeft
                                 : Alignment.centerRight,
@@ -223,8 +215,7 @@ class _AlbumArtCarousel extends StatelessWidget {
                               isOnDevice: album.isOnDevice(),
                               heroTag:
                                   'preview-${album.albumName}-${album.albumArtistName}',
-                              artworkFit: BoxFit.cover,
-                              clipArtwork: true,
+                              artworkFit: BoxFit.contain,
                             ),
                           ),
                         );
@@ -302,8 +293,7 @@ class _AlbumArtFallback extends StatelessWidget {
               reflectedImageHeight: reflectionHeight,
               thumbnailPath: null,
               heroTag: 'preview-default-album-art',
-              artworkFit: BoxFit.cover,
-              clipArtwork: true,
+              artworkFit: BoxFit.contain,
             ),
           );
         },
