@@ -161,7 +161,7 @@ class _AlbumArtCarousel extends StatelessWidget {
               .clamp(144.0, 196.0)
               .toDouble();
           final artWidth = (flowHeight * 0.8).clamp(128.0, 182.0).toDouble();
-          final reflectionHeight = (artWidth * 0.28)
+          final reflectionHeight = (artWidth * 0.25)
               .clamp(22.0, 32.0)
               .toDouble();
 
@@ -280,7 +280,7 @@ class _AlbumArtFallback extends StatelessWidget {
               .clamp(160.0, 250.0)
               .toDouble();
           final artWidth = (flowHeight * 0.74).clamp(118.0, 168.0).toDouble();
-          final reflectionHeight = (artWidth * 0.28)
+          final reflectionHeight = (artWidth * 0.25)
               .clamp(22.0, 32.0)
               .toDouble();
 
@@ -384,7 +384,7 @@ class _PreviewAlbumReflectiveArt extends StatelessWidget {
             child: artworkImage(height: imageWidth),
           ),
           Transform.translate(
-            offset: const Offset(0, -22),
+            offset: const Offset(0, -26),
             child: SizedBox(
               width: imageWidth,
               height: reflectedImageHeight,
