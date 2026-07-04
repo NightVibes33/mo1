@@ -34,8 +34,8 @@ class WheelStyleSelectionScreen extends ConsumerWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    context.appScreenBackgroundGradientColor1,
-                    context.appScreenBackgroundGradientColor2,
+                    context.appBackgroundColor,
+                    context.appSurfaceColor.withValues(alpha: 0.86),
                   ],
                 ),
               ),
