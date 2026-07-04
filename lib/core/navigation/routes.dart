@@ -37,6 +37,7 @@ import 'package:dope/features/settings/screens/device_color_selection_screen.dar
 import 'package:dope/features/settings/screens/exclude_directories_screen.dart';
 import 'package:dope/features/settings/screens/language_selection_screen.dart';
 import 'package:dope/features/settings/screens/settings_preferences_screen.dart';
+import 'package:dope/features/settings/screens/wheel_style_selection_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -49,6 +50,7 @@ enum Routes {
   debugLogs,
   language,
   deviceColor,
+  wheelStyle,
   excludeDirectories,
   nowPlaying,
   nowPlayingMoreOptions,
@@ -96,6 +98,8 @@ enum Routes {
         return context.localization.languageScreenTitle;
       case deviceColor:
         return context.localization.deviceColorSettingTitle;
+      case wheelStyle:
+        return 'Wheel Style';
       case excludeDirectories:
         return context.localization.excludeDirectoriesScreenTitle;
       case nowPlaying:
@@ -241,6 +245,14 @@ final routerProvider = Provider(
                         parentNavigatorKey: menuNavigatorKey,
                         pageBuilder: (context, state) => const CupertinoPage(
                           child: DeviceColorSelectionScreen(),
+                        ),
+                      ),
+                      GoRoute(
+                        path: Routes.wheelStyle.name,
+                        name: Routes.wheelStyle.name,
+                        parentNavigatorKey: menuNavigatorKey,
+                        pageBuilder: (context, state) => const CupertinoPage(
+                          child: WheelStyleSelectionScreen(),
                         ),
                       ),
                       GoRoute(

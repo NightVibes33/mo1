@@ -190,9 +190,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             .toggleClickWheelSize();
         break;
       case _SettingsDisplayItems.wheelStyle:
-        await ref
-            .read(settingsPreferencesControllerProvider.notifier)
-            .toggleWheelStyle();
+        context.goNamed(Routes.wheelStyle.name);
         break;
       case _SettingsDisplayItems.clickWheelSensitivity:
         await ref
