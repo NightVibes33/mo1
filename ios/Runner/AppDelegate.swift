@@ -622,7 +622,8 @@ private enum AppleMusicLookupChannel {
 
   @available(iOS 15.0, *)
   private static func addCatalogSongToLibrary(catalogId: String) async throws {
-    try await withCheckedThrowingContinuation { continuation in
+    try await withCheckedThrowingContinuation {
+      (continuation: CheckedContinuation<Void, Error>) in
       MPMediaLibrary.default().addItem(withProductID: catalogId) { _, error in
         if let error {
           continuation.resume(throwing: error)
