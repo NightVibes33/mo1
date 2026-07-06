@@ -3,7 +3,7 @@ description: "A retro click-wheel music player"
 
 publish_to: 'none'
 
-version: 1.18.18+62
+version: 1.18.19+63
 
 environment:
   sdk: ^3.9.2
