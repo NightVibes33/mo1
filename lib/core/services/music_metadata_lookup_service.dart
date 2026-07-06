@@ -9,7 +9,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
-
 enum AppleMusicAuthorizationStatus {
   unsupported,
   notDetermined,
@@ -56,7 +55,6 @@ enum AppleMusicAuthorizationStatus {
   }
 }
 
-
 class AppleMusicSubscriptionStatus {
   final bool isSupported;
   final bool canPlayCatalogContent;
@@ -97,6 +95,41 @@ class AppleMusicSubscriptionStatus {
     }
     return 'Apple Music subscription playback is available.';
   }
+
+  bool get canAddToLibrary {
+    return isSupported && canPlayCatalogContent && hasCloudLibraryEnabled;
+  }
+}
+
+class AppleMusicLibraryActionResult {
+  final bool isSuccess;
+  final String backend;
+  final String message;
+
+  const AppleMusicLibraryActionResult({
+    required this.isSuccess,
+    required this.backend,
+    required this.message,
+  });
+
+  factory AppleMusicLibraryActionResult.fromMap(
+    Map<String, dynamic>? map, {
+    required String fallbackBackend,
+    required String fallbackMessage,
+  }) {
+    if (map == null) {
+      return AppleMusicLibraryActionResult(
+        isSuccess: false,
+        backend: fallbackBackend,
+        message: fallbackMessage,
+      );
+    }
+    return AppleMusicLibraryActionResult(
+      isSuccess: map['isSuccess'] == true,
+      backend: _string(map['backend'], fallback: fallbackBackend),
+      message: _string(map['message'], fallback: fallbackMessage),
+    );
+  }
 }
 
 final musicMetadataLookupServiceProvider = Provider<MusicMetadataLookupService>(
@@ -116,7 +149,6 @@ class MusicMetadataLookupService {
   Future<AppleMusicAuthorizationStatus> requestAppleMusicAuthorization() {
     return _appleMusicBridge.requestAuthorization();
   }
-
 
   Future<AppleMusicSubscriptionStatus> appleMusicSubscriptionStatus() {
     return _appleMusicBridge.subscriptionStatus();
@@ -175,6 +207,12 @@ class MusicMetadataLookupService {
     }
   }
 
+  Future<AppleMusicLibraryActionResult> addAppleMusicSongToLibrary(
+    String catalogId,
+  ) {
+    return _appleMusicBridge.addSongToLibrary(catalogId: catalogId);
+  }
+
   Future<String?> cacheArtworkForMatch(
     MusicMetadataMatch match,
     MusicMetadata current,
@@ -229,7 +267,7 @@ class MusicMetadataLookupService {
       Uri.https('itunes.apple.com', '/search', {
         'term': query,
         'entity': 'song',
-        'limit': limit.clamp(1, 25).toString(),
+        'limit': limit.clamp(1, 300).toString(),
         'country': storefront.trim().isEmpty ? 'US' : storefront.trim(),
       }),
     );
@@ -255,11 +293,13 @@ class MusicMetadataLookupService {
     final response = await _readJson(
       Uri.https('api.deezer.com', '/search', {
         'q': query,
-        'limit': limit.clamp(1, 25).toString(),
+        'limit': limit.clamp(1, 300).toString(),
       }),
     );
 
-    final rawResults = response is Map<String, dynamic> ? response['data'] : null;
+    final rawResults = response is Map<String, dynamic>
+        ? response['data']
+        : null;
     if (rawResults is! List) {
       return [];
     }
@@ -282,9 +322,7 @@ class AppleMusicCatalogBridge {
       return AppleMusicAuthorizationStatus.unsupported;
     }
     try {
-      final status = await _channel.invokeMethod<String>(
-        'authorizationStatus',
-      );
+      final status = await _channel.invokeMethod<String>('authorizationStatus');
       return AppleMusicAuthorizationStatus.fromName(status);
     } on PlatformException {
       return AppleMusicAuthorizationStatus.unknown;
@@ -308,7 +346,6 @@ class AppleMusicCatalogBridge {
       return AppleMusicAuthorizationStatus.unsupported;
     }
   }
-
 
   Future<AppleMusicSubscriptionStatus> subscriptionStatus() async {
     if (!isSupported) {
@@ -336,14 +373,12 @@ class AppleMusicCatalogBridge {
     }
 
     try {
-      final rawResults = await _channel.invokeMethod<List<dynamic>>(
-        'searchSongs',
-        {
-          'query': query,
-          'limit': limit.clamp(1, 25),
-          'storefront': storefront.trim().isEmpty ? 'US' : storefront.trim(),
-        },
-      );
+      final rawResults = await _channel
+          .invokeMethod<List<dynamic>>('searchSongs', {
+            'query': query,
+            'limit': limit.clamp(1, 300),
+            'storefront': storefront.trim().isEmpty ? 'US' : storefront.trim(),
+          });
       return (rawResults ?? [])
           .whereType<Map<dynamic, dynamic>>()
           .map((map) => Map<String, dynamic>.from(map))
@@ -377,6 +412,42 @@ class AppleMusicCatalogBridge {
       return [];
     } on MissingPluginException {
       return [];
+    }
+  }
+
+  Future<AppleMusicLibraryActionResult> addSongToLibrary({
+    required String catalogId,
+  }) async {
+    if (!isSupported) {
+      return const AppleMusicLibraryActionResult(
+        isSuccess: false,
+        backend: 'unsupported',
+        message: 'Apple Music library add is only available on iOS.',
+      );
+    }
+
+    try {
+      final rawResult = await _channel.invokeMapMethod<String, dynamic>(
+        'addCatalogSongToLibrary',
+        {'catalogId': catalogId.trim()},
+      );
+      return AppleMusicLibraryActionResult.fromMap(
+        rawResult,
+        fallbackBackend: 'native',
+        fallbackMessage: 'Apple Music library add failed.',
+      );
+    } on PlatformException catch (error) {
+      return AppleMusicLibraryActionResult(
+        isSuccess: false,
+        backend: error.code,
+        message: error.message ?? 'Apple Music library add failed.',
+      );
+    } on MissingPluginException {
+      return const AppleMusicLibraryActionResult(
+        isSuccess: false,
+        backend: 'missing_plugin',
+        message: 'Apple Music library bridge is unavailable.',
+      );
     }
   }
 }
@@ -462,8 +533,7 @@ Future<List<int>?> _readBytes(
   Uri uri, {
   String acceptHeader = 'application/json,*/*',
 }) async {
-  final client = HttpClient()
-    ..connectionTimeout = const Duration(seconds: 12);
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 12);
   try {
     final request = await client.getUrl(uri);
     request.headers.set(HttpHeaders.acceptHeader, acceptHeader);
@@ -505,7 +575,6 @@ int? _integer(dynamic value) {
   }
   return null;
 }
-
 
 bool _bool(dynamic value) {
   if (value is bool) {

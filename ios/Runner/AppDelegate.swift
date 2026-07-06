@@ -342,6 +342,8 @@ private enum AppleMusicLookupChannel {
           ])
         } else if call.method == "searchSongs" || call.method == "librarySongs" {
           result([])
+        } else if call.method == "addCatalogSongToLibrary" {
+          result(false)
         } else if call.method == "playbackSnapshot" {
           result([
             "isSupported": false,
@@ -510,7 +512,7 @@ private enum AppleMusicLookupChannel {
           do {
             let matches = try await searchSongs(
               query: query,
-              limit: max(1, min(limit, 25))
+              limit: max(1, min(limit, 300))
             )
             await MainActor.run {
               result(matches)
@@ -522,6 +524,52 @@ private enum AppleMusicLookupChannel {
                 message: error.localizedDescription,
                 details: nil
               ))
+            }
+          }
+        }
+      case "addCatalogSongToLibrary":
+        guard let arguments = call.arguments as? [String: Any],
+              let catalogId = arguments["catalogId"] as? String,
+              !catalogId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+          result(FlutterError(
+            code: "APPLE_MUSIC_BAD_ARGUMENTS",
+            message: "Missing Apple Music catalog id.",
+            details: nil
+          ))
+          return
+        }
+
+        authorizeAppleMusicThen(result: result) {
+          Task {
+            do {
+              let mediaStatus = await requestMediaLibraryAuthorization()
+              guard mediaStatus == .authorized else {
+                await MainActor.run {
+                  result(FlutterError(
+                    code: "APPLE_MUSIC_LIBRARY_NOT_AUTHORIZED",
+                    message: "Media library access is required to add songs.",
+                    details: nil
+                  ))
+                }
+                return
+              }
+
+              try await addCatalogSongToLibrary(catalogId: catalogId)
+              await MainActor.run {
+                result([
+                  "isSuccess": true,
+                  "backend": "mediaLibrary",
+                  "message": "Added to Apple Music library."
+                ])
+              }
+            } catch {
+              await MainActor.run {
+                result(FlutterError(
+                  code: "APPLE_MUSIC_LIBRARY_ADD_FAILED",
+                  message: error.localizedDescription,
+                  details: nil
+                ))
+              }
             }
           }
         }
@@ -568,6 +616,19 @@ private enum AppleMusicLookupChannel {
       }
       await MainActor.run {
         action()
+      }
+    }
+  }
+
+  @available(iOS 15.0, *)
+  private static func addCatalogSongToLibrary(catalogId: String) async throws {
+    try await withCheckedThrowingContinuation { continuation in
+      MPMediaLibrary.default().addItem(withProductID: catalogId) { _, error in
+        if let error {
+          continuation.resume(throwing: error)
+          return
+        }
+        continuation.resume(returning: ())
       }
     }
   }

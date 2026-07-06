@@ -27,12 +27,21 @@ class AppleMusicSearchScreen extends ConsumerStatefulWidget {
 
 class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
     with CustomScreen {
+  static const int _initialSearchLimit = 100;
+  static const int _maxSearchLimit = 300;
+
   final List<MusicMetadataMatch> _matches = [];
   bool _isSearching = false;
   bool _isLibraryMode = false;
   String _searchQuery = '';
   String? _searchErrorText;
   String? _libraryStatusText;
+  String? _statusText;
+  AppleMusicSubscriptionStatus _subscriptionStatus =
+      const AppleMusicSubscriptionStatus.unsupported();
+  int? _addingToLibraryDisplayIndex;
+  int _searchLimit = _initialSearchLimit;
+  bool _hasMoreSearchResults = false;
 
   @override
   int get extraDisplayItems => 2;
@@ -46,10 +55,12 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
   @override
   List<MusicMetadataMatch> get displayItems => _matches;
 
+  int? get _loadMoreDisplayIndex =>
+      _hasMoreSearchResults ? _matches.length + extraDisplayItems : null;
+
   @override
-  Future<void> onSelectPressed() => _onAppleMusicResultAction(
-        selectedDisplayItem,
-      );
+  Future<void> onSelectPressed() =>
+      _onAppleMusicResultAction(selectedDisplayItem);
 
   Future<void> _onAppleMusicResultAction(int displayIndex) async {
     setState(() => selectedDisplayItem = displayIndex);
@@ -59,6 +70,10 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
     }
     if (displayIndex == 1) {
       unawaited(_loadAppleMusicLibrary());
+      return;
+    }
+    if (_loadMoreDisplayIndex == displayIndex) {
+      unawaited(_loadMoreAppleMusicResults());
       return;
     }
 
@@ -111,7 +126,7 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
     }
 
     setState(() => _searchQuery = cleanQuery);
-    unawaited(_searchAppleMusic(cleanQuery));
+    unawaited(_searchAppleMusic(cleanQuery, limit: _initialSearchLimit));
   }
 
   Future<String?> _promptForSearchQuery() async {
@@ -150,15 +165,28 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
     return result;
   }
 
-  Future<void> _searchAppleMusic(String query) async {
+  Future<void> _searchAppleMusic(String query, {required int limit}) async {
     if (_isSearching) {
       return;
     }
 
+    final requestedLimit = limit.clamp(1, _maxSearchLimit);
+    final isLoadingMore =
+        !_isLibraryMode &&
+        _matches.isNotEmpty &&
+        requestedLimit > _searchLimit &&
+        query.trim() == _searchQuery.trim();
+
     setState(() {
       _isSearching = true;
       _searchErrorText = null;
-      selectedDisplayItem = 0;
+      _statusText = isLoadingMore
+          ? 'Loading more Apple Music results...'
+          : null;
+      if (!isLoadingMore) {
+        _hasMoreSearchResults = false;
+        selectedDisplayItem = 0;
+      }
     });
 
     final lookupService = ref.read(musicMetadataLookupServiceProvider);
@@ -177,10 +205,16 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
       return;
     }
 
+    final subscriptionStatus = await lookupService
+        .appleMusicSubscriptionStatus();
+    if (!mounted) {
+      return;
+    }
+
     final matches = await lookupService.search(
       source: MusicMetadataSource.appleMusic,
       query: query,
-      limit: 25,
+      limit: requestedLimit,
     );
     if (!mounted) {
       return;
@@ -188,13 +222,34 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
 
     setState(() {
       _isSearching = false;
+      _searchLimit = requestedLimit;
+      _subscriptionStatus = subscriptionStatus;
       _matches
         ..clear()
         ..addAll(matches);
       _isLibraryMode = false;
+      _hasMoreSearchResults =
+          matches.length >= requestedLimit && requestedLimit < _maxSearchLimit;
       _searchErrorText = matches.isEmpty ? 'No Apple Music results.' : null;
+      _statusText = matches.isEmpty
+          ? null
+          : _hasMoreSearchResults
+          ? 'Showing ${matches.length} results. Load more for a deeper catalog search.'
+          : 'Showing ${matches.length} Apple Music results.';
       selectedDisplayItem = matches.isEmpty ? 0 : extraDisplayItems;
     });
+  }
+
+  Future<void> _loadMoreAppleMusicResults() async {
+    if (_isSearching || !_hasMoreSearchResults) {
+      return;
+    }
+    final nextLimit = (_searchLimit + _initialSearchLimit).clamp(
+      _initialSearchLimit,
+      _maxSearchLimit,
+    );
+    setState(() => selectedDisplayItem = _loadMoreDisplayIndex ?? 0);
+    await _searchAppleMusic(_searchQuery, limit: nextLimit);
   }
 
   Future<void> _loadAppleMusicLibrary() async {
@@ -205,6 +260,7 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
     setState(() {
       _isSearching = true;
       _searchErrorText = null;
+      _statusText = null;
       _libraryStatusText = null;
       selectedDisplayItem = 1;
     });
@@ -230,12 +286,17 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
         _isSearching = false;
         _isLibraryMode = true;
         _matches.clear();
-        _libraryStatusText = 'Apple Music library import is only available on iOS.';
+        _libraryStatusText =
+            'Apple Music library import is only available on iOS.';
       });
       return;
     }
 
-    final subscriptionStatus = await lookupService.appleMusicSubscriptionStatus();
+    final subscriptionStatus = await lookupService
+        .appleMusicSubscriptionStatus();
+    if (!mounted) {
+      return;
+    }
     final matches = await lookupService.appleMusicLibrarySongs();
     if (!mounted) {
       return;
@@ -270,7 +331,10 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
 
     setState(() {
       _isSearching = false;
+      _subscriptionStatus = subscriptionStatus;
       _isLibraryMode = true;
+      _searchLimit = _initialSearchLimit;
+      _hasMoreSearchResults = false;
       _matches
         ..clear()
         ..addAll(matches);
@@ -281,17 +345,68 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
     });
   }
 
+  bool _canAddAppleMusicResult(MusicMetadataMatch match) {
+    return !_isLibraryMode &&
+        match.source == MusicMetadataSource.appleMusic &&
+        _subscriptionStatus.canAddToLibrary &&
+        match.id.trim().isNotEmpty;
+  }
+
+  Future<void> _addAppleMusicResultToLibrary(int displayIndex) async {
+    final matchIndex = displayIndex - extraDisplayItems;
+    if (matchIndex < 0 || matchIndex >= _matches.length) {
+      return;
+    }
+
+    final match = _matches[matchIndex];
+    if (!_canAddAppleMusicResult(match)) {
+      setState(() {
+        _statusText = _subscriptionStatus.canAddToLibrary
+            ? 'This result cannot be added to your Apple Music library.'
+            : 'Apple Music library add requires an active subscription and cloud library.';
+      });
+      return;
+    }
+
+    setState(() {
+      selectedDisplayItem = displayIndex;
+      _addingToLibraryDisplayIndex = displayIndex;
+      _statusText = null;
+    });
+
+    final lookupService = ref.read(musicMetadataLookupServiceProvider);
+    final result = await lookupService.addAppleMusicSongToLibrary(match.id);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _addingToLibraryDisplayIndex = null;
+      _statusText = result.message;
+    });
+  }
+
+  String _resultDescription(MusicMetadataMatch match) {
+    final subtitle = match.subtitle.isEmpty
+        ? match.source.label
+        : match.subtitle;
+    if (_canAddAppleMusicResult(match)) {
+      return '$subtitle  |  Tap to play or add to library';
+    }
+    return subtitle;
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusBarTitle = _isSearching
         ? selectedDisplayItem == 1
-            ? 'Importing'
-            : 'Searching'
+              ? 'Importing'
+              : 'Searching'
         : _matches.isEmpty
-            ? Routes.appleMusic.title(context)
-            : _isLibraryMode
-                ? 'Library ${_matches.length}'
-                : 'Apple Music ${_matches.length}';
+        ? Routes.appleMusic.title(context)
+        : _isLibraryMode
+        ? 'Library ${_matches.length}'
+        : 'Apple Music ${_matches.length}';
 
     return CupertinoPageScaffold(
       resizeToAvoidBottomInset: false,
@@ -304,7 +419,10 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
               child: ListView.builder(
                 controller: scrollController,
                 padding: listViewPadding,
-                itemCount: _matches.length + extraDisplayItems,
+                itemCount:
+                    _matches.length +
+                    extraDisplayItems +
+                    (_hasMoreSearchResults ? 1 : 0),
                 prototypeItem: const SizedBox(height: 54),
                 itemBuilder: (context, index) {
                   if (index == 0) {
@@ -312,7 +430,9 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
                       title: _searchQuery.trim().isEmpty
                           ? 'Search Apple Music'
                           : 'Search "${_searchQuery.trim()}"',
-                      description: _searchErrorText ??
+                      description:
+                          _statusText ??
+                          _searchErrorText ??
                           (_isSearching && selectedDisplayItem == 0
                               ? 'Searching catalog'
                               : 'Catalog search'),
@@ -324,7 +444,8 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
                   if (index == 1) {
                     return _AppleMusicListTile(
                       title: 'Import Music Library',
-                      description: _libraryStatusText ??
+                      description:
+                          _libraryStatusText ??
                           (_isSearching && selectedDisplayItem == 1
                               ? 'Loading saved songs'
                               : 'Saved Apple Music songs'),
@@ -334,15 +455,29 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
                     );
                   }
 
+                  if (_loadMoreDisplayIndex == index) {
+                    return _AppleMusicListTile(
+                      title: 'Load More Results',
+                      description: _isSearching
+                          ? 'Expanding Apple Music catalog results'
+                          : 'Show up to ${(_searchLimit + _initialSearchLimit).clamp(_initialSearchLimit, _maxSearchLimit)} results',
+                      isSelected: selectedDisplayItem == index,
+                      isLoading: _isSearching && selectedDisplayItem == index,
+                      onTap: () => unawaited(_loadMoreAppleMusicResults()),
+                    );
+                  }
+
                   final match = _matches[index - extraDisplayItems];
                   return _AppleMusicListTile(
                     title: match.title.isEmpty ? 'Unknown Song' : match.title,
-                    description: match.subtitle.isEmpty
-                        ? match.source.label
-                        : match.subtitle,
+                    description: _resultDescription(match),
                     artworkUrl: match.artworkUrl,
                     isSelected: selectedDisplayItem == index,
-                    onTap: () async => _onAppleMusicResultAction(index),
+                    isAddLoading: _addingToLibraryDisplayIndex == index,
+                    onTap: () => unawaited(_onAppleMusicResultAction(index)),
+                    onAddToLibrary: _canAddAppleMusicResult(match)
+                        ? () => unawaited(_addAppleMusicResultToLibrary(index))
+                        : null,
                   );
                 },
               ),
@@ -360,7 +495,9 @@ class _AppleMusicListTile extends StatelessWidget {
   final String? artworkUrl;
   final bool isSelected;
   final bool isLoading;
+  final bool isAddLoading;
   final VoidCallback onTap;
+  final VoidCallback? onAddToLibrary;
 
   const _AppleMusicListTile({
     required this.title,
@@ -369,6 +506,8 @@ class _AppleMusicListTile extends StatelessWidget {
     required this.onTap,
     this.artworkUrl,
     this.isLoading = false,
+    this.isAddLoading = false,
+    this.onAddToLibrary,
   });
 
   @override
@@ -381,6 +520,11 @@ class _AppleMusicListTile extends StatelessWidget {
     final Border? tileBorder = isSelected
         ? null
         : Border(bottom: BorderSide(color: borderColor));
+
+    final canAddToLibrary = onAddToLibrary != null;
+    final trailingColor = isSelected
+        ? context.appInverseTextColor
+        : context.appPrimaryTextColor;
 
     return GestureDetector(
       onTap: onTap,
@@ -438,10 +582,27 @@ class _AppleMusicListTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isSelected)
-                Icon(
-                  CupertinoIcons.right_chevron,
-                  color: context.appInverseTextColor,
+              if (canAddToLibrary)
+                CupertinoButton(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minSize: 0,
+                  onPressed: isAddLoading ? null : onAddToLibrary,
+                  child: isAddLoading
+                      ? const CupertinoActivityIndicator(radius: 9)
+                      : Icon(
+                          CupertinoIcons.add_circled_solid,
+                          size: 26,
+                          color: trailingColor,
+                        ),
+                ),
+              if (!canAddToLibrary && isSelected)
+                Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Icon(
+                    CupertinoIcons.right_chevron,
+                    color: trailingColor,
+                    size: 18,
+                  ),
                 ),
             ],
           ),
