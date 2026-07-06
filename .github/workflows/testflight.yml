@@ -231,7 +231,7 @@ jobs:
         run: |
           set -euo pipefail
           cd ios
-          pod install --repo-update
+          pod install
 
       - name: Build Flutter iOS artifacts without codesigning
         run: |
