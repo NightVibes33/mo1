@@ -124,10 +124,12 @@ class AppleMusicLibraryActionResult {
         message: fallbackMessage,
       );
     }
+    final backend = _stringOrNull(map['backend']) ?? fallbackBackend;
+    final message = _stringOrNull(map['message']) ?? fallbackMessage;
     return AppleMusicLibraryActionResult(
       isSuccess: map['isSuccess'] == true,
-      backend: _string(map['backend'], fallback: fallbackBackend),
-      message: _string(map['message'], fallback: fallbackMessage),
+      backend: backend,
+      message: message,
     );
   }
 }
