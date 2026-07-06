@@ -86,12 +86,15 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
       for (var index = 0; index < _matches.length; index++)
         _matches[index].toAppleMusicMetadata(originalSongIndex: -index - 1),
     ];
+    final selectedMetadata = metadataList[matchIndex];
+    final playbackQueue = _isLibraryMode ? metadataList : [selectedMetadata];
+    final playbackIndex = _isLibraryMode ? matchIndex : 0;
     final didStart = await ref
         .read(audioPlayerServiceProvider.notifier)
         .playAppleMusicMetadata(
-          metadataList[matchIndex],
-          metadataList: metadataList,
-          currentIndex: matchIndex,
+          selectedMetadata,
+          metadataList: playbackQueue,
+          currentIndex: playbackIndex,
         );
 
     if (!mounted) {
