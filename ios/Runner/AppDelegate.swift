@@ -725,11 +725,14 @@ private enum AppleMusicLookupChannel {
       ApplicationMusicPlayer.shared.stop()
     }
     let player = MPMusicPlayerController.applicationQueuePlayer
+    player.stop()
+    player.currentPlaybackTime = 0
     if let mediaDescriptor = mediaItemQueueDescriptor(
       catalogIds: catalogIds,
       startCatalogId: startCatalogId
     ) {
       player.setQueue(with: mediaDescriptor)
+      player.currentPlaybackTime = 0
       player.prepareToPlay { error in
         DispatchQueue.main.async {
           if let error = error {
@@ -751,6 +754,7 @@ private enum AppleMusicLookupChannel {
     let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: catalogIds)
     descriptor.startItemID = startCatalogId
     player.setQueue(with: descriptor)
+    player.currentPlaybackTime = 0
     player.prepareToPlay { error in
       DispatchQueue.main.async {
         if let error = error {
@@ -784,9 +788,11 @@ private enum AppleMusicLookupChannel {
     } ?? songs[0]
 
     let player = ApplicationMusicPlayer.shared
+    player.stop()
     MPMusicPlayerController.applicationQueuePlayer.stop()
     applyCurrentMusicKitTransitionIfAvailable()
     player.queue = ApplicationMusicPlayer.Queue(for: songs, startingAt: startSong)
+    player.playbackTime = 0
     try await player.prepareToPlay()
     try await player.play()
     playbackBackend = .musicKit
