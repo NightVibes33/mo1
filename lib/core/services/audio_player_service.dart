@@ -411,6 +411,12 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         return;
       }
 
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackBreadcrumb(
+            'Apple Music next fell back to queue rebuild',
+            data: _playbackCrashData(extra: {'targetIndex': nextIndex}),
+          );
       await _playAppleMusicCatalogTrack(
         metadata,
         metadataList: nowPlayingDetails.metadataList,
@@ -439,6 +445,14 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         }
         final currentMetadata = nowPlayingDetails.currentMetadata;
         if (currentMetadata != null) {
+          ref
+              .read(crashLogServiceProvider)
+              .recordPlaybackBreadcrumb(
+                'Apple Music restart fell back to queue rebuild',
+                data: _playbackCrashData(
+                  extra: {'targetIndex': nowPlayingDetails.currentIndex},
+                ),
+              );
           await _playAppleMusicCatalogTrack(
             currentMetadata,
             metadataList: nowPlayingDetails.metadataList,
@@ -476,6 +490,12 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         return;
       }
 
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackBreadcrumb(
+            'Apple Music previous fell back to queue rebuild',
+            data: _playbackCrashData(extra: {'targetIndex': previousIndex}),
+          );
       await _playAppleMusicCatalogTrack(
         metadata,
         metadataList: nowPlayingDetails.metadataList,

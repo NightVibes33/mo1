@@ -990,10 +990,9 @@ private enum AppleMusicLookupChannel {
       ]
     )
     player.skipToNextItem()
-    scheduleZeroStartEnforcement(
-      player: player,
-      reason: "queueReuseNext",
-      previousIdentifier: previousIdentifier
+    logAppleMusicDebug(
+      "Requested native Apple Music queue advance",
+      data: ["reason": "queueReuseNext"]
     )
     return true
   }
@@ -1013,10 +1012,9 @@ private enum AppleMusicLookupChannel {
       ]
     )
     player.skipToPreviousItem()
-    scheduleZeroStartEnforcement(
-      player: player,
-      reason: "queueReusePrevious",
-      previousIdentifier: previousIdentifier
+    logAppleMusicDebug(
+      "Requested native Apple Music queue rewind",
+      data: ["reason": "queueReusePrevious"]
     )
     return true
   }
@@ -1028,10 +1026,6 @@ private enum AppleMusicLookupChannel {
       return false
     }
     player.currentPlaybackTime = 0
-    scheduleZeroStartEnforcement(
-      player: player,
-      reason: "restartCurrentItem"
-    )
     logAppleMusicDebug("Restarted current Apple Music item at zero")
     return true
   }

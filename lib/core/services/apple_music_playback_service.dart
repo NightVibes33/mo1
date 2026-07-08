@@ -282,7 +282,14 @@ class AppleMusicPlaybackService {
       final didSkip = await _channel.invokeMethod<bool>(
         'skipToNextInCurrentQueue',
       );
-      return didSkip ?? false;
+      final didAdvance = didSkip ?? false;
+      _debugLogService.info(
+        'apple_music',
+        didAdvance
+            ? 'Advanced Apple Music active queue without rebuild.'
+            : 'Apple Music active queue advance was unavailable.',
+      );
+      return didAdvance;
     } on PlatformException catch (error, stackTrace) {
       _debugLogService.error(
         'apple_music',
@@ -311,7 +318,14 @@ class AppleMusicPlaybackService {
       final didSkip = await _channel.invokeMethod<bool>(
         'skipToPreviousInCurrentQueue',
       );
-      return didSkip ?? false;
+      final didRewind = didSkip ?? false;
+      _debugLogService.info(
+        'apple_music',
+        didRewind
+            ? 'Moved Apple Music active queue to previous item without rebuild.'
+            : 'Apple Music active queue rewind was unavailable.',
+      );
+      return didRewind;
     } on PlatformException catch (error, stackTrace) {
       _debugLogService.error(
         'apple_music',
@@ -340,7 +354,14 @@ class AppleMusicPlaybackService {
       final didRestart = await _channel.invokeMethod<bool>(
         'restartCurrentItem',
       );
-      return didRestart ?? false;
+      final restarted = didRestart ?? false;
+      _debugLogService.info(
+        'apple_music',
+        restarted
+            ? 'Restarted current Apple Music item without queue rebuild.'
+            : 'Apple Music current item restart was unavailable.',
+      );
+      return restarted;
     } on PlatformException catch (error, stackTrace) {
       _debugLogService.error(
         'apple_music',
