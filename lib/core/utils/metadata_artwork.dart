@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dope/core/constants/assets.dart';
+import 'package:dope/core/services/app_documents_service.dart';
 import 'package:flutter/cupertino.dart';
 
 bool isRemoteArtworkPath(String path) {
@@ -23,6 +24,10 @@ ImageProvider<Object> metadataArtworkProvider(String? path) {
   if (file.existsSync()) {
     return FileImage(file);
   }
+  final repairedFile = _repairedManagedArtworkFile(cleanPath);
+  if (repairedFile != null && repairedFile.existsSync()) {
+    return FileImage(repairedFile);
+  }
   return const AssetImage(Assets.defaultAlbumCoverImage);
 }
 
@@ -35,7 +40,13 @@ Uri? metadataArtworkUri(String? path) {
     return Uri.tryParse(cleanPath);
   }
   final file = _artworkFile(cleanPath);
-  return file.existsSync() ? file.uri : null;
+  if (file.existsSync()) {
+    return file.uri;
+  }
+  final repairedFile = _repairedManagedArtworkFile(cleanPath);
+  return repairedFile != null && repairedFile.existsSync()
+      ? repairedFile.uri
+      : null;
 }
 
 File _artworkFile(String path) {
@@ -43,4 +54,12 @@ File _artworkFile(String path) {
     return File.fromUri(Uri.parse(path));
   }
   return File(path);
+}
+
+File? _repairedManagedArtworkFile(String path) {
+  final repairedPath = AppDocumentsService.resolveManagedPath(path);
+  if (repairedPath == null || repairedPath == path) {
+    return null;
+  }
+  return _artworkFile(repairedPath);
 }

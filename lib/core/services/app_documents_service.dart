@@ -10,9 +10,13 @@ final appDocumentsServiceProvider = Provider<AppDocumentsService>((ref) {
 });
 
 class AppDocumentsService {
+  static String? _activeAppDirectoryPath;
+
   final Directory documentsDirectory;
 
-  const AppDocumentsService(this.documentsDirectory);
+  AppDocumentsService(this.documentsDirectory) {
+    _activeAppDirectoryPath = appDirectory.path.replaceAll('\\', '/');
+  }
 
   Directory get appDirectory => Directory(
     _join(documentsDirectory.path, Constants.appDocumentsFolderName),
@@ -34,6 +38,23 @@ class AppDocumentsService {
   String get debugLogPath => _join(appDirectory.path, 'debug.log');
   String get crashLogPath => _join(appDirectory.path, 'crash.log');
   String get sessionStatePath => _join(appDirectory.path, 'last-session.json');
+  static String? resolveManagedPath(String? path) {
+    if (path == null || path.isEmpty) {
+      return path;
+    }
+
+    final currentPath = _activeAppDirectoryPath;
+    if (currentPath == null || currentPath.isEmpty) {
+      return path;
+    }
+
+    final normalizedPath = path.replaceAll('\\', '/');
+    final managedSuffix = _managedAppPathSuffixFor(normalizedPath);
+    if (managedSuffix == null) {
+      return path;
+    }
+    return managedSuffix.isEmpty ? currentPath : '$currentPath/$managedSuffix';
+  }
 
   Future<void> migrateLegacyStorage() async {
     final legacyDirectory = legacyAppDirectory;
@@ -103,13 +124,14 @@ class AppDocumentsService {
       return path;
     }
 
+    final currentPath = appDirectory.path.replaceAll('\\', '/');
+    _activeAppDirectoryPath = currentPath;
     final normalizedPath = path.replaceAll('\\', '/');
-    final managedSuffix = _managedAppPathSuffix(normalizedPath);
+    final managedSuffix = _managedAppPathSuffixFor(normalizedPath);
     if (managedSuffix == null) {
       return path;
     }
 
-    final currentPath = appDirectory.path.replaceAll('\\', '/');
     return managedSuffix.isEmpty
         ? appDirectory.path
         : '$currentPath/$managedSuffix';
@@ -178,7 +200,7 @@ class AppDocumentsService {
         : normalizedPath.substring(slashIndex + 1);
   }
 
-  String? _managedAppPathSuffix(String normalizedPath) {
+  static String? _managedAppPathSuffixFor(String normalizedPath) {
     for (final marker in [
       '/${Constants.appDocumentsFolderName}',
       '/${Constants.legacyAppDocumentsFolderName}',
