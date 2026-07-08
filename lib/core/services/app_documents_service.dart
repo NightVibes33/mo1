@@ -15,17 +15,20 @@ class AppDocumentsService {
   const AppDocumentsService(this.documentsDirectory);
 
   Directory get appDirectory => Directory(
-        _join(documentsDirectory.path, Constants.appDocumentsFolderName),
-      );
+    _join(documentsDirectory.path, Constants.appDocumentsFolderName),
+  );
 
   Directory get legacyAppDirectory => Directory(
-        _join(documentsDirectory.path, Constants.legacyAppDocumentsFolderName),
-      );
+    _join(documentsDirectory.path, Constants.legacyAppDocumentsFolderName),
+  );
 
   String get appDirectoryPath => appDirectory.path;
-  String get importsDirectoryPath => _subdirectoryPath(Constants.importsDirectoryName);
-  String get artworkDirectoryPath => _subdirectoryPath(Constants.artworkDirectoryName);
-  String get thumbnailsDirectoryPath => _subdirectoryPath(Constants.thumbnailsDirectoryName);
+  String get importsDirectoryPath =>
+      _subdirectoryPath(Constants.importsDirectoryName);
+  String get artworkDirectoryPath =>
+      _subdirectoryPath(Constants.artworkDirectoryName);
+  String get thumbnailsDirectoryPath =>
+      _subdirectoryPath(Constants.thumbnailsDirectoryName);
   String get appleMusicArtworkDirectoryPath =>
       _subdirectoryPath(Constants.appleMusicArtworkDirectoryName);
   String get debugLogPath => _join(appDirectory.path, 'debug.log');
@@ -80,11 +83,7 @@ class AppDocumentsService {
       }
     }
 
-    for (final path in [
-      debugLogPath,
-      crashLogPath,
-      sessionStatePath,
-    ]) {
+    for (final path in [debugLogPath, crashLogPath, sessionStatePath]) {
       final file = File(path);
       if (await file.exists()) {
         await file.delete();
@@ -104,16 +103,16 @@ class AppDocumentsService {
       return path;
     }
 
-    final legacyPath = legacyAppDirectory.path.replaceAll('\\', '/');
-    final currentPath = appDirectory.path.replaceAll('\\', '/');
     final normalizedPath = path.replaceAll('\\', '/');
-    if (normalizedPath == legacyPath) {
-      return appDirectory.path;
+    final managedSuffix = _managedAppPathSuffix(normalizedPath);
+    if (managedSuffix == null) {
+      return path;
     }
-    if (normalizedPath.startsWith('$legacyPath/')) {
-      return '$currentPath${normalizedPath.substring(legacyPath.length)}';
-    }
-    return path;
+
+    final currentPath = appDirectory.path.replaceAll('\\', '/');
+    return managedSuffix.isEmpty
+        ? appDirectory.path
+        : '$currentPath/$managedSuffix';
   }
 
   String _subdirectoryPath(String subdirectoryName) {
@@ -133,7 +132,10 @@ class AppDocumentsService {
   ) async {
     await destination.create(recursive: true);
     await for (final entity in source.list(followLinks: false)) {
-      final destinationPath = _join(destination.path, _lastPathSegment(entity.path));
+      final destinationPath = _join(
+        destination.path,
+        _lastPathSegment(entity.path),
+      );
       if (entity is Directory) {
         final destinationDirectory = Directory(destinationPath);
         if (!await destinationDirectory.exists()) {
@@ -174,5 +176,26 @@ class AppDocumentsService {
     return slashIndex == -1
         ? normalizedPath
         : normalizedPath.substring(slashIndex + 1);
+  }
+
+  String? _managedAppPathSuffix(String normalizedPath) {
+    for (final marker in [
+      '/${Constants.appDocumentsFolderName}',
+      '/${Constants.legacyAppDocumentsFolderName}',
+    ]) {
+      if (normalizedPath == marker.substring(1) ||
+          normalizedPath.endsWith(marker)) {
+        return '';
+      }
+
+      final markerWithSeparator = '$marker/';
+      final markerIndex = normalizedPath.indexOf(markerWithSeparator);
+      if (markerIndex != -1) {
+        return normalizedPath.substring(
+          markerIndex + markerWithSeparator.length,
+        );
+      }
+    }
+    return null;
   }
 }
