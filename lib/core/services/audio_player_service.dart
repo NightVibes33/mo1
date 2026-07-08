@@ -120,7 +120,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       if (!player.playing && nowPlayingDetails.currentMetadata == null) {
         return;
       }
-      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackBreadcrumb(
             'Playback heartbeat',
             data: _playbackCrashData(),
             appendToCrashLog: false,
@@ -163,7 +165,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
   Future<void> syncSongTransitionStyle() async {
     final settings = ref.read(settingsPreferencesControllerProvider);
-    await ref.read(appleMusicPlaybackServiceProvider).setTransitionStyle(
+    await ref
+        .read(appleMusicPlaybackServiceProvider)
+        .setTransitionStyle(
           settings.songTransitionStyle,
           Duration(seconds: settings.crossfadeDurationSeconds),
         );
@@ -189,7 +193,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     if (player.playing) {
       return;
     }
-    ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+    ref
+        .read(crashLogServiceProvider)
+        .recordPlaybackBreadcrumb(
           'Local playback requested',
           data: _playbackCrashData(),
         );
@@ -210,7 +216,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
 
     if (ref.read(audioPlayerProvider).playing) {
-      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackBreadcrumb(
             'Local playback pause requested',
             data: _playbackCrashData(),
           );
@@ -274,7 +282,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       await ref.read(appleMusicPlaybackServiceProvider).pause();
       await _cancelSongTransition();
       await ref.read(audioPlayerProvider).stop();
-      ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
+      ref
+          .read(nowPlayingDetailsProvider.notifier)
+          .setNewMetadataList(
             nowPlayingType: NowPlayingType.songs,
             newMetadataList: const [],
             isPlaying: false,
@@ -291,7 +301,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       await _pauseAppleMusicPlaybackIfCurrent();
       await _cancelSongTransition();
-      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackBreadcrumb(
             'Setting local audio source',
             data: {
               'requestedCount': musicMetadataList.length,
@@ -301,9 +313,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           );
       final requestedMetadata = musicMetadataList.isEmpty
           ? null
-          : musicMetadataList[
-              initialIndex.clamp(0, musicMetadataList.length - 1).toInt()
-            ];
+          : musicMetadataList[initialIndex
+                .clamp(0, musicMetadataList.length - 1)
+                .toInt()];
       final localMetadataList = musicMetadataList
           .where((metadata) => !metadata.isAppleMusicCatalogTrack)
           .toList(growable: false);
@@ -315,7 +327,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       } catch (_) {}
 
       if (songSourcePlaylist.isEmpty) {
-        ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+        ref
+            .read(crashLogServiceProvider)
+            .recordPlaybackBreadcrumb(
               'Local audio source was empty',
               data: {
                 'requestedCount': musicMetadataList.length,
@@ -323,7 +337,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
               },
             );
         await ref.read(audioPlayerProvider).stop();
-        ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
+        ref
+            .read(nowPlayingDetailsProvider.notifier)
+            .setNewMetadataList(
               nowPlayingType: nowPlayingType,
               newMetadataList: const [],
             );
@@ -337,15 +353,21 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       });
       final safeInitialIndex = matchingInitialIndex == -1
           ? 0
-          : matchingInitialIndex.clamp(0, songSourcePlaylist.length - 1).toInt();
+          : matchingInitialIndex
+                .clamp(0, songSourcePlaylist.length - 1)
+                .toInt();
 
-      await ref.read(audioPlayerProvider).setAudioSources(
+      await ref
+          .read(audioPlayerProvider)
+          .setAudioSources(
             songSourcePlaylist,
             initialIndex: safeInitialIndex,
             initialPosition: Duration.zero,
             shuffleOrder: DefaultShuffleOrder(),
           );
-      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackBreadcrumb(
             'Local audio source loaded',
             data: {
               'localCount': localMetadataList.length,
@@ -357,7 +379,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
       await _syncEqualizerPreset();
 
-      ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
+      ref
+          .read(nowPlayingDetailsProvider.notifier)
+          .setNewMetadataList(
             nowPlayingType: nowPlayingType,
             newMetadataList: localMetadataList,
             currentIndex: safeInitialIndex,
@@ -376,6 +400,17 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       if (!metadata.isAppleMusicCatalogTrack) {
         return;
       }
+
+      final didSkip = await ref
+          .read(appleMusicPlaybackServiceProvider)
+          .skipToNextInCurrentQueue();
+      if (didSkip) {
+        ref.read(nowPlayingDetailsProvider.notifier).setCurrentIndex(nextIndex);
+        ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
+        unawaited(_refreshAppleMusicLyrics(metadata));
+        return;
+      }
+
       await _playAppleMusicCatalogTrack(
         metadata,
         metadataList: nowPlayingDetails.metadataList,
@@ -391,14 +426,56 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   Future<void> seekBackwards() async {
     final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
     if (nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
+      final snapshot = await ref
+          .read(appleMusicPlaybackServiceProvider)
+          .playbackSnapshot();
+      if (snapshot.position.inSeconds > 3) {
+        final didRestart = await ref
+            .read(appleMusicPlaybackServiceProvider)
+            .restartCurrentItem();
+        if (didRestart) {
+          ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
+          return;
+        }
+        final currentMetadata = nowPlayingDetails.currentMetadata;
+        if (currentMetadata != null) {
+          await _playAppleMusicCatalogTrack(
+            currentMetadata,
+            metadataList: nowPlayingDetails.metadataList,
+            currentIndex: nowPlayingDetails.currentIndex,
+            nowPlayingType: nowPlayingDetails.nowPlayingType,
+          );
+        }
+        return;
+      }
+
       final previousIndex = nowPlayingDetails.currentIndex - 1;
       if (previousIndex < 0) {
+        final didRestart = await ref
+            .read(appleMusicPlaybackServiceProvider)
+            .restartCurrentItem();
+        if (didRestart) {
+          ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
+        }
         return;
       }
       final metadata = nowPlayingDetails.metadataList[previousIndex];
       if (!metadata.isAppleMusicCatalogTrack) {
         return;
       }
+
+      final didSkip = await ref
+          .read(appleMusicPlaybackServiceProvider)
+          .skipToPreviousInCurrentQueue();
+      if (didSkip) {
+        ref
+            .read(nowPlayingDetailsProvider.notifier)
+            .setCurrentIndex(previousIndex);
+        ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
+        unawaited(_refreshAppleMusicLyrics(metadata));
+        return;
+      }
+
       await _playAppleMusicCatalogTrack(
         metadata,
         metadataList: nowPlayingDetails.metadataList,
@@ -501,7 +578,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         (element) => element.originalSongIndex == originalIndex,
       );
       if (externalIndex != -1 &&
-          nowPlayingDetails.metadataList[externalIndex]
+          nowPlayingDetails
+              .metadataList[externalIndex]
               .isAppleMusicCatalogTrack) {
         await _playAppleMusicCatalogTrack(
           nowPlayingDetails.metadataList[externalIndex],
@@ -512,9 +590,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         return;
       }
       final hasLoadedSources = player.currentIndex != null;
-      final shouldUseOriginalList = !hasLoadedSources ||
-          nowPlayingDetails.nowPlayingType !=
-              NowPlayingType.songs ||
+      final shouldUseOriginalList =
+          !hasLoadedSources ||
+          nowPlayingDetails.nowPlayingType != NowPlayingType.songs ||
           nowPlayingDetails.metadataList.isEmpty ||
           !nowPlayingDetails.metadataList.any(
             (element) => element.originalSongIndex == originalIndex,
@@ -534,7 +612,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
               .where((metadata) => metadata.isAppleMusicCatalogTrack)
               .toList(growable: false);
           final appleMusicIndex = appleMusicList.indexWhere(
-            (metadata) => metadata.filePath == selectedOriginalMetadata.filePath,
+            (metadata) =>
+                metadata.filePath == selectedOriginalMetadata.filePath,
           );
           if (appleMusicIndex == -1) {
             return;
@@ -572,7 +651,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       Future.delayed(const Duration(milliseconds: 200), play);
     });
   }
-
 
   Future<bool> playMetadataListAtIndex({
     required List<MusicMetadata> metadataList,
@@ -634,9 +712,13 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     int currentIndex = 0,
     NowPlayingType nowPlayingType = NowPlayingType.songs,
   }) async {
-    final didResume = await ref.read(appleMusicPlaybackServiceProvider).resume();
+    final didResume = await ref
+        .read(appleMusicPlaybackServiceProvider)
+        .resume();
     if (didResume) {
-      ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
+      ref
+          .read(nowPlayingDetailsProvider.notifier)
+          .setNewMetadataList(
             nowPlayingType: nowPlayingType,
             newMetadataList: metadataList ?? [metadata],
             currentIndex: currentIndex,
@@ -685,7 +767,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
             seconds: settings.crossfadeDurationSeconds,
           ),
         );
-    ref.read(nowPlayingDetailsProvider.notifier).setNewMetadataList(
+    ref
+        .read(nowPlayingDetailsProvider.notifier)
+        .setNewMetadataList(
           nowPlayingType: nowPlayingType,
           newMetadataList: playbackList,
           currentIndex: currentIndex,
@@ -704,9 +788,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
 
     try {
-      final lyrics = await ref.read(lyricsLookupServiceProvider).findBestFor(
-            metadata,
-          );
+      final lyrics = await ref
+          .read(lyricsLookupServiceProvider)
+          .findBestFor(metadata);
       if (lyrics == null || lyrics.trim().isEmpty) {
         return;
       }
@@ -804,7 +888,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
 
     _transitionSourceIndex = currentIndex;
-    ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+    ref
+        .read(crashLogServiceProvider)
+        .recordPlaybackBreadcrumb(
           'Starting local song transition',
           data: _playbackCrashData(
             extra: {
@@ -886,7 +972,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         await mainPlayer.play();
       }
       ref.read(nowPlayingDetailsProvider.notifier).setCurrentIndex(nextIndex);
-      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackBreadcrumb(
             'Local song transition complete',
             data: _playbackCrashData(
               extra: {
@@ -897,7 +985,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
             ),
           );
     } catch (error, stackTrace) {
-      ref.read(crashLogServiceProvider).recordPlaybackError(
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackError(
             'Local song transition failed',
             error: error,
             stackTrace: stackTrace,
@@ -962,7 +1052,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> _syncEqualizerPreset() async {
-    await ref.read(audioEqualizerServiceProvider).applyPreset(
+    await ref
+        .read(audioEqualizerServiceProvider)
+        .applyPreset(
           ref.read(settingsPreferencesControllerProvider).equalizerPreset,
         );
   }
@@ -990,7 +1082,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> seekForward() async {
-    if (ref.read(nowPlayingDetailsProvider).currentMetadata
+    if (ref
+            .read(nowPlayingDetailsProvider)
+            .currentMetadata
             ?.isAppleMusicCatalogTrack ??
         false) {
       await ref
@@ -1020,7 +1114,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> seekBackward() async {
-    if (ref.read(nowPlayingDetailsProvider).currentMetadata
+    if (ref
+            .read(nowPlayingDetailsProvider)
+            .currentMetadata
             ?.isAppleMusicCatalogTrack ??
         false) {
       await ref
@@ -1031,19 +1127,25 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final currentSeconds = ref.read(audioPlayerProvider).position.inSeconds;
-      final targetSeconds = (currentSeconds - 1).clamp(0, currentSeconds).toInt();
+      final targetSeconds = (currentSeconds - 1)
+          .clamp(0, currentSeconds)
+          .toInt();
       await _cancelSongTransition();
-      await ref.read(audioPlayerProvider).seek(Duration(seconds: targetSeconds));
+      await ref
+          .read(audioPlayerProvider)
+          .seek(Duration(seconds: targetSeconds));
     });
   }
 
   Future<void> seekToDuration(int targetDurationInSeconds) async {
-    if (ref.read(nowPlayingDetailsProvider).currentMetadata
+    if (ref
+            .read(nowPlayingDetailsProvider)
+            .currentMetadata
             ?.isAppleMusicCatalogTrack ??
         false) {
-      await ref.read(appleMusicPlaybackServiceProvider).seekTo(
-            Duration(seconds: targetDurationInSeconds),
-          );
+      await ref
+          .read(appleMusicPlaybackServiceProvider)
+          .seekTo(Duration(seconds: targetDurationInSeconds));
       return;
     }
     state = const AsyncLoading();
@@ -1054,7 +1156,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           .clamp(0, maxDurationInSeconds)
           .toInt();
       await _cancelSongTransition();
-      await ref.read(audioPlayerProvider).seek(Duration(seconds: clampedTarget));
+      await ref
+          .read(audioPlayerProvider)
+          .seek(Duration(seconds: clampedTarget));
     });
   }
 }

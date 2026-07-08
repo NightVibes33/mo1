@@ -13,8 +13,8 @@ final appleMusicPlaybackServiceProvider = Provider<AppleMusicPlaybackService>(
 
 final appleMusicPlaybackSnapshotProvider =
     StreamProvider.autoDispose<AppleMusicPlaybackSnapshot>((ref) {
-  return ref.watch(appleMusicPlaybackServiceProvider).playbackSnapshots();
-});
+      return ref.watch(appleMusicPlaybackServiceProvider).playbackSnapshots();
+    });
 
 class AppleMusicPlaybackService {
   static const MethodChannel _channel = MethodChannel('mo1/apple_music');
@@ -97,17 +97,13 @@ class AppleMusicPlaybackService {
     }
 
     try {
-      final isPlaying = await _channel.invokeMethod<bool>(
-        'playCatalogQueue',
-        {
-          'catalogIds': queueCatalogIds,
-          'startCatalogId': cleanStartCatalogId,
-          if (transitionStyle != null) 'transitionStyle': transitionStyle.name,
-          if (transitionDuration != null)
-            'transitionDurationSeconds':
-                transitionDuration.inMilliseconds / 1000,
-        },
-      );
+      final isPlaying = await _channel.invokeMethod<bool>('playCatalogQueue', {
+        'catalogIds': queueCatalogIds,
+        'startCatalogId': cleanStartCatalogId,
+        if (transitionStyle != null) 'transitionStyle': transitionStyle.name,
+        if (transitionDuration != null)
+          'transitionDurationSeconds': transitionDuration.inMilliseconds / 1000,
+      });
       final didStart = isPlaying ?? false;
       _debugLogService.info(
         'apple_music',
@@ -150,13 +146,10 @@ class AppleMusicPlaybackService {
     }
 
     try {
-      final didApply = await _channel.invokeMethod<bool>(
-        'setTransitionStyle',
-        {
-          'transitionStyle': style.name,
-          'transitionDurationSeconds': duration.inMilliseconds / 1000,
-        },
-      );
+      final didApply = await _channel.invokeMethod<bool>('setTransitionStyle', {
+        'transitionStyle': style.name,
+        'transitionDurationSeconds': duration.inMilliseconds / 1000,
+      });
       return didApply ?? false;
     } on PlatformException catch (error, stackTrace) {
       _debugLogService.error(
@@ -242,10 +235,9 @@ class AppleMusicPlaybackService {
     }
 
     try {
-      final didSeek = await _channel.invokeMethod<bool>(
-        'seekToSeconds',
-        {'seconds': position.inMilliseconds / 1000},
-      );
+      final didSeek = await _channel.invokeMethod<bool>('seekToSeconds', {
+        'seconds': position.inMilliseconds / 1000,
+      });
       return didSeek ?? false;
     } on PlatformException catch (error, stackTrace) {
       _debugLogService.error(
@@ -276,9 +268,96 @@ class AppleMusicPlaybackService {
     final clampedTarget = target < Duration.zero
         ? Duration.zero
         : target > snapshot.duration
-            ? snapshot.duration
-            : target;
+        ? snapshot.duration
+        : target;
     return seekTo(clampedTarget);
+  }
+
+  Future<bool> skipToNextInCurrentQueue() async {
+    if (!isSupported) {
+      return false;
+    }
+
+    try {
+      final didSkip = await _channel.invokeMethod<bool>(
+        'skipToNextInCurrentQueue',
+      );
+      return didSkip ?? false;
+    } on PlatformException catch (error, stackTrace) {
+      _debugLogService.error(
+        'apple_music',
+        'Apple Music queue next failed.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    } on MissingPluginException catch (error, stackTrace) {
+      _debugLogService.error(
+        'apple_music',
+        'Apple Music playback bridge is unavailable.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> skipToPreviousInCurrentQueue() async {
+    if (!isSupported) {
+      return false;
+    }
+
+    try {
+      final didSkip = await _channel.invokeMethod<bool>(
+        'skipToPreviousInCurrentQueue',
+      );
+      return didSkip ?? false;
+    } on PlatformException catch (error, stackTrace) {
+      _debugLogService.error(
+        'apple_music',
+        'Apple Music queue previous failed.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    } on MissingPluginException catch (error, stackTrace) {
+      _debugLogService.error(
+        'apple_music',
+        'Apple Music playback bridge is unavailable.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> restartCurrentItem() async {
+    if (!isSupported) {
+      return false;
+    }
+
+    try {
+      final didRestart = await _channel.invokeMethod<bool>(
+        'restartCurrentItem',
+      );
+      return didRestart ?? false;
+    } on PlatformException catch (error, stackTrace) {
+      _debugLogService.error(
+        'apple_music',
+        'Apple Music restart current item failed.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    } on MissingPluginException catch (error, stackTrace) {
+      _debugLogService.error(
+        'apple_music',
+        'Apple Music playback bridge is unavailable.',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
   }
 }
 

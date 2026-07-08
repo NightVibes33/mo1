@@ -458,6 +458,12 @@ private enum AppleMusicLookupChannel {
         }
         player.play()
         result(true)
+      case "skipToNextInCurrentQueue":
+        result(skipToNextInCurrentQueue())
+      case "skipToPreviousInCurrentQueue":
+        result(skipToPreviousInCurrentQueue())
+      case "restartCurrentItem":
+        result(restartCurrentItem())
       case "seekToSeconds":
         guard let arguments = call.arguments as? [String: Any],
               let seconds = arguments["seconds"] as? Double else {
@@ -731,6 +737,10 @@ private enum AppleMusicLookupChannel {
       catalogIds: catalogIds,
       startCatalogId: startCatalogId
     ) {
+      logAppleMusicDebug(
+        "Queue rebuild using media library descriptor",
+        data: ["startCatalogId": startCatalogId, "queueSize": catalogIds.count]
+      )
       player.setQueue(with: mediaDescriptor)
       player.currentPlaybackTime = 0
       player.prepareToPlay { error in
@@ -744,7 +754,12 @@ private enum AppleMusicLookupChannel {
             return
           }
           playbackBackend = .mediaPlayer
+          player.currentPlaybackTime = 0
           player.play()
+          scheduleZeroStartEnforcement(
+            player: player,
+            reason: "queueRebuildOffline"
+          )
           result(true)
         }
       }
@@ -753,6 +768,10 @@ private enum AppleMusicLookupChannel {
 
     let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: catalogIds)
     descriptor.startItemID = startCatalogId
+    logAppleMusicDebug(
+      "Queue rebuild using store queue descriptor",
+      data: ["startCatalogId": startCatalogId, "queueSize": catalogIds.count]
+    )
     player.setQueue(with: descriptor)
     player.currentPlaybackTime = 0
     player.prepareToPlay { error in
@@ -766,7 +785,12 @@ private enum AppleMusicLookupChannel {
           return
         }
         playbackBackend = .mediaPlayer
+        player.currentPlaybackTime = 0
         player.play()
+        scheduleZeroStartEnforcement(
+          player: player,
+          reason: "queueRebuildOnline"
+        )
         result(true)
       }
     }
@@ -949,6 +973,129 @@ private enum AppleMusicLookupChannel {
     let safeSeconds = seconds.isFinite && seconds > 0 ? seconds : 0
     player.currentPlaybackTime = min(safeSeconds, safeDuration)
     return true
+  }
+
+  private static func skipToNextInCurrentQueue() -> Bool {
+    let player = MPMusicPlayerController.applicationQueuePlayer
+    guard let currentItem = player.nowPlayingItem else {
+      logAppleMusicDebug("Skip next ignored because queue is empty")
+      return false
+    }
+    let previousIdentifier = currentMediaPlayerIdentifier(currentItem)
+    logAppleMusicDebug(
+      "Advancing Apple Music queue",
+      data: [
+        "from": previousIdentifier ?? "",
+        "positionSeconds": player.currentPlaybackTime
+      ]
+    )
+    player.skipToNextItem()
+    scheduleZeroStartEnforcement(
+      player: player,
+      reason: "queueReuseNext",
+      previousIdentifier: previousIdentifier
+    )
+    return true
+  }
+
+  private static func skipToPreviousInCurrentQueue() -> Bool {
+    let player = MPMusicPlayerController.applicationQueuePlayer
+    guard let currentItem = player.nowPlayingItem else {
+      logAppleMusicDebug("Skip previous ignored because queue is empty")
+      return false
+    }
+    let previousIdentifier = currentMediaPlayerIdentifier(currentItem)
+    logAppleMusicDebug(
+      "Rewinding Apple Music queue to previous item",
+      data: [
+        "from": previousIdentifier ?? "",
+        "positionSeconds": player.currentPlaybackTime
+      ]
+    )
+    player.skipToPreviousItem()
+    scheduleZeroStartEnforcement(
+      player: player,
+      reason: "queueReusePrevious",
+      previousIdentifier: previousIdentifier
+    )
+    return true
+  }
+
+  private static func restartCurrentItem() -> Bool {
+    let player = MPMusicPlayerController.applicationQueuePlayer
+    guard player.nowPlayingItem != nil else {
+      logAppleMusicDebug("Restart current item ignored because queue is empty")
+      return false
+    }
+    player.currentPlaybackTime = 0
+    scheduleZeroStartEnforcement(
+      player: player,
+      reason: "restartCurrentItem"
+    )
+    logAppleMusicDebug("Restarted current Apple Music item at zero")
+    return true
+  }
+
+  private static func scheduleZeroStartEnforcement(
+    player: MPMusicPlayerController,
+    reason: String,
+    previousIdentifier: String? = nil
+  ) {
+    let delays: [TimeInterval] = [0.05, 0.2, 0.45]
+    for delay in delays {
+      DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+        let currentIdentifier = currentMediaPlayerIdentifier(player.nowPlayingItem)
+        let rawPosition = player.currentPlaybackTime
+        let safePosition = rawPosition.isFinite && rawPosition > 0 ? rawPosition : 0
+        if let previousIdentifier,
+           currentIdentifier == previousIdentifier {
+          logAppleMusicDebug(
+            "Queue item has not advanced yet",
+            data: [
+              "reason": reason,
+              "delaySeconds": delay,
+              "currentIdentifier": currentIdentifier ?? "",
+              "positionSeconds": safePosition
+            ]
+          )
+          return
+        }
+        if safePosition > 0 && safePosition < 1.5 {
+          player.currentPlaybackTime = 0
+        }
+        logAppleMusicDebug(
+          "Applied Apple Music zero-start enforcement",
+          data: [
+            "reason": reason,
+            "delaySeconds": delay,
+            "currentIdentifier": currentIdentifier ?? "",
+            "positionSeconds": player.currentPlaybackTime
+          ]
+        )
+      }
+    }
+  }
+
+  private static func currentMediaPlayerIdentifier(_ item: MPMediaItem?) -> String? {
+    guard let item else {
+      return nil
+    }
+    return preferredMediaItemIdentifier(item)
+  }
+
+  private static func logAppleMusicDebug(
+    _ message: String,
+    data: [String: Any] = [:]
+  ) {
+    let payload = data
+      .map { "\($0.key)=\($0.value)" }
+      .sorted()
+      .joined(separator: " | ")
+    if payload.isEmpty {
+      NSLog("døPe apple_music: \(message)")
+    } else {
+      NSLog("døPe apple_music: \(message) | \(payload)")
+    }
   }
 
   @available(iOS 15.0, *)
