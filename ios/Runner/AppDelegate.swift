@@ -756,9 +756,9 @@ private enum AppleMusicLookupChannel {
           playbackBackend = .mediaPlayer
           player.currentPlaybackTime = 0
           player.play()
-          scheduleZeroStartEnforcement(
-            player: player,
-            reason: "queueRebuildOffline"
+          logAppleMusicDebug(
+            "Started media library queue from zero",
+            data: ["startCatalogId": startCatalogId]
           )
           result(true)
         }
@@ -787,9 +787,9 @@ private enum AppleMusicLookupChannel {
         playbackBackend = .mediaPlayer
         player.currentPlaybackTime = 0
         player.play()
-        scheduleZeroStartEnforcement(
-          player: player,
-          reason: "queueRebuildOnline"
+        logAppleMusicDebug(
+          "Started store queue from zero",
+          data: ["startCatalogId": startCatalogId]
         )
         result(true)
       }
@@ -1028,46 +1028,6 @@ private enum AppleMusicLookupChannel {
     player.currentPlaybackTime = 0
     logAppleMusicDebug("Restarted current Apple Music item at zero")
     return true
-  }
-
-  private static func scheduleZeroStartEnforcement(
-    player: MPMusicPlayerController,
-    reason: String,
-    previousIdentifier: String? = nil
-  ) {
-    let delays: [TimeInterval] = [0.05, 0.2, 0.45]
-    for delay in delays {
-      DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-        let currentIdentifier = currentMediaPlayerIdentifier(player.nowPlayingItem)
-        let rawPosition = player.currentPlaybackTime
-        let safePosition = rawPosition.isFinite && rawPosition > 0 ? rawPosition : 0
-        if let previousIdentifier,
-           currentIdentifier == previousIdentifier {
-          logAppleMusicDebug(
-            "Queue item has not advanced yet",
-            data: [
-              "reason": reason,
-              "delaySeconds": delay,
-              "currentIdentifier": currentIdentifier ?? "",
-              "positionSeconds": safePosition
-            ]
-          )
-          return
-        }
-        if safePosition > 0 && safePosition < 1.5 {
-          player.currentPlaybackTime = 0
-        }
-        logAppleMusicDebug(
-          "Applied Apple Music zero-start enforcement",
-          data: [
-            "reason": reason,
-            "delaySeconds": delay,
-            "currentIdentifier": currentIdentifier ?? "",
-            "positionSeconds": player.currentPlaybackTime
-          ]
-        )
-      }
-    }
   }
 
   private static func currentMediaPlayerIdentifier(_ item: MPMediaItem?) -> String? {
