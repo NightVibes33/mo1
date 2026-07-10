@@ -333,6 +333,51 @@ class AudioFilesServiceNotifier
     return true;
   }
 
+  int _metadataStorageIndex(
+    Box<MusicMetadata> metadataBox,
+    MusicMetadata metadata,
+  ) {
+    final values = metadataBox.values.toList(growable: false);
+    if (values.isEmpty) {
+      return -1;
+    }
+
+    if (metadata.isAppleMusicCatalogTrack) {
+      final signature = _appleMusicSignature(metadata);
+      if (signature != null) {
+        final appleMusicIndex = values.indexWhere((existing) {
+          return existing.isAppleMusicCatalogTrack &&
+              _appleMusicSignature(existing) == signature;
+        });
+        if (appleMusicIndex != -1) {
+          return appleMusicIndex;
+        }
+      }
+    }
+
+    final filePath = metadata.filePath;
+    if (filePath != null && filePath.isNotEmpty) {
+      final filePathIndex = values.indexWhere(
+        (existing) => existing.filePath == filePath,
+      );
+      if (filePathIndex != -1) {
+        return filePathIndex;
+      }
+    }
+
+    final originalIndex = metadata.originalSongIndex;
+    if (originalIndex >= 0) {
+      final originalIndexMatch = values.indexWhere(
+        (existing) => existing.originalSongIndex == originalIndex,
+      );
+      if (originalIndexMatch != -1) {
+        return originalIndexMatch;
+      }
+    }
+
+    return -1;
+  }
+
   String? _appleMusicSignature(MusicMetadata metadata) {
     final values =
         [metadata.trackName, metadata.getTrackArtistNames, metadata.albumName]

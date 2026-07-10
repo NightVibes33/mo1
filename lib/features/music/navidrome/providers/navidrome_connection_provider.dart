@@ -16,7 +16,7 @@ class NavidromeConnectionNotifier extends Notifier<NavidromeConnection?> {
   NavidromeConnection? build() {
     final preferences = ref
         .watch(sharedPreferencesWithCacheProvider)
-        .valueOrNull;
+        .value;
     if (preferences == null) {
       return null;
     }

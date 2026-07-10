@@ -234,7 +234,7 @@ class NavidromeService {
     final response = await _getSubsonicResponse(
       connection,
       'getLyrics.view',
-      extraQueryParameters: {'artist': artist, 'title': title},
+      extraQueryParameters: {'artist': artist ?? '', 'title': title ?? ''},
     );
     final lyrics = response['lyrics'];
     if (lyrics is! Map<String, dynamic>) {
