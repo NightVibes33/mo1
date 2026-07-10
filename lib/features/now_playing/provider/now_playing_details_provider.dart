@@ -146,10 +146,7 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
       }
 
       if (changed) {
-        await playlistBox.putAt(
-          index,
-          playlist.copyWith(songs: updatedSongs),
-        );
+        await playlistBox.putAt(index, playlist.copyWith(songs: updatedSongs));
       }
     }
   }
@@ -164,7 +161,8 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
         : metadataBox.getAt(storageIndex);
     final storedMetadata = updatedMetadata.copyWith(
       originalSongIndex:
-          existingMetadata?.originalSongIndex ?? updatedMetadata.originalSongIndex,
+          existingMetadata?.originalSongIndex ??
+          updatedMetadata.originalSongIndex,
     );
 
     if (storageIndex == -1) {
@@ -193,6 +191,50 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
     ref.invalidate(filteredAudioFilesProvider);
     ref.invalidate(albumDetailsProvider);
     ref.invalidate(playlistsProvider);
+  }
+
+  Future<void> removeSongFromLibrary(MusicMetadata removedMetadata) async {
+    final removedIndex = state.metadataList.indexWhere(
+      (metadata) =>
+          metadata.originalSongIndex == removedMetadata.originalSongIndex ||
+          metadata.filePath == removedMetadata.filePath,
+    );
+    if (removedIndex == -1) {
+      return;
+    }
+
+    final updatedMetadataList = [...state.metadataList]..removeAt(removedIndex);
+    final removedCurrentSong =
+        state.currentMetadata != null &&
+        (state.currentMetadata!.originalSongIndex ==
+                removedMetadata.originalSongIndex ||
+            state.currentMetadata!.filePath == removedMetadata.filePath);
+
+    if (updatedMetadataList.isEmpty || removedCurrentSong) {
+      await ref
+          .read(audioPlayerServiceProvider.notifier)
+          .stopPlaybackAndClearQueue();
+      state = state.copyWith(
+        metadataList: updatedMetadataList,
+        currentIndex: 0,
+        currentMetadata: null,
+        isPlaying: false,
+      );
+      return;
+    }
+
+    final updatedCurrentIndex = removedIndex < state.currentIndex
+        ? state.currentIndex - 1
+        : state.currentIndex;
+    final safeCurrentIndex = updatedCurrentIndex
+        .clamp(0, updatedMetadataList.length - 1)
+        .toInt();
+
+    state = state.copyWith(
+      metadataList: updatedMetadataList,
+      currentIndex: safeCurrentIndex,
+      currentMetadata: updatedMetadataList[safeCurrentIndex],
+    );
   }
 
   int _metadataStorageIndex(

@@ -107,4 +107,16 @@ class PlaylistsNotifier extends Notifier<List<PlaylistModel>> {
       refreshProvider();
     }
   }
+
+  Future<void> removeSongFromAllPlaylists(MusicMetadata song) async {
+    final updatedPlaylists = <PlaylistModel>[];
+    for (final playlist in state) {
+      final updatedPlaylist = playlist.removeSongFromPlaylist(song);
+      updatedPlaylists.add(updatedPlaylist);
+      if (playlist.key != null) {
+        await _playlistBox.put(playlist.key, updatedPlaylist);
+      }
+    }
+    state = updatedPlaylists;
+  }
 }

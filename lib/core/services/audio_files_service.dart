@@ -74,12 +74,18 @@ class ImportLocalAudioResult {
       parts.add('$importedCount song${importedCount == 1 ? '' : 's'} imported');
     }
     if (duplicateCount > 0) {
-      parts.add('$duplicateCount duplicate${duplicateCount == 1 ? '' : 's'} skipped');
+      parts.add(
+        '$duplicateCount duplicate${duplicateCount == 1 ? '' : 's'} skipped',
+      );
     }
     if (skippedCount > 0) {
-      parts.add('$skippedCount unsupported file${skippedCount == 1 ? '' : 's'} skipped');
+      parts.add(
+        '$skippedCount unsupported file${skippedCount == 1 ? '' : 's'} skipped',
+      );
     }
-    return parts.isEmpty ? 'Pick MP3, M4A, FLAC, WAV, OGG, OPUS, LRC, or TXT files.' : parts.join('\n');
+    return parts.isEmpty
+        ? 'Pick MP3, M4A, FLAC, WAV, OGG, OPUS, LRC, or TXT files.'
+        : parts.join('\n');
   }
 }
 
@@ -87,10 +93,7 @@ class _SourceFileDates {
   final int? createdAtEpochMs;
   final int? modifiedAtEpochMs;
 
-  const _SourceFileDates({
-    this.createdAtEpochMs,
-    this.modifiedAtEpochMs,
-  });
+  const _SourceFileDates({this.createdAtEpochMs, this.modifiedAtEpochMs});
 }
 
 class AudioFilesServiceNotifier
@@ -207,7 +210,6 @@ class AudioFilesServiceNotifier
     }
   }
 
-
   Future<ImportAppleMusicMetadataResult> importAppleMusicMetadata(
     List<MusicMetadata> appleMusicMetadata,
   ) async {
@@ -282,26 +284,61 @@ class AudioFilesServiceNotifier
     }
 
     state = AsyncData(_storedMetadata(metadataBox));
-    ref.read(debugLogServiceProvider).info(
-      'apple_music',
-      'Upserted Apple Music library references.',
-      data: {'imported': importedCount, 'updated': updatedCount},
-    );
+    ref
+        .read(debugLogServiceProvider)
+        .info(
+          'apple_music',
+          'Upserted Apple Music library references.',
+          data: {'imported': importedCount, 'updated': updatedCount},
+        );
     return ImportAppleMusicMetadataResult(
       importedCount: importedCount,
       updatedCount: updatedCount,
     );
   }
 
+  Future<bool> deleteSong(MusicMetadata metadata) async {
+    if (!Hive.isBoxOpen(Constants.metadataBoxName)) {
+      return false;
+    }
+
+    final metadataBox = Hive.box<MusicMetadata>(Constants.metadataBoxName);
+    final storageIndex = _metadataStorageIndex(metadataBox, metadata);
+    if (storageIndex == -1) {
+      return false;
+    }
+
+    final storedMetadata = metadataBox.getAt(storageIndex);
+    if (storedMetadata == null) {
+      return false;
+    }
+
+    await _deleteManagedAudioFile(storedMetadata);
+    await metadataBox.deleteAt(storageIndex);
+    state = AsyncData(_storedMetadata(metadataBox));
+    ref
+        .read(debugLogServiceProvider)
+        .info(
+          'audio_files',
+          'Deleted song from library.',
+          data: {
+            'trackName': storedMetadata.trackName,
+            'artist': storedMetadata.getTrackArtistNames,
+            'album': storedMetadata.albumName,
+            'filePath': storedMetadata.filePath,
+            'isAppleMusic': storedMetadata.isAppleMusicCatalogTrack,
+            'isOnDevice': storedMetadata.isOnDevice,
+          },
+        );
+    return true;
+  }
+
   String? _appleMusicSignature(MusicMetadata metadata) {
-    final values = [
-      metadata.trackName,
-      metadata.getTrackArtistNames,
-      metadata.albumName,
-    ]
-        .map((value) => value?.trim().toLowerCase() ?? '')
-        .where((value) => value.isNotEmpty)
-        .toList(growable: false);
+    final values =
+        [metadata.trackName, metadata.getTrackArtistNames, metadata.albumName]
+            .map((value) => value?.trim().toLowerCase() ?? '')
+            .where((value) => value.isNotEmpty)
+            .toList(growable: false);
     if (values.length < 2) {
       return null;
     }
@@ -331,7 +368,8 @@ class AudioFilesServiceNotifier
           incoming.sourceCreatedAtEpochMs ?? existing.sourceCreatedAtEpochMs,
       sourceModifiedAtEpochMs:
           incoming.sourceModifiedAtEpochMs ?? existing.sourceModifiedAtEpochMs,
-      importedAtEpochMs: incoming.importedAtEpochMs ?? existing.importedAtEpochMs,
+      importedAtEpochMs:
+          incoming.importedAtEpochMs ?? existing.importedAtEpochMs,
     );
   }
 
@@ -353,6 +391,41 @@ class AudioFilesServiceNotifier
     );
   }
 
+  Future<void> _deleteManagedAudioFile(MusicMetadata metadata) async {
+    if (!metadata.isOnDevice || metadata.isAppleMusicCatalogTrack) {
+      return;
+    }
+
+    final path = metadata.filePath;
+    if (path == null || path.isEmpty) {
+      return;
+    }
+
+    final resolvedPath = AppDocumentsService.resolveManagedPath(path) ?? path;
+    final file = File(resolvedPath);
+    if (!await file.exists()) {
+      return;
+    }
+
+    try {
+      await file.delete();
+    } catch (error, stackTrace) {
+      ref
+          .read(debugLogServiceProvider)
+          .error(
+            'audio_files',
+            'Failed to delete song file from disk.',
+            error: error,
+            stackTrace: stackTrace,
+            data: {
+              'trackName': metadata.trackName,
+              'artist': metadata.getTrackArtistNames,
+              'filePath': resolvedPath,
+            },
+          );
+    }
+  }
+
   Future<ImportLocalAudioResult> importLocalAudioFiles({
     bool updateState = true,
   }) async {
@@ -363,12 +436,14 @@ class AudioFilesServiceNotifier
     try {
       return await _importLocalAudioFiles(updateState: updateState);
     } catch (error, stackTrace) {
-      ref.read(debugLogServiceProvider).error(
-        'import',
-        'Fatal import error',
-        error: error,
-        stackTrace: stackTrace,
-      );
+      ref
+          .read(debugLogServiceProvider)
+          .error(
+            'import',
+            'Fatal import error',
+            error: error,
+            stackTrace: stackTrace,
+          );
       debugPrint('Audio Import Fatal Error: $error');
       debugPrintStack(stackTrace: stackTrace);
       if (updateState && Hive.isBoxOpen(Constants.metadataBoxName)) {
@@ -447,7 +522,10 @@ class AudioFilesServiceNotifier
       final sourcePath = file.path;
       if (sourcePath == null || sourcePath.isEmpty) {
         skippedCount++;
-        debugLogService.warning('import', 'Skipped file with empty source path');
+        debugLogService.warning(
+          'import',
+          'Skipped file with empty source path',
+        );
         continue;
       }
       if (_isLyricsSidecar(sourcePath)) {
@@ -650,12 +728,17 @@ class AudioFilesServiceNotifier
         final extension = _extensionOf(sidecarPath);
         await source.copy('$destinationStem.$extension');
       } catch (e) {
-        ref.read(debugLogServiceProvider).error(
-          'import',
-          'Lyrics sidecar copy failed',
-          error: e,
-          data: {'sidecarPath': sidecarPath, 'destinationStem': destinationStem},
-        );
+        ref
+            .read(debugLogServiceProvider)
+            .error(
+              'import',
+              'Lyrics sidecar copy failed',
+              error: e,
+              data: {
+                'sidecarPath': sidecarPath,
+                'destinationStem': destinationStem,
+              },
+            );
         debugPrint('Lyrics Import Error: $e');
       }
     }
@@ -688,10 +771,7 @@ class AudioFilesServiceNotifier
     final fileName = pathOrName.replaceAll('\\', '/').split('/').last;
     final dot = fileName.lastIndexOf('.');
     final stem = dot > 0 ? fileName.substring(0, dot) : fileName;
-    return stem
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim()
-        .toLowerCase();
+    return stem.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
   }
 
   String _fileFingerprint(String pathOrName, int byteLength) {
