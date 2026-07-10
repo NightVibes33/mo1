@@ -14,6 +14,7 @@ import 'package:go_router/go_router.dart';
 enum _MusicListDisplayItems {
   coverFlow,
   appleMusic,
+  navidrome,
   importSongs,
   playlists,
   artists,
@@ -28,6 +29,8 @@ enum _MusicListDisplayItems {
         return context.localization.coverFlowScreenTitle;
       case appleMusic:
         return 'Apple Music';
+      case navidrome:
+        return 'Connect Navidrome';
       case importSongs:
         return '+ MP3 Import';
       case playlists:
@@ -83,6 +86,9 @@ class _MusicMenuScreenState extends ConsumerState<MusicMenuScreen>
         break;
       case _MusicListDisplayItems.appleMusic:
         await context.pushNamed(Routes.appleMusic.name);
+        break;
+      case _MusicListDisplayItems.navidrome:
+        await context.pushNamed(Routes.navidrome.name);
         break;
       case _MusicListDisplayItems.importSongs:
         final importResult = await ref

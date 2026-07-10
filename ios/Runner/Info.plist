@@ -30,10 +30,19 @@
 	<false/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoadsInMedia</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSAppleMusicUsageDescription</key>
 	<string>døPe uses Apple Music access to search and play catalog songs, and to match local song metadata and artwork.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>døPe uses the camera only if you choose to take a photo to use as custom album artwork.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>døPe uses local network access to connect to self-hosted Navidrome music servers you choose.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>døPe lets you choose local album artwork for imported songs.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

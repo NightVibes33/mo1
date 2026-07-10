@@ -20,6 +20,7 @@ import 'package:dope/features/music/cover_flow/screens/cover_flow_album_selectio
 import 'package:dope/features/music/cover_flow/screens/cover_flow_screen.dart';
 import 'package:dope/features/music/genres/screens/genre_songs_screen.dart';
 import 'package:dope/features/music/genres/screens/genres_screen.dart';
+import 'package:dope/features/music/navidrome/screens/navidrome_screen.dart';
 import 'package:dope/features/music/playlist/screens/playlist_rename_screen.dart';
 import 'package:dope/features/music/playlist/screens/playlist_songs_more_options_modal.dart';
 import 'package:dope/features/music/playlist/screens/playlist_songs_screen.dart';
@@ -56,6 +57,7 @@ enum Routes {
   nowPlayingMoreOptions,
   musicMenu,
   appleMusic,
+  navidrome,
   coverFlow,
   coverFlowSelection,
   artists,
@@ -110,6 +112,8 @@ enum Routes {
         return context.localization.musicMenuScreenTitle;
       case appleMusic:
         return 'Apple Music';
+      case navidrome:
+        return 'Connect Navidrome';
       case coverFlow:
         return context.localization.coverFlowScreenTitle;
       case coverFlowSelection:
@@ -328,6 +332,13 @@ final routerProvider = Provider(
                         pageBuilder: (context, state) => const CupertinoPage(
                           child: AppleMusicSearchScreen(),
                         ),
+                      ),
+                      GoRoute(
+                        path: Routes.navidrome.name,
+                        name: Routes.navidrome.name,
+                        parentNavigatorKey: rootNavigatorKey,
+                        pageBuilder: (context, state) =>
+                            const CupertinoPage(child: NavidromeScreen()),
                       ),
                       GoRoute(
                         path: Routes.coverFlow.name,

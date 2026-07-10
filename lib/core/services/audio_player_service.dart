@@ -796,9 +796,42 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           isPlaying: didStart,
         );
     if (didStart) {
+      unawaited(_verifyAppleMusicManualStartAtZero(metadata));
       unawaited(_refreshAppleMusicLyrics(metadata));
     }
     return didStart;
+  }
+
+  Future<void> _verifyAppleMusicManualStartAtZero(
+    MusicMetadata metadata,
+  ) async {
+    await Future<void>.delayed(const Duration(milliseconds: 280));
+    final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+    if (nowPlayingDetails.currentMetadata?.filePath != metadata.filePath) {
+      return;
+    }
+
+    final snapshot = await ref
+        .read(appleMusicPlaybackServiceProvider)
+        .playbackSnapshot();
+    final position = snapshot.position;
+    if (position > const Duration(milliseconds: 450) &&
+        position < const Duration(seconds: 2)) {
+      final didSeek = await ref
+          .read(appleMusicPlaybackServiceProvider)
+          .seekTo(Duration.zero);
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackBreadcrumb(
+            'Corrected Apple Music manual selection start offset',
+            data: _playbackCrashData(
+              extra: {
+                'detectedOffsetMs': position.inMilliseconds,
+                'didSeekToZero': didSeek,
+              },
+            ),
+          );
+    }
   }
 
   Future<void> _refreshAppleMusicLyrics(MusicMetadata metadata) async {
