@@ -731,73 +731,96 @@ private enum AppleMusicLookupChannel {
       ApplicationMusicPlayer.shared.stop()
     }
     let player = MPMusicPlayerController.applicationQueuePlayer
+    let wasAlreadyPlaying = player.playbackState == .playing
+    if wasAlreadyPlaying {
+      player.pause()
+      player.currentPlaybackTime = 0
+    }
     player.stop()
     player.currentPlaybackTime = 0
 
-    let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: catalogIds)
-    descriptor.startItemID = startCatalogId
-    logAppleMusicDebug(
-      "Queue rebuild using store queue descriptor",
-      data: ["startCatalogId": startCatalogId, "queueSize": catalogIds.count]
-    )
-    player.setQueue(with: descriptor)
-    player.currentPlaybackTime = 0
-    player.prepareToPlay { error in
-      DispatchQueue.main.async {
-        if let error = error {
-          guard let mediaDescriptor = mediaItemQueueDescriptor(
-            catalogIds: catalogIds,
-            startCatalogId: startCatalogId
-          ) else {
-            result(FlutterError(
-              code: "APPLE_MUSIC_PLAYBACK_FAILED",
-              message: error.localizedDescription,
-              details: ["backend": "storeQueue"]
-            ))
+    let configureQueue = {
+      let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: catalogIds)
+      descriptor.startItemID = startCatalogId
+      logAppleMusicDebug(
+        "Queue rebuild using store queue descriptor",
+        data: [
+          "startCatalogId": startCatalogId,
+          "queueSize": catalogIds.count,
+          "wasAlreadyPlaying": wasAlreadyPlaying
+        ]
+      )
+      player.setQueue(with: descriptor)
+      player.currentPlaybackTime = 0
+      player.prepareToPlay { error in
+        DispatchQueue.main.async {
+          if let error = error {
+            guard let mediaDescriptor = mediaItemQueueDescriptor(
+              catalogIds: catalogIds,
+              startCatalogId: startCatalogId
+            ) else {
+              result(FlutterError(
+                code: "APPLE_MUSIC_PLAYBACK_FAILED",
+                message: error.localizedDescription,
+                details: ["backend": "storeQueue"]
+              ))
+              return
+            }
+
+            logAppleMusicDebug(
+              "Store queue failed; falling back to media library descriptor",
+              data: [
+                "startCatalogId": startCatalogId,
+                "queueSize": catalogIds.count,
+                "error": error.localizedDescription
+              ]
+            )
+            player.pause()
+            player.currentPlaybackTime = 0
+            player.stop()
+            player.currentPlaybackTime = 0
+            player.setQueue(with: mediaDescriptor)
+            player.currentPlaybackTime = 0
+            player.prepareToPlay { fallbackError in
+              DispatchQueue.main.async {
+                if let fallbackError = fallbackError {
+                  result(FlutterError(
+                    code: "APPLE_MUSIC_PLAYBACK_FAILED",
+                    message: fallbackError.localizedDescription,
+                    details: ["backend": "mediaLibrary"]
+                  ))
+                  return
+                }
+                startPreparedMediaPlayerQueue(
+                  player: player,
+                  startCatalogId: startCatalogId,
+                  backend: "mediaLibrary",
+                  result: result
+                )
+              }
+            }
             return
           }
 
-          logAppleMusicDebug(
-            "Store queue failed; falling back to media library descriptor",
-            data: [
-              "startCatalogId": startCatalogId,
-              "queueSize": catalogIds.count,
-              "error": error.localizedDescription
-            ]
+          startPreparedMediaPlayerQueue(
+            player: player,
+            startCatalogId: startCatalogId,
+            backend: "storeQueue",
+            result: result
           )
-          player.stop()
-          player.currentPlaybackTime = 0
-          player.setQueue(with: mediaDescriptor)
-          player.currentPlaybackTime = 0
-          player.prepareToPlay { fallbackError in
-            DispatchQueue.main.async {
-              if let fallbackError = fallbackError {
-                result(FlutterError(
-                  code: "APPLE_MUSIC_PLAYBACK_FAILED",
-                  message: fallbackError.localizedDescription,
-                  details: ["backend": "mediaLibrary"]
-                ))
-                return
-              }
-              startPreparedMediaPlayerQueue(
-                player: player,
-                startCatalogId: startCatalogId,
-                backend: "mediaLibrary",
-                result: result
-              )
-            }
-          }
-          return
         }
-
-        startPreparedMediaPlayerQueue(
-          player: player,
-          startCatalogId: startCatalogId,
-          backend: "storeQueue",
-          result: result
-        )
       }
     }
+
+    if wasAlreadyPlaying {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+        player.currentPlaybackTime = 0
+        configureQueue()
+      }
+      return
+    }
+
+    configureQueue()
   }
 
   private static func startPreparedMediaPlayerQueue(
@@ -886,7 +909,15 @@ private enum AppleMusicLookupChannel {
     } ?? songs[0]
 
     let player = ApplicationMusicPlayer.shared
+    let wasAlreadyPlaying = player.state.playbackStatus == .playing
+    if wasAlreadyPlaying {
+      player.pause()
+      player.playbackTime = 0
+      try await Task.sleep(nanoseconds: 120_000_000)
+    }
     player.stop()
+    MPMusicPlayerController.applicationQueuePlayer.pause()
+    MPMusicPlayerController.applicationQueuePlayer.currentPlaybackTime = 0
     MPMusicPlayerController.applicationQueuePlayer.stop()
     applyCurrentMusicKitTransitionIfAvailable()
     player.queue = ApplicationMusicPlayer.Queue(for: songs, startingAt: startSong)
