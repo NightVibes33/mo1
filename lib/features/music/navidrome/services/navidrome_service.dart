@@ -235,6 +235,44 @@ class NavidromeService {
     return _songsFromContainer(connection, response['playlist'], 'entry');
   }
 
+  Future<void> createPlaylist(
+    NavidromeConnection connection,
+    String name,
+  ) async {
+    await _getSubsonicResponse(
+      connection,
+      'createPlaylist.view',
+      extraQueryParameters: {'name': name},
+    );
+  }
+
+  Future<void> deletePlaylist(
+    NavidromeConnection connection,
+    String playlistId,
+  ) async {
+    await _getSubsonicResponse(
+      connection,
+      'deletePlaylist.view',
+      extraQueryParameters: {'id': playlistId},
+    );
+  }
+
+  Future<void> addSongToPlaylist(
+    NavidromeConnection connection,
+    String playlistId,
+    MusicMetadata song,
+  ) async {
+    final songId = _songIdFromMetadata(song);
+    if (songId == null) {
+      throw const NavidromeServiceException('Missing Navidrome song id.');
+    }
+    await _getSubsonicResponse(
+      connection,
+      'updatePlaylist.view',
+      extraQueryParameters: {'playlistId': playlistId, 'songIdToAdd': songId},
+    );
+  }
+
   Future<List<NavidromeBrowserItem>> musicFolders(
     NavidromeConnection connection,
   ) async {
@@ -278,6 +316,85 @@ class NavidromeService {
     return _songsFromContainer(connection, response['nowPlaying'], 'entry');
   }
 
+  Future<List<MusicMetadata>> bookmarks(NavidromeConnection connection) async {
+    final response = await _getSubsonicResponse(
+      connection,
+      'getBookmarks.view',
+    );
+    return _songsFromBookmarks(connection, response['bookmarks']);
+  }
+
+  Future<void> createBookmark(
+    NavidromeConnection connection,
+    MusicMetadata song, {
+    int positionMillis = 0,
+    String? comment,
+  }) async {
+    final songId = _songIdFromMetadata(song);
+    if (songId == null) {
+      throw const NavidromeServiceException('Missing Navidrome song id.');
+    }
+    await _getSubsonicResponse(
+      connection,
+      'createBookmark.view',
+      extraQueryParameters: {
+        'id': songId,
+        'position': positionMillis.toString(),
+        if (comment != null && comment.trim().isNotEmpty)
+          'comment': comment.trim(),
+      },
+    );
+  }
+
+  Future<void> deleteBookmark(
+    NavidromeConnection connection,
+    MusicMetadata song,
+  ) async {
+    final songId = _songIdFromMetadata(song);
+    if (songId == null) {
+      throw const NavidromeServiceException('Missing Navidrome song id.');
+    }
+    await _getSubsonicResponse(
+      connection,
+      'deleteBookmark.view',
+      extraQueryParameters: {'id': songId},
+    );
+  }
+
+  Future<List<MusicMetadata>> playQueue(NavidromeConnection connection) async {
+    final response = await _getSubsonicResponse(
+      connection,
+      'getPlayQueue.view',
+    );
+    return _songsFromContainer(connection, response['playQueue'], 'entry');
+  }
+
+  Future<void> savePlayQueue(
+    NavidromeConnection connection,
+    List<MusicMetadata> songs,
+    int currentIndex,
+  ) async {
+    final songIds = songs
+        .map(_songIdFromMetadata)
+        .whereType<String>()
+        .toList(growable: false);
+    if (songIds.isEmpty) {
+      throw const NavidromeServiceException('No Navidrome songs to save.');
+    }
+    final current = currentIndex >= 0 && currentIndex < songs.length
+        ? _songIdFromMetadata(songs[currentIndex])
+        : songIds.first;
+    await _getSubsonicResponse(
+      connection,
+      'savePlayQueue.view',
+      extraQueryParameters: {
+        'id': songIds,
+        if (current != null) 'current': current,
+        'position': '0',
+      },
+    );
+  }
+
   Future<void> starArtist(
     NavidromeConnection connection,
     String artistId,
@@ -316,6 +433,18 @@ class NavidromeService {
       connection,
       'unstar.view',
       extraQueryParameters: {'albumId': albumId},
+    );
+  }
+
+  Uri downloadUri(NavidromeConnection connection, MusicMetadata song) {
+    final songId = _songIdFromMetadata(song);
+    if (songId == null) {
+      throw const NavidromeServiceException('Missing Navidrome song id.');
+    }
+    return _buildUri(
+      connection,
+      'download.view',
+      extraQueryParameters: {'id': songId},
     );
   }
 
@@ -445,7 +574,7 @@ class NavidromeService {
   Future<Map<String, dynamic>> _getSubsonicResponse(
     NavidromeConnection connection,
     String endpoint, {
-    Map<String, String> extraQueryParameters = const {},
+    Map<String, dynamic> extraQueryParameters = const {},
   }) async {
     final uri = _buildUri(
       connection,
@@ -624,6 +753,34 @@ class NavidromeService {
       }
     }
     return items;
+  }
+
+  List<MusicMetadata> _songsFromBookmarks(
+    NavidromeConnection connection,
+    dynamic container,
+  ) {
+    if (container is! Map<String, dynamic>) {
+      return const [];
+    }
+    final bookmarksJson = container['bookmark'];
+    if (bookmarksJson is! List) {
+      return const [];
+    }
+    final songs = <MusicMetadata>[];
+    for (var index = 0; index < bookmarksJson.length; index++) {
+      final bookmark = bookmarksJson[index];
+      if (bookmark is Map<String, dynamic> &&
+          bookmark['entry'] is Map<String, dynamic>) {
+        songs.add(
+          _songMetadataFromJson(
+            connection,
+            bookmark['entry'] as Map<String, dynamic>,
+            index,
+          ),
+        );
+      }
+    }
+    return songs;
   }
 
   List<MusicMetadata> _songsFromContainer(
@@ -902,7 +1059,7 @@ class NavidromeService {
   Uri _buildUri(
     NavidromeConnection connection,
     String endpoint, {
-    Map<String, String> extraQueryParameters = const {},
+    Map<String, dynamic> extraQueryParameters = const {},
     bool includeJsonFormat = false,
   }) {
     final normalizedConnection = connection.normalized();
@@ -911,21 +1068,31 @@ class NavidromeService {
     final token = md5
         .convert(utf8.encode(normalizedConnection.password + salt))
         .toString();
+    final queryParameters = <String, List<String>>{
+      'u': [normalizedConnection.username],
+      't': [token],
+      's': [salt],
+      'v': [_apiVersion],
+      'c': [_clientName],
+      if (includeJsonFormat) 'f': ['json'],
+    };
+    for (final entry in extraQueryParameters.entries) {
+      final value = entry.value;
+      if (value is Iterable) {
+        queryParameters[entry.key] = [
+          for (final item in value) item.toString(),
+        ];
+      } else {
+        queryParameters[entry.key] = [value.toString()];
+      }
+    }
     return baseUri.replace(
       pathSegments: [
         ...baseUri.pathSegments.where((segment) => segment.isNotEmpty),
         'rest',
         endpoint,
       ],
-      queryParameters: {
-        'u': normalizedConnection.username,
-        't': token,
-        's': salt,
-        'v': _apiVersion,
-        'c': _clientName,
-        if (includeJsonFormat) 'f': 'json',
-        ...extraQueryParameters,
-      },
+      queryParameters: queryParameters,
     );
   }
 

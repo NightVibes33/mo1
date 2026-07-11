@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:dope/core/extensions/build_context_extensions.dart';
 import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/navigation/routes.dart';
@@ -45,6 +46,9 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
   static const String _genresAction = 'genres';
   static const String _nowPlayingAction = 'nowPlaying';
   static const String _foldersAction = 'folders';
+  static const String _bookmarksAction = 'bookmarks';
+  static const String _playQueueAction = 'playQueue';
+  static const String _createPlaylistAction = 'createPlaylist';
   static const String _scanStatusAction = 'scanStatus';
   static const String _startScanAction = 'startScan';
   static const String _disconnectAction = 'disconnect';
@@ -109,10 +113,19 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
       ),
       NavidromeBrowserItem.action(id: _artistsAction, title: 'Artists'),
       NavidromeBrowserItem.action(id: _playlistsAction, title: 'Playlists'),
+      NavidromeBrowserItem.action(
+        id: _createPlaylistAction,
+        title: 'Create Playlist',
+      ),
       NavidromeBrowserItem.action(id: _genresAction, title: 'Genres'),
       NavidromeBrowserItem.action(
         id: _nowPlayingAction,
         title: 'Server Now Playing',
+      ),
+      NavidromeBrowserItem.action(id: _bookmarksAction, title: 'Bookmarks'),
+      NavidromeBrowserItem.action(
+        id: _playQueueAction,
+        title: 'Server Play Queue',
       ),
       NavidromeBrowserItem.action(id: _foldersAction, title: 'Music Libraries'),
       NavidromeBrowserItem.action(id: _scanStatusAction, title: 'Scan Status'),
@@ -248,12 +261,35 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
           );
         }
         break;
+      case _createPlaylistAction:
+        if (connection != null) {
+          await _createPlaylist(connection);
+        }
+        break;
       case _nowPlayingAction:
         if (connection != null) {
           await _loadSongPage(
             title: 'Server Now Playing',
             loader: () =>
                 ref.read(navidromeServiceProvider).serverNowPlaying(connection),
+          );
+        }
+        break;
+      case _bookmarksAction:
+        if (connection != null) {
+          await _loadSongPage(
+            title: 'Bookmarks',
+            loader: () =>
+                ref.read(navidromeServiceProvider).bookmarks(connection),
+          );
+        }
+        break;
+      case _playQueueAction:
+        if (connection != null) {
+          await _loadSongPage(
+            title: 'Server Play Queue',
+            loader: () =>
+                ref.read(navidromeServiceProvider).playQueue(connection),
           );
         }
         break;
@@ -398,6 +434,26 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
     return connection;
   }
 
+  Future<void> _createPlaylist(NavidromeConnection connection) async {
+    final name = await _promptForText(
+      title: 'Create Playlist',
+      placeholder: 'Playlist name',
+    );
+    if (!mounted || name == null || name.trim().isEmpty) {
+      return;
+    }
+    try {
+      await ref
+          .read(navidromeServiceProvider)
+          .createPlaylist(connection, name.trim());
+      _setStatus('Playlist created.');
+    } on NavidromeServiceException catch (error) {
+      _setError(error.message);
+    } catch (_) {
+      _setError('Navidrome playlist request failed.');
+    }
+  }
+
   Future<void> _promptAndSearch(NavidromeConnection connection) async {
     final query = await _promptForSearchQuery();
     if (!mounted || query == null) {
@@ -442,6 +498,43 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
             isDefaultAction: true,
             onPressed: () => Navigator.of(context).pop(controller.text),
             child: const Text('Search'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
+  Future<String?> _promptForText({
+    required String title,
+    required String placeholder,
+    String initialValue = '',
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+    final result = await showCupertinoDialog<String>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            controller: controller,
+            autofocus: true,
+            clearButtonMode: OverlayVisibilityMode.editing,
+            placeholder: placeholder,
+            onSubmitted: (value) => Navigator.of(context).pop(value),
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('OK'),
           ),
         ],
       ),
@@ -705,6 +798,12 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
               onPressed: () => Navigator.of(context).pop('albumInfo'),
               child: const Text('Album Info'),
             ),
+          if (item.type == NavidromeBrowserItemType.playlist)
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.of(context).pop('deletePlaylist'),
+              child: const Text('Delete Playlist'),
+            ),
           if (item.type == NavidromeBrowserItemType.artist)
             CupertinoActionSheetAction(
               onPressed: () => Navigator.of(context).pop('starArtist'),
@@ -775,6 +874,12 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
                 .read(navidromeServiceProvider)
                 .albumInfoText(connection, item.id),
           );
+          break;
+        case 'deletePlaylist':
+          await ref
+              .read(navidromeServiceProvider)
+              .deletePlaylist(connection, item.id);
+          _setStatus('Playlist deleted.');
           break;
         case 'starArtist':
           await ref
@@ -850,6 +955,26 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
             onPressed: () => Navigator.of(context).pop('lyrics'),
             child: const Text('Show Lyrics'),
           ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('addToPlaylist'),
+            child: const Text('Add to Server Playlist'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('bookmark'),
+            child: const Text('Create Bookmark'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('deleteBookmark'),
+            child: const Text('Delete Bookmark'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('savePlayQueue'),
+            child: const Text('Save Server Play Queue'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('download'),
+            child: const Text('Copy Download Link'),
+          ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.of(context).pop(),
@@ -877,6 +1002,35 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
               .setSongRating(connection, song, 5);
           _setStatus('Song rated 5 stars.');
           break;
+        case 'addToPlaylist':
+          await _addSongToPlaylist(connection, song);
+          break;
+        case 'bookmark':
+          await ref
+              .read(navidromeServiceProvider)
+              .createBookmark(connection, song);
+          _setStatus('Bookmark created.');
+          break;
+        case 'deleteBookmark':
+          await ref
+              .read(navidromeServiceProvider)
+              .deleteBookmark(connection, song);
+          _setStatus('Bookmark deleted.');
+          break;
+        case 'savePlayQueue':
+          await _saveCurrentPageAsPlayQueue(connection, song);
+          break;
+        case 'download':
+          await Clipboard.setData(
+            ClipboardData(
+              text: ref
+                  .read(navidromeServiceProvider)
+                  .downloadUri(connection, song)
+                  .toString(),
+            ),
+          );
+          _setStatus('Download link copied.');
+          break;
         case 'lyrics':
           await _showLyrics(connection, song);
           break;
@@ -886,6 +1040,59 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
     } catch (_) {
       _setError('Navidrome song action failed.');
     }
+  }
+
+  Future<void> _addSongToPlaylist(
+    NavidromeConnection connection,
+    MusicMetadata song,
+  ) async {
+    final playlists = await ref
+        .read(navidromeServiceProvider)
+        .playlists(connection);
+    if (!mounted) {
+      return;
+    }
+    final playlistId = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Add to Playlist'),
+        actions: [
+          for (final playlist in playlists)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop(playlist.id),
+              child: Text(playlist.title),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (playlistId == null) {
+      return;
+    }
+    await ref
+        .read(navidromeServiceProvider)
+        .addSongToPlaylist(connection, playlistId, song);
+    _setStatus('Song added to playlist.');
+  }
+
+  Future<void> _saveCurrentPageAsPlayQueue(
+    NavidromeConnection connection,
+    MusicMetadata selectedSong,
+  ) async {
+    final songs = _currentItems
+        .map((item) => item.song)
+        .whereType<MusicMetadata>()
+        .toList(growable: false);
+    final index = songs.indexWhere(
+      (song) => song.filePath == selectedSong.filePath,
+    );
+    await ref
+        .read(navidromeServiceProvider)
+        .savePlayQueue(connection, songs, index);
+    _setStatus('Server play queue saved.');
   }
 
   Future<void> _showInfoDialog({
