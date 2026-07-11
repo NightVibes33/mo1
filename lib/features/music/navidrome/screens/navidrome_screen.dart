@@ -89,14 +89,14 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
         title: 'Connect Navidrome',
         subtitle: 'Update server or login',
       ),
-      NavidromeBrowserItem.action(id: _searchAction, title: 'Search Navidrome'),
+      NavidromeBrowserItem.action(id: _searchAction, title: 'Search Library'),
       NavidromeBrowserItem.action(
         id: _randomSongsAction,
         title: 'Random Songs',
       ),
       NavidromeBrowserItem.action(
         id: _starredSongsAction,
-        title: 'Starred Songs',
+        title: 'Starred',
       ),
       NavidromeBrowserItem.action(
         id: _newestAlbumsAction,
@@ -104,20 +104,20 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
       ),
       NavidromeBrowserItem.action(
         id: _recentAlbumsAction,
-        title: 'Recently Played Albums',
+        title: 'Recent Albums',
       ),
       NavidromeBrowserItem.action(
         id: _frequentAlbumsAction,
-        title: 'Most Played Albums',
+        title: 'Frequent Albums',
       ),
       NavidromeBrowserItem.action(id: _artistsAction, title: 'Artists'),
       NavidromeBrowserItem.action(id: _playlistsAction, title: 'Playlists'),
       NavidromeBrowserItem.action(id: _genresAction, title: 'Genres'),
       NavidromeBrowserItem.action(
         id: _nowPlayingAction,
-        title: 'Now Playing on Server',
+        title: 'Server Now Playing',
       ),
-      NavidromeBrowserItem.action(id: _foldersAction, title: 'Music Folders'),
+      NavidromeBrowserItem.action(id: _foldersAction, title: 'Music Libraries'),
       NavidromeBrowserItem.action(id: _scanStatusAction, title: 'Scan Status'),
       NavidromeBrowserItem.action(
         id: _startScanAction,
@@ -188,10 +188,10 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
         break;
       case _starredSongsAction:
         if (connection != null) {
-          await _loadSongPage(
-            title: 'Starred Songs',
+          await _loadBrowserPage(
+            title: 'Starred',
             loader: () =>
-                ref.read(navidromeServiceProvider).starredSongs(connection),
+                ref.read(navidromeServiceProvider).starredResults(connection),
           );
         }
         break;
@@ -208,7 +208,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
       case _recentAlbumsAction:
         if (connection != null) {
           await _loadBrowserPage(
-            title: 'Recently Played',
+            title: 'Recent Albums',
             loader: () => ref
                 .read(navidromeServiceProvider)
                 .albumList(connection, 'recent'),
@@ -218,7 +218,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
       case _frequentAlbumsAction:
         if (connection != null) {
           await _loadBrowserPage(
-            title: 'Most Played',
+            title: 'Frequent Albums',
             loader: () => ref
                 .read(navidromeServiceProvider)
                 .albumList(connection, 'frequent'),
@@ -263,7 +263,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
       case _foldersAction:
         if (connection != null) {
           await _loadBrowserPage(
-            title: 'Music Folders',
+            title: 'Music Libraries',
             loader: () =>
                 ref.read(navidromeServiceProvider).musicFolders(connection),
           );
@@ -411,12 +411,11 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
       setState(() => _errorText = 'Enter a song, artist, or album.');
       return;
     }
-    await _loadSongPage(
+    await _loadBrowserPage(
       title: 'Search: $cleanQuery',
       loader: () => ref
           .read(navidromeServiceProvider)
-          .searchSongs(connection, cleanQuery),
-      onLoaded: () => _query = cleanQuery,
+          .searchResults(connection, cleanQuery),
     );
   }
 
@@ -425,7 +424,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
     final result = await showCupertinoDialog<String>(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('Search Navidrome'),
+        title: const Text('Search Library'),
         content: Padding(
           padding: const EdgeInsets.only(top: 12),
           child: CupertinoTextField(

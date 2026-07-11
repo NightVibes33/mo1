@@ -28,7 +28,7 @@ class NavidromeService {
     await _getSubsonicResponse(connection, 'ping.view');
   }
 
-  Future<List<MusicMetadata>> searchSongs(
+  Future<List<NavidromeBrowserItem>> searchResults(
     NavidromeConnection connection,
     String query,
   ) async {
@@ -37,29 +37,12 @@ class NavidromeService {
       'search3.view',
       extraQueryParameters: {
         'query': query.trim(),
-        'artistCount': '0',
-        'albumCount': '0',
-        'songCount': '100',
+        'artistCount': '20',
+        'albumCount': '20',
+        'songCount': '20',
       },
     );
-    final searchResult = response['searchResult3'];
-    if (searchResult is! Map<String, dynamic>) {
-      return const [];
-    }
-    final songsJson = searchResult['song'];
-    if (songsJson is! List) {
-      return const [];
-    }
-
-    return [
-      for (var index = 0; index < songsJson.length; index++)
-        if (songsJson[index] is Map<String, dynamic>)
-          _songMetadataFromJson(
-            connection,
-            songsJson[index] as Map<String, dynamic>,
-            index,
-          ),
-    ];
+    return _searchItemsFromContainer(connection, response['searchResult3']);
   }
 
   Future<List<MusicMetadata>> randomSongs(
@@ -73,11 +56,11 @@ class NavidromeService {
     return _songsFromContainer(connection, response['randomSongs'], 'song');
   }
 
-  Future<List<MusicMetadata>> starredSongs(
+  Future<List<NavidromeBrowserItem>> starredResults(
     NavidromeConnection connection,
   ) async {
     final response = await _getSubsonicResponse(connection, 'getStarred2.view');
-    return _songsFromContainer(connection, response['starred2'], 'song');
+    return _starredItemsFromContainer(connection, response['starred2']);
   }
 
   Future<List<NavidromeBrowserItem>> albumList(
@@ -400,6 +383,102 @@ class NavidromeService {
       originalSongIndex: -index - 1,
       isOnDevice: false,
     );
+  }
+
+  List<NavidromeBrowserItem> _searchItemsFromContainer(
+    NavidromeConnection connection,
+    dynamic container,
+  ) {
+    if (container is! Map<String, dynamic>) {
+      return const [];
+    }
+
+    final items = <NavidromeBrowserItem>[];
+    final artistItems = container['artist'];
+    final albumItems = container['album'];
+    final songItems = container['song'];
+
+    if (artistItems is List) {
+      for (final itemJson in artistItems) {
+        if (itemJson is Map<String, dynamic>) {
+          items.add(_artistItemFromJson(itemJson));
+        }
+      }
+    }
+    if (albumItems is List) {
+      for (final itemJson in albumItems) {
+        if (itemJson is Map<String, dynamic>) {
+          items.add(_albumItemFromJson(itemJson));
+        }
+      }
+    }
+    if (songItems is List) {
+      for (var index = 0; index < songItems.length; index++) {
+        if (songItems[index] is Map<String, dynamic>) {
+          items.add(
+            NavidromeBrowserItem.song(
+              id: songItems[index]['id']?.toString() ?? '',
+              title: songItems[index]['title']?.toString() ?? 'Unknown Song',
+              subtitle: _artistsFromJson(songItems[index]['artist'])?.join(' • '),
+              song: _songMetadataFromJson(
+                connection,
+                songItems[index] as Map<String, dynamic>,
+                index,
+              ),
+            ),
+          );
+        }
+      }
+    }
+    return items;
+  }
+
+  List<NavidromeBrowserItem> _starredItemsFromContainer(
+    NavidromeConnection connection,
+    dynamic container,
+  ) {
+    if (container is! Map<String, dynamic>) {
+      return const [];
+    }
+
+    final items = <NavidromeBrowserItem>[];
+    final artistItems = container['artist'];
+    final albumItems = container['album'];
+    final songItems = container['song'];
+
+    if (artistItems is List) {
+      for (final itemJson in artistItems) {
+        if (itemJson is Map<String, dynamic>) {
+          items.add(_artistItemFromJson(itemJson));
+        }
+      }
+    }
+    if (albumItems is List) {
+      for (final itemJson in albumItems) {
+        if (itemJson is Map<String, dynamic>) {
+          items.add(_albumItemFromJson(itemJson));
+        }
+      }
+    }
+    if (songItems is List) {
+      for (var index = 0; index < songItems.length; index++) {
+        if (songItems[index] is Map<String, dynamic>) {
+          items.add(
+            NavidromeBrowserItem.song(
+              id: songItems[index]['id']?.toString() ?? '',
+              title: songItems[index]['title']?.toString() ?? 'Unknown Song',
+              subtitle: _artistsFromJson(songItems[index]['artist'])?.join(' • '),
+              song: _songMetadataFromJson(
+                connection,
+                songItems[index] as Map<String, dynamic>,
+                index,
+              ),
+            ),
+          );
+        }
+      }
+    }
+    return items;
   }
 
   List<MusicMetadata> _songsFromContainer(
