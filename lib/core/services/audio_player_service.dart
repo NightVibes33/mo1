@@ -28,6 +28,9 @@ final audioPlayerServiceProvider =
 class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   AudioPlayerServiceNotifier() : super();
 
+  static const int _appleMusicQueueLookBehind = 10;
+  static const int _appleMusicQueueLookAhead = 50;
+
   AudioPlayer? _transitionPlayer;
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<PlayerState>? _playerStateSubscription;
@@ -766,9 +769,42 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       return false;
     }
 
-    final previousMetadata = ref
-        .read(nowPlayingDetailsProvider)
-        .currentMetadata;
+    final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+    final previousMetadata = nowPlayingDetails.currentMetadata;
+    final isSameAppleMusicTrack =
+        previousMetadata?.appleMusicCatalogId == catalogId;
+    if (isSameAppleMusicTrack) {
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackBreadcrumb(
+            'Apple Music same track selected',
+            data: _playbackCrashData(
+              extra: {
+                'targetCatalogId': catalogId,
+                'targetTrackName': metadata.trackName,
+                'wasPlaying': nowPlayingDetails.isPlaying,
+              },
+            ),
+          );
+      if (nowPlayingDetails.isPlaying) {
+        return true;
+      }
+      final didResume = await ref
+          .read(appleMusicPlaybackServiceProvider)
+          .resume();
+      if (didResume) {
+        ref
+            .read(nowPlayingDetailsProvider.notifier)
+            .setNewMetadataList(
+              nowPlayingType: nowPlayingType,
+              newMetadataList: metadataList ?? nowPlayingDetails.metadataList,
+              currentIndex: currentIndex,
+              isPlaying: true,
+            );
+        return true;
+      }
+    }
+
     final localPlayer = ref.read(audioPlayerProvider);
     await _cancelSongTransition();
     if (localPlayer.playing) {
@@ -793,7 +829,20 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           ),
         );
 
-    final playbackList = metadataList ?? [metadata];
+    final requestedPlaybackList = metadataList ?? [metadata];
+    final boundedPlaybackList = _boundedAppleMusicPlaybackList(
+      playbackList: requestedPlaybackList,
+      currentIndex: currentIndex,
+    );
+    final boundedCurrentIndex = boundedPlaybackList.indexWhere(
+      (entry) => entry.appleMusicCatalogId == catalogId,
+    );
+    final playbackList = boundedCurrentIndex == -1
+        ? [metadata]
+        : boundedPlaybackList;
+    final safeCurrentIndex = boundedCurrentIndex == -1
+        ? 0
+        : boundedCurrentIndex;
     final catalogIds = playbackList
         .map((entry) => entry.appleMusicCatalogId)
         .whereType<String>()
@@ -814,7 +863,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         .setNewMetadataList(
           nowPlayingType: nowPlayingType,
           newMetadataList: playbackList,
-          currentIndex: currentIndex,
+          currentIndex: safeCurrentIndex,
           isPlaying: didStart,
         );
     if (didStart) {
@@ -822,6 +871,27 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       unawaited(_refreshAppleMusicLyrics(metadata));
     }
     return didStart;
+  }
+
+  List<MusicMetadata> _boundedAppleMusicPlaybackList({
+    required List<MusicMetadata> playbackList,
+    required int currentIndex,
+  }) {
+    if (playbackList.length <=
+        _appleMusicQueueLookBehind + _appleMusicQueueLookAhead + 1) {
+      return playbackList;
+    }
+    if (currentIndex < 0 || currentIndex >= playbackList.length) {
+      return playbackList;
+    }
+
+    final start = (currentIndex - _appleMusicQueueLookBehind)
+        .clamp(0, playbackList.length - 1)
+        .toInt();
+    final end = (currentIndex + _appleMusicQueueLookAhead + 1)
+        .clamp(start + 1, playbackList.length)
+        .toInt();
+    return playbackList.sublist(start, end);
   }
 
   Future<void> _verifyAppleMusicManualStartAtZero(

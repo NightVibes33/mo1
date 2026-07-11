@@ -28,7 +28,7 @@ class AppleMusicPlaybackService {
   Stream<AppleMusicPlaybackSnapshot> playbackSnapshots() async* {
     while (true) {
       yield await playbackSnapshot();
-      await Future<void>.delayed(const Duration(milliseconds: 450));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
     }
   }
 
