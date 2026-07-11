@@ -766,10 +766,32 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       return false;
     }
 
+    final previousMetadata = ref
+        .read(nowPlayingDetailsProvider)
+        .currentMetadata;
     final localPlayer = ref.read(audioPlayerProvider);
+    await _cancelSongTransition();
     if (localPlayer.playing) {
       await localPlayer.pause();
     }
+    if (localPlayer.currentIndex != null ||
+        localPlayer.processingState != ProcessingState.idle) {
+      await localPlayer.stop();
+    }
+    ref
+        .read(crashLogServiceProvider)
+        .recordPlaybackBreadcrumb(
+          'Apple Music manual selection requested',
+          data: _playbackCrashData(
+            extra: {
+              'targetCatalogId': catalogId,
+              'targetTrackName': metadata.trackName,
+              'wasAppleMusicPlaying':
+                  previousMetadata?.isAppleMusicCatalogTrack ?? false,
+              'wasLocalPlayerPlaying': localPlayer.playing,
+            },
+          ),
+        );
 
     final playbackList = metadataList ?? [metadata];
     final catalogIds = playbackList
