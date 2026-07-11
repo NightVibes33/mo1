@@ -63,6 +63,76 @@ class NavidromeService {
     return _starredItemsFromContainer(connection, response['starred2']);
   }
 
+  Future<List<MusicMetadata>> topSongs(
+    NavidromeConnection connection,
+    String artistName,
+  ) async {
+    final response = await _getSubsonicResponse(
+      connection,
+      'getTopSongs.view',
+      extraQueryParameters: {'artist': artistName, 'count': '50'},
+    );
+    return _songsFromContainer(connection, response['topSongs'], 'song');
+  }
+
+  Future<List<MusicMetadata>> similarSongs(
+    NavidromeConnection connection,
+    String artistId,
+  ) async {
+    final response = await _getSubsonicResponse(
+      connection,
+      'getSimilarSongs2.view',
+      extraQueryParameters: {'id': artistId, 'count': '50'},
+    );
+    return _songsFromContainer(connection, response['similarSongs2'], 'song');
+  }
+
+  Future<String> artistInfoText(
+    NavidromeConnection connection,
+    String artistId,
+  ) async {
+    final response = await _getSubsonicResponse(
+      connection,
+      'getArtistInfo2.view',
+      extraQueryParameters: {'id': artistId, 'count': '20'},
+    );
+    return _describeInfoResponse(
+      response['artistInfo2'],
+      title: 'Artist info',
+      primaryTextKeys: ['biography', 'summary', 'notes', 'description'],
+      imageKeys: [
+        'largeImageUrl',
+        'mediumImageUrl',
+        'smallImageUrl',
+        'imageUrl',
+      ],
+      listKeys: ['similarArtist'],
+    );
+  }
+
+  Future<String> albumInfoText(
+    NavidromeConnection connection,
+    String albumId,
+  ) async {
+    final response = await _getSubsonicResponse(
+      connection,
+      'getAlbumInfo2.view',
+      extraQueryParameters: {'id': albumId},
+    );
+    return _describeInfoResponse(
+      response['albumInfo'],
+      title: 'Album info',
+      primaryTextKeys: ['notes', 'summary', 'description'],
+      imageKeys: [
+        'largeImageUrl',
+        'mediumImageUrl',
+        'smallImageUrl',
+        'imageUrl',
+      ],
+      listKeys: const [],
+    );
+  }
+
   Future<List<NavidromeBrowserItem>> albumList(
     NavidromeConnection connection,
     String type, {
@@ -208,6 +278,47 @@ class NavidromeService {
     return _songsFromContainer(connection, response['nowPlaying'], 'entry');
   }
 
+  Future<void> starArtist(
+    NavidromeConnection connection,
+    String artistId,
+  ) async {
+    await _getSubsonicResponse(
+      connection,
+      'star.view',
+      extraQueryParameters: {'artistId': artistId},
+    );
+  }
+
+  Future<void> unstarArtist(
+    NavidromeConnection connection,
+    String artistId,
+  ) async {
+    await _getSubsonicResponse(
+      connection,
+      'unstar.view',
+      extraQueryParameters: {'artistId': artistId},
+    );
+  }
+
+  Future<void> starAlbum(NavidromeConnection connection, String albumId) async {
+    await _getSubsonicResponse(
+      connection,
+      'star.view',
+      extraQueryParameters: {'albumId': albumId},
+    );
+  }
+
+  Future<void> unstarAlbum(
+    NavidromeConnection connection,
+    String albumId,
+  ) async {
+    await _getSubsonicResponse(
+      connection,
+      'unstar.view',
+      extraQueryParameters: {'albumId': albumId},
+    );
+  }
+
   Future<String?> lyrics(
     NavidromeConnection connection,
     MusicMetadata song,
@@ -283,6 +394,36 @@ class NavidromeService {
       connection,
       'setRating.view',
       extraQueryParameters: {'id': id, 'rating': rating.clamp(0, 5).toString()},
+    );
+  }
+
+  Future<void> rateArtist(
+    NavidromeConnection connection,
+    String artistId,
+    int rating,
+  ) async {
+    await _getSubsonicResponse(
+      connection,
+      'setRating.view',
+      extraQueryParameters: {
+        'id': artistId,
+        'rating': rating.clamp(0, 5).toString(),
+      },
+    );
+  }
+
+  Future<void> rateAlbum(
+    NavidromeConnection connection,
+    String albumId,
+    int rating,
+  ) async {
+    await _getSubsonicResponse(
+      connection,
+      'setRating.view',
+      extraQueryParameters: {
+        'id': albumId,
+        'rating': rating.clamp(0, 5).toString(),
+      },
     );
   }
 
@@ -419,7 +560,9 @@ class NavidromeService {
             NavidromeBrowserItem.song(
               id: songItems[index]['id']?.toString() ?? '',
               title: songItems[index]['title']?.toString() ?? 'Unknown Song',
-              subtitle: _artistsFromJson(songItems[index]['artist'])?.join(' • '),
+              subtitle: _artistsFromJson(
+                songItems[index]['artist'],
+              )?.join(' • '),
               song: _songMetadataFromJson(
                 connection,
                 songItems[index] as Map<String, dynamic>,
@@ -467,7 +610,9 @@ class NavidromeService {
             NavidromeBrowserItem.song(
               id: songItems[index]['id']?.toString() ?? '',
               title: songItems[index]['title']?.toString() ?? 'Unknown Song',
-              subtitle: _artistsFromJson(songItems[index]['artist'])?.join(' • '),
+              subtitle: _artistsFromJson(
+                songItems[index]['artist'],
+              )?.join(' • '),
               song: _songMetadataFromJson(
                 connection,
                 songItems[index] as Map<String, dynamic>,
@@ -502,6 +647,145 @@ class NavidromeService {
             index,
           ),
     ];
+  }
+
+  String _describeInfoResponse(
+    dynamic response, {
+    required String title,
+    required List<String> primaryTextKeys,
+    required List<String> imageKeys,
+    required List<String> listKeys,
+  }) {
+    if (response is! Map<String, dynamic>) {
+      return '$title unavailable.';
+    }
+
+    final parts = <String>[];
+    for (final key in primaryTextKeys) {
+      final value = response[key]?.toString().trim();
+      if (value != null && value.isNotEmpty) {
+        parts.add(value);
+        break;
+      }
+    }
+
+    for (final key in listKeys) {
+      final listValue = response[key];
+      if (listValue is List && listValue.isNotEmpty) {
+        final names = <String>[];
+        for (final item in listValue) {
+          if (item is Map<String, dynamic>) {
+            final name = item['name']?.toString().trim();
+            if (name != null && name.isNotEmpty) {
+              names.add(name);
+            }
+          } else {
+            final value = item?.toString().trim();
+            if (value != null && value.isNotEmpty) {
+              names.add(value);
+            }
+          }
+        }
+        if (names.isNotEmpty) {
+          parts.add(
+            '${key == 'similarArtist' ? 'Similar artists' : key}: ${names.join(', ')}',
+          );
+        }
+      }
+    }
+
+    final imageUrls = <String>{};
+    for (final key in imageKeys) {
+      final value = response[key]?.toString().trim();
+      if (value != null && value.isNotEmpty) {
+        imageUrls.add(value);
+      }
+    }
+    if (imageUrls.isNotEmpty) {
+      parts.add('Images: ${imageUrls.join('\\n')}');
+    }
+
+    return parts.isEmpty ? '$title unavailable.' : parts.join('\\n\\n');
+  }
+
+  NavidromeBrowserItem _searchArtistItemFromJson(
+    Map<String, dynamic> artistJson,
+  ) {
+    final item = _artistItemFromJson(artistJson);
+    return NavidromeBrowserItem.artist(
+      id: item.id,
+      title: item.title,
+      subtitle: item.subtitle == null ? 'Artist' : 'Artist • ${item.subtitle}',
+    );
+  }
+
+  NavidromeBrowserItem _searchAlbumItemFromJson(
+    Map<String, dynamic> albumJson,
+  ) {
+    final item = _albumItemFromJson(albumJson);
+    return NavidromeBrowserItem.album(
+      id: item.id,
+      title: item.title,
+      subtitle: item.subtitle == null ? 'Album' : 'Album • ${item.subtitle}',
+    );
+  }
+
+  NavidromeBrowserItem _searchSongItemFromJson(
+    NavidromeConnection connection,
+    Map<String, dynamic> songJson,
+    int index,
+  ) {
+    final song = _songMetadataFromJson(connection, songJson, index);
+    return NavidromeBrowserItem.song(
+      id: songJson['id']?.toString() ?? '',
+      title: song.getTrackName,
+      subtitle: song.getTrackArtistNames == null
+          ? 'Song'
+          : 'Song • ${song.getTrackArtistNames}',
+      song: song,
+    );
+  }
+
+  NavidromeBrowserItem _starredArtistItemFromJson(
+    Map<String, dynamic> artistJson,
+  ) {
+    final item = _artistItemFromJson(artistJson);
+    return NavidromeBrowserItem.artist(
+      id: item.id,
+      title: item.title,
+      subtitle: item.subtitle == null
+          ? 'Starred Artist'
+          : 'Starred Artist • ${item.subtitle}',
+    );
+  }
+
+  NavidromeBrowserItem _starredAlbumItemFromJson(
+    Map<String, dynamic> albumJson,
+  ) {
+    final item = _albumItemFromJson(albumJson);
+    return NavidromeBrowserItem.album(
+      id: item.id,
+      title: item.title,
+      subtitle: item.subtitle == null
+          ? 'Starred Album'
+          : 'Starred Album • ${item.subtitle}',
+    );
+  }
+
+  NavidromeBrowserItem _starredSongItemFromJson(
+    NavidromeConnection connection,
+    Map<String, dynamic> songJson,
+    int index,
+  ) {
+    final song = _songMetadataFromJson(connection, songJson, index);
+    return NavidromeBrowserItem.song(
+      id: songJson['id']?.toString() ?? '',
+      title: song.getTrackName,
+      subtitle: song.getTrackArtistNames == null
+          ? 'Starred Song'
+          : 'Starred Song • ${song.getTrackArtistNames}',
+      song: song,
+    );
   }
 
   List<NavidromeBrowserItem> _itemsFromContainer(

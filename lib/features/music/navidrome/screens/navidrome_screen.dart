@@ -94,10 +94,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
         id: _randomSongsAction,
         title: 'Random Songs',
       ),
-      NavidromeBrowserItem.action(
-        id: _starredSongsAction,
-        title: 'Starred',
-      ),
+      NavidromeBrowserItem.action(id: _starredSongsAction, title: 'Starred'),
       NavidromeBrowserItem.action(
         id: _newestAlbumsAction,
         title: 'Newest Albums',
@@ -676,6 +673,154 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
     }
   }
 
+  Future<void> _showBrowserActions(NavidromeBrowserItem item) async {
+    final connection = ref.read(navidromeConnectionProvider);
+    if (connection == null) {
+      return;
+    }
+
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text(item.title),
+        message: Text(item.subtitle ?? 'Navidrome item'),
+        actions: [
+          if (item.type == NavidromeBrowserItemType.artist)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('topSongs'),
+              child: const Text('Top Songs'),
+            ),
+          if (item.type == NavidromeBrowserItemType.artist)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('similarSongs'),
+              child: const Text('Similar Songs'),
+            ),
+          if (item.type == NavidromeBrowserItemType.artist)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('artistInfo'),
+              child: const Text('Artist Info'),
+            ),
+          if (item.type == NavidromeBrowserItemType.album)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('albumInfo'),
+              child: const Text('Album Info'),
+            ),
+          if (item.type == NavidromeBrowserItemType.artist)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('starArtist'),
+              child: const Text('Star Artist'),
+            ),
+          if (item.type == NavidromeBrowserItemType.artist)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('unstarArtist'),
+              child: const Text('Unstar Artist'),
+            ),
+          if (item.type == NavidromeBrowserItemType.album)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('starAlbum'),
+              child: const Text('Star Album'),
+            ),
+          if (item.type == NavidromeBrowserItemType.album)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('unstarAlbum'),
+              child: const Text('Unstar Album'),
+            ),
+          if (item.type == NavidromeBrowserItemType.artist ||
+              item.type == NavidromeBrowserItemType.album)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('rate5'),
+              child: const Text('Rate 5 Stars'),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (!mounted || action == null) {
+      return;
+    }
+
+    try {
+      switch (action) {
+        case 'topSongs':
+          await _loadSongPage(
+            title: '${item.title} Top Songs',
+            loader: () => ref
+                .read(navidromeServiceProvider)
+                .topSongs(connection, item.title),
+          );
+          break;
+        case 'similarSongs':
+          await _loadSongPage(
+            title: 'Similar to ${item.title}',
+            loader: () => ref
+                .read(navidromeServiceProvider)
+                .similarSongs(connection, item.id),
+          );
+          break;
+        case 'artistInfo':
+          await _showInfoDialog(
+            title: item.title,
+            content: await ref
+                .read(navidromeServiceProvider)
+                .artistInfoText(connection, item.id),
+          );
+          break;
+        case 'albumInfo':
+          await _showInfoDialog(
+            title: item.title,
+            content: await ref
+                .read(navidromeServiceProvider)
+                .albumInfoText(connection, item.id),
+          );
+          break;
+        case 'starArtist':
+          await ref
+              .read(navidromeServiceProvider)
+              .starArtist(connection, item.id);
+          _setStatus('Artist starred.');
+          break;
+        case 'unstarArtist':
+          await ref
+              .read(navidromeServiceProvider)
+              .unstarArtist(connection, item.id);
+          _setStatus('Artist unstarred.');
+          break;
+        case 'starAlbum':
+          await ref
+              .read(navidromeServiceProvider)
+              .starAlbum(connection, item.id);
+          _setStatus('Album starred.');
+          break;
+        case 'unstarAlbum':
+          await ref
+              .read(navidromeServiceProvider)
+              .unstarAlbum(connection, item.id);
+          _setStatus('Album unstarred.');
+          break;
+        case 'rate5':
+          if (item.type == NavidromeBrowserItemType.artist) {
+            await ref
+                .read(navidromeServiceProvider)
+                .rateArtist(connection, item.id, 5);
+            _setStatus('Artist rated 5 stars.');
+          } else if (item.type == NavidromeBrowserItemType.album) {
+            await ref
+                .read(navidromeServiceProvider)
+                .rateAlbum(connection, item.id, 5);
+            _setStatus('Album rated 5 stars.');
+          }
+          break;
+      }
+    } on NavidromeServiceException catch (error) {
+      _setError(error.message);
+    } catch (_) {
+      _setError('Navidrome action failed.');
+    }
+  }
+
   Future<void> _showSongActions(NavidromeBrowserItem item) async {
     final song = item.song;
     final connection = ref.read(navidromeConnectionProvider);
@@ -741,6 +886,28 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
     } catch (_) {
       _setError('Navidrome song action failed.');
     }
+  }
+
+  Future<void> _showInfoDialog({
+    required String title,
+    required String content,
+  }) async {
+    if (!mounted) {
+      return;
+    }
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(title),
+        content: SingleChildScrollView(child: Text(content)),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _showLyrics(
@@ -847,6 +1014,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
       text: text,
       isSelected: selectedDisplayItem == index,
       onTap: () => unawaited(_onDisplayItemAction(index)),
+      onLongPress: () => unawaited(_showBrowserActions(item)),
     );
   }
 
