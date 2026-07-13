@@ -51,6 +51,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
   static const String _createPlaylistAction = 'createPlaylist';
   static const String _scanStatusAction = 'scanStatus';
   static const String _startScanAction = 'startScan';
+  static const String _qualityAction = 'quality';
   static const String _disconnectAction = 'disconnect';
   static const String _backAction = 'back';
 
@@ -128,6 +129,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
         title: 'Server Play Queue',
       ),
       NavidromeBrowserItem.action(id: _foldersAction, title: 'Music Libraries'),
+      NavidromeBrowserItem.action(id: _qualityAction, title: 'Audio Quality'),
       NavidromeBrowserItem.action(id: _scanStatusAction, title: 'Scan Status'),
       NavidromeBrowserItem.action(
         id: _startScanAction,
@@ -309,6 +311,11 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
             loader: () =>
                 ref.read(navidromeServiceProvider).musicFolders(connection),
           );
+        }
+        break;
+      case _qualityAction:
+        if (connection != null) {
+          await _chooseAudioQuality(connection);
         }
         break;
       case _scanStatusAction:
@@ -617,6 +624,40 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
       loader: () =>
           ref.read(navidromeServiceProvider).songsByGenre(connection, genre.id),
     );
+  }
+
+  Future<void> _chooseAudioQuality(NavidromeConnection connection) async {
+    final quality = await showCupertinoModalPopup<NavidromeAudioQuality>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Navidrome Audio Quality'),
+        message: Text(connection.audioQuality.description),
+        actions: [
+          for (final option in NavidromeAudioQuality.values)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop(option),
+              child: Text(option.label),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (!mounted || quality == null) {
+      return;
+    }
+    await ref
+        .read(navidromeConnectionProvider.notifier)
+        .updateAudioQuality(quality);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _statusText = '${quality.label} enabled. Reload Navidrome pages for new stream URLs.';
+      _errorText = null;
+    });
   }
 
   Future<void> _showScanStatus(

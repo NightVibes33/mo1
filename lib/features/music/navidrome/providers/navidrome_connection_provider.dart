@@ -11,6 +11,7 @@ class NavidromeConnectionNotifier extends Notifier<NavidromeConnection?> {
   static const String _serverUrlKey = 'navidrome.serverUrl';
   static const String _usernameKey = 'navidrome.username';
   static const String _passwordKey = 'navidrome.password';
+  static const String _audioQualityKey = 'navidrome.audioQuality';
 
   @override
   NavidromeConnection? build() {
@@ -25,6 +26,9 @@ class NavidromeConnectionNotifier extends Notifier<NavidromeConnection?> {
       serverUrl: preferences.getString(_serverUrlKey) ?? '',
       username: preferences.getString(_usernameKey) ?? '',
       password: preferences.getString(_passwordKey) ?? '',
+      audioQuality: NavidromeAudioQuality.fromName(
+        preferences.getString(_audioQualityKey),
+      ),
     ).normalized();
 
     return connection.isComplete ? connection : null;
@@ -38,6 +42,10 @@ class NavidromeConnectionNotifier extends Notifier<NavidromeConnection?> {
     await preferences.setString(_serverUrlKey, normalizedConnection.serverUrl);
     await preferences.setString(_usernameKey, normalizedConnection.username);
     await preferences.setString(_passwordKey, normalizedConnection.password);
+    await preferences.setString(
+      _audioQualityKey,
+      normalizedConnection.audioQuality.name,
+    );
     state = normalizedConnection;
   }
 
@@ -48,6 +56,18 @@ class NavidromeConnectionNotifier extends Notifier<NavidromeConnection?> {
     await preferences.remove(_serverUrlKey);
     await preferences.remove(_usernameKey);
     await preferences.remove(_passwordKey);
+    await preferences.remove(_audioQualityKey);
     state = null;
+  }
+}
+
+
+extension NavidromeConnectionQualityActions on NavidromeConnectionNotifier {
+  Future<void> updateAudioQuality(NavidromeAudioQuality quality) async {
+    final current = state;
+    if (current == null) {
+      return;
+    }
+    await save(current.copyWith(audioQuality: quality));
   }
 }

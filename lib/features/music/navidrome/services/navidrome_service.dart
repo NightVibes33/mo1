@@ -641,7 +641,11 @@ class NavidromeService {
           : _buildUri(
               connection,
               'stream.view',
-              extraQueryParameters: {'id': songId},
+              extraQueryParameters: {
+                'id': songId,
+                if (connection.audioQuality.maxBitRateKbps != null)
+                  'maxBitRate': connection.audioQuality.maxBitRateKbps!,
+              },
             ).toString(),
       thumbnailPath: coverArtId == null
           ? null
