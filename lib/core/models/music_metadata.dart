@@ -675,9 +675,9 @@ class MusicMetadata extends HiveObject {
   }
 
   int get effectiveAddedAtEpochMs {
-    return importedAtEpochMs ??
-        sourceCreatedAtEpochMs ??
+    return sourceCreatedAtEpochMs ??
         sourceModifiedAtEpochMs ??
+        importedAtEpochMs ??
         originalSongIndex;
   }
 
