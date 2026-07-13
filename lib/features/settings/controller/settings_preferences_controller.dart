@@ -16,6 +16,7 @@ import 'package:dope/features/settings/models/app_theme.dart';
 import 'package:dope/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:dope/features/settings/models/click_wheel_size.dart';
 import 'package:dope/features/settings/models/custom_device_theme.dart';
+import 'package:dope/features/settings/models/custom_equalizer_preset.dart';
 import 'package:dope/features/settings/models/device_color.dart';
 import 'package:dope/features/settings/models/equalizer_preset.dart';
 import 'package:dope/features/settings/models/repeat_mode.dart';
@@ -77,6 +78,10 @@ class SettingsPreferencesControllerNotifier
       equalizerPreset: EqualizerPreset.fromName(
         settingsPreferencesRepository.getEqualizerPreset(),
       ),
+      customEqualizerPresets: settingsPreferencesRepository
+          .getCustomEqualizerPresets(),
+      activeCustomEqualizerPresetId: settingsPreferencesRepository
+          .getActiveCustomEqualizerPresetId(),
       songSortOrder: SongSortOrder.fromName(
         settingsPreferencesRepository.getSongSortOrder(),
       ),
@@ -427,13 +432,125 @@ class SettingsPreferencesControllerNotifier
 
   Future<void> toggleEqualizerPreset() async {
     final updatedPreset = state.equalizerPreset.next;
+    await setEqualizerPreset(updatedPreset);
+  }
+
+  Future<void> setEqualizerPreset(EqualizerPreset preset) async {
+    if (state.equalizerPreset == preset &&
+        state.activeCustomEqualizerPresetId == null) {
+      return;
+    }
     await ref
         .read(settingsPreferencesRepositoryProvider)
-        .setEqualizerPreset(equalizerPresetName: updatedPreset.name);
-    state = state.copyWith(equalizerPreset: updatedPreset);
+        .setEqualizerPreset(equalizerPresetName: preset.name);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setActiveCustomEqualizerPresetId(null);
+    state = state.copyWith(
+      equalizerPreset: preset,
+      clearActiveCustomEqualizerPresetId: true,
+    );
     await ref
         .read(audioPlayerServiceProvider.notifier)
         .reconfigureEqualizerPlayback();
+  }
+
+  Future<void> selectCustomEqualizerPreset(String presetId) async {
+    final presetExists = state.customEqualizerPresets.any(
+      (preset) => preset.id == presetId,
+    );
+    if (!presetExists || state.activeCustomEqualizerPresetId == presetId) {
+      return;
+    }
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setActiveCustomEqualizerPresetId(presetId);
+    state = state.copyWith(activeCustomEqualizerPresetId: presetId);
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .reconfigureEqualizerPlayback();
+  }
+
+  Future<CustomEqualizerPreset> saveCustomEqualizerPreset({
+    required String name,
+    required List<double> bandGainsDb,
+  }) async {
+    final preset = CustomEqualizerPreset.create(
+      name: name,
+      bandGainsDb: bandGainsDb,
+    );
+    final updatedPresets = [...state.customEqualizerPresets, preset];
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setCustomEqualizerPresets(customPresets: updatedPresets);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setActiveCustomEqualizerPresetId(preset.id);
+    state = state.copyWith(
+      customEqualizerPresets: updatedPresets,
+      activeCustomEqualizerPresetId: preset.id,
+    );
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .reconfigureEqualizerPlayback();
+    return preset;
+  }
+
+  Future<CustomEqualizerPreset?> updateCustomEqualizerPreset({
+    required String presetId,
+    required String name,
+    required List<double> bandGainsDb,
+  }) async {
+    final presetIndex = state.customEqualizerPresets.indexWhere(
+      (preset) => preset.id == presetId,
+    );
+    if (presetIndex < 0) {
+      return null;
+    }
+    final updatedPreset = state.customEqualizerPresets[presetIndex].copyWith(
+      name: name,
+      bandGainsDb: bandGainsDb,
+    );
+    final updatedPresets = [...state.customEqualizerPresets];
+    updatedPresets[presetIndex] = updatedPreset;
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setCustomEqualizerPresets(customPresets: updatedPresets);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setActiveCustomEqualizerPresetId(updatedPreset.id);
+    state = state.copyWith(
+      customEqualizerPresets: updatedPresets,
+      activeCustomEqualizerPresetId: updatedPreset.id,
+    );
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .reconfigureEqualizerPlayback();
+    return updatedPreset;
+  }
+
+  Future<void> deleteCustomEqualizerPreset(String presetId) async {
+    final updatedPresets = state.customEqualizerPresets
+        .where((preset) => preset.id != presetId)
+        .toList(growable: false);
+    final wasActive = state.activeCustomEqualizerPresetId == presetId;
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setCustomEqualizerPresets(customPresets: updatedPresets);
+    if (wasActive) {
+      await ref
+          .read(settingsPreferencesRepositoryProvider)
+          .setActiveCustomEqualizerPresetId(null);
+    }
+    state = state.copyWith(
+      customEqualizerPresets: updatedPresets,
+      clearActiveCustomEqualizerPresetId: wasActive,
+    );
+    if (wasActive) {
+      await ref
+          .read(audioPlayerServiceProvider.notifier)
+          .reconfigureEqualizerPlayback();
+    }
   }
 
   Future<void> toggleSongSortOrder() async {
@@ -566,6 +683,12 @@ class SettingsPreferencesControllerNotifier
         .setEqualizerPreset(equalizerPresetName: EqualizerPreset.off.name);
     await ref
         .read(settingsPreferencesRepositoryProvider)
+        .setCustomEqualizerPresets(customPresets: const []);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
+        .setActiveCustomEqualizerPresetId(null);
+    await ref
+        .read(settingsPreferencesRepositoryProvider)
         .setSongSortOrder(songSortOrderName: SongSortOrder.title.name);
     await ref
         .read(settingsPreferencesRepositoryProvider)
@@ -600,6 +723,9 @@ class SettingsPreferencesControllerNotifier
       useColorTextures: true,
       customDeviceThemes: const [],
       clearActiveCustomDeviceThemeId: true,
+      equalizerPreset: EqualizerPreset.off,
+      customEqualizerPresets: const [],
+      clearActiveCustomEqualizerPresetId: true,
       wheelStyle: WheelStyle.modern,
     );
     await ref

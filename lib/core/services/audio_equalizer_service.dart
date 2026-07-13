@@ -12,7 +12,8 @@ class AudioEqualizerService {
   static const MethodChannel _channel = MethodChannel('mo1/equalizer');
 
   final DebugLogService _debugLogService;
-  EqualizerPreset? _lastPreset;
+  String? _lastPresetName;
+  List<double>? _lastBandGainsDb;
   AudioEqualizerApplyResult? _lastResult;
 
   AudioEqualizerService(this._debugLogService);
@@ -20,30 +21,57 @@ class AudioEqualizerService {
   Future<AudioEqualizerApplyResult> applyPreset(
     EqualizerPreset preset,
   ) async {
-    if (_lastPreset == preset && _lastResult != null) {
+    return applyBandGains(
+      presetName: preset.name,
+      displayName: preset.title,
+      bandGainsDb: preset.approximateBandGainsDb,
+    );
+  }
+
+  Future<AudioEqualizerApplyResult> applyBandGains({
+    required String presetName,
+    required String displayName,
+    required List<double> bandGainsDb,
+  }) async {
+    final normalizedBandGainsDb = List<double>.unmodifiable(
+      bandGainsDb.map((gain) => gain.toDouble()),
+    );
+    if (_lastPresetName == presetName &&
+        listEquals(_lastBandGainsDb, normalizedBandGainsDb) &&
+        _lastResult != null) {
       return _lastResult!;
     }
 
-    final result = await _applyPreset(preset);
-    _lastPreset = preset;
+    final result = await _applyBandGains(
+      presetName: presetName,
+      displayName: displayName,
+      bandGainsDb: normalizedBandGainsDb,
+    );
+    _lastPresetName = presetName;
+    _lastBandGainsDb = normalizedBandGainsDb;
     _lastResult = result;
     _logResult(result);
     return result;
   }
 
-  Future<AudioEqualizerApplyResult> _applyPreset(
-    EqualizerPreset preset,
-  ) async {
+  Future<AudioEqualizerApplyResult> _applyBandGains({
+    required String presetName,
+    required String displayName,
+    required List<double> bandGainsDb,
+  }) async {
+    final isNeutral = bandGainsDb.every((gain) => gain == 0);
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
-      if (preset.hasNeutralCurve) {
+      if (isNeutral) {
         return AudioEqualizerApplyResult.applied(
-          preset: preset,
+          presetName: presetName,
+          displayName: displayName,
           backend: 'neutral',
           message: 'Neutral equalizer curve does not require native support.',
         );
       }
       return AudioEqualizerApplyResult.unsupported(
-        preset: preset,
+        presetName: presetName,
+        displayName: displayName,
         backend: defaultTargetPlatform.name,
         message: 'Native equalizer is not implemented on this platform.',
       );
@@ -53,23 +81,26 @@ class AudioEqualizerService {
       final result = await _channel.invokeMapMethod<String, dynamic>(
         'setPreset',
         {
-          'presetName': preset.name,
-          'bandGainsDb': preset.approximateBandGainsDb,
+          'presetName': presetName,
+          'bandGainsDb': bandGainsDb,
         },
       );
       return AudioEqualizerApplyResult.fromMap(
-        preset: preset,
+        presetName: presetName,
+        displayName: displayName,
         map: result,
       );
     } on MissingPluginException catch (error) {
       return AudioEqualizerApplyResult.unsupported(
-        preset: preset,
+        presetName: presetName,
+        displayName: displayName,
         backend: 'missing_plugin',
         message: error.message ?? 'Equalizer native plugin is unavailable.',
       );
     } on PlatformException catch (error) {
       return AudioEqualizerApplyResult.unsupported(
-        preset: preset,
+        presetName: presetName,
+        displayName: displayName,
         backend: error.code,
         message: error.message ?? 'Equalizer native call failed.',
       );
@@ -78,7 +109,8 @@ class AudioEqualizerService {
 
   void _logResult(AudioEqualizerApplyResult result) {
     final data = {
-      'preset': result.preset.name,
+      'preset': result.presetName,
+      'displayName': result.displayName,
       'backend': result.backend,
       'message': result.message,
     };
@@ -91,25 +123,29 @@ class AudioEqualizerService {
 }
 
 class AudioEqualizerApplyResult {
-  final EqualizerPreset preset;
+  final String presetName;
+  final String displayName;
   final bool isApplied;
   final String backend;
   final String message;
 
   const AudioEqualizerApplyResult({
-    required this.preset,
+    required this.presetName,
+    required this.displayName,
     required this.isApplied,
     required this.backend,
     required this.message,
   });
 
   factory AudioEqualizerApplyResult.applied({
-    required EqualizerPreset preset,
+    required String presetName,
+    required String displayName,
     required String backend,
     required String message,
   }) {
     return AudioEqualizerApplyResult(
-      preset: preset,
+      presetName: presetName,
+      displayName: displayName,
       isApplied: true,
       backend: backend,
       message: message,
@@ -117,12 +153,14 @@ class AudioEqualizerApplyResult {
   }
 
   factory AudioEqualizerApplyResult.unsupported({
-    required EqualizerPreset preset,
+    required String presetName,
+    required String displayName,
     required String backend,
     required String message,
   }) {
     return AudioEqualizerApplyResult(
-      preset: preset,
+      presetName: presetName,
+      displayName: displayName,
       isApplied: false,
       backend: backend,
       message: message,
@@ -130,19 +168,22 @@ class AudioEqualizerApplyResult {
   }
 
   factory AudioEqualizerApplyResult.fromMap({
-    required EqualizerPreset preset,
+    required String presetName,
+    required String displayName,
     required Map<String, dynamic>? map,
   }) {
     if (map == null) {
       return AudioEqualizerApplyResult.unsupported(
-        preset: preset,
+        presetName: presetName,
+        displayName: displayName,
         backend: 'unknown',
         message: 'Equalizer native call returned no result.',
       );
     }
 
     return AudioEqualizerApplyResult(
-      preset: preset,
+      presetName: presetName,
+      displayName: displayName,
       isApplied: map['isApplied'] == true,
       backend: _stringValue(map['backend'], fallback: 'native'),
       message: _stringValue(map['message']),

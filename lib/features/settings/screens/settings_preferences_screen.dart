@@ -147,9 +147,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             .toggleRepeatMode();
         break;
       case _SettingsDisplayItems.equalizer:
-        await ref
-            .read(settingsPreferencesControllerProvider.notifier)
-            .toggleEqualizerPreset();
+        context.goNamed(Routes.equalizer.name);
         break;
       case _SettingsDisplayItems.songSortOrder:
         await ref
@@ -395,7 +393,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
       case _SettingsDisplayItems.repeat:
         return settingsState.repeatMode.title(context);
       case _SettingsDisplayItems.equalizer:
-        return settingsState.equalizerPreset.title;
+        return settingsState.equalizerDisplayTitle;
       case _SettingsDisplayItems.songSortOrder:
         return settingsState.songSortOrder.titleText;
       case _SettingsDisplayItems.songTransitions:

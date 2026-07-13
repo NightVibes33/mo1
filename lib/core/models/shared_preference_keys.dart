@@ -11,6 +11,8 @@ enum SharedPreferencesKeys {
   clickWheelSound,
   volumeMode,
   equalizerPreset,
+  customEqualizerPresets,
+  activeCustomEqualizerPresetId,
   songSortOrder,
   songTransitionStyle,
   crossfadeDurationSeconds,

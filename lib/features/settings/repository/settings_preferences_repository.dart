@@ -8,6 +8,7 @@ import 'package:dope/features/settings/models/app_theme.dart';
 import 'package:dope/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:dope/features/settings/models/click_wheel_size.dart';
 import 'package:dope/features/settings/models/custom_device_theme.dart';
+import 'package:dope/features/settings/models/custom_equalizer_preset.dart';
 import 'package:dope/features/settings/models/device_color.dart';
 import 'package:dope/features/settings/models/equalizer_preset.dart';
 import 'package:dope/features/settings/models/repeat_mode.dart';
@@ -138,6 +139,41 @@ class SettingsPreferencesRepository {
           SharedPreferencesKeys.equalizerPreset.name,
         ) ??
         EqualizerPreset.off.name;
+  }
+
+  List<CustomEqualizerPreset> getCustomEqualizerPresets() {
+    final rawPresets =
+        _sharedPreferencesWithCache.getString(
+          SharedPreferencesKeys.customEqualizerPresets.name,
+        ) ??
+        '[]';
+    try {
+      final decoded = jsonDecode(rawPresets);
+      if (decoded is! List) {
+        return const [];
+      }
+      return decoded
+          .whereType<Map>()
+          .map(
+            (preset) => CustomEqualizerPreset.fromJson(
+              Map<String, dynamic>.from(preset),
+            ),
+          )
+          .where((preset) => preset.id.isNotEmpty)
+          .toList(growable: false);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  String? getActiveCustomEqualizerPresetId() {
+    final rawId = _sharedPreferencesWithCache.getString(
+      SharedPreferencesKeys.activeCustomEqualizerPresetId.name,
+    );
+    if (rawId == null || rawId.isEmpty) {
+      return null;
+    }
+    return rawId;
   }
 
   String getSongSortOrder() {
@@ -292,6 +328,27 @@ class SettingsPreferencesRepository {
     return _sharedPreferencesWithCache.setString(
       SharedPreferencesKeys.equalizerPreset.name,
       equalizerPresetName,
+    );
+  }
+
+  Future<void> setCustomEqualizerPresets({
+    required List<CustomEqualizerPreset> customPresets,
+  }) async {
+    final encoded = jsonEncode(
+      customPresets
+          .map((preset) => preset.toJson())
+          .toList(growable: false),
+    );
+    return _sharedPreferencesWithCache.setString(
+      SharedPreferencesKeys.customEqualizerPresets.name,
+      encoded,
+    );
+  }
+
+  Future<void> setActiveCustomEqualizerPresetId(String? presetId) async {
+    return _sharedPreferencesWithCache.setString(
+      SharedPreferencesKeys.activeCustomEqualizerPresetId.name,
+      presetId ?? '',
     );
   }
 

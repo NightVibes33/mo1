@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/services/audio_equalizer_service.dart';
 import 'package:dope/core/services/debug_log_service.dart';
-import 'package:dope/features/settings/models/equalizer_preset.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -119,7 +118,7 @@ class NativeEqPlayerService {
 
   Future<bool> loadQueue({
     required PreparedNativeEqQueue queue,
-    required EqualizerPreset preset,
+    required List<double> bandGainsDb,
   }) async {
     if (!isSupported) {
       return false;
@@ -128,7 +127,7 @@ class NativeEqPlayerService {
       final didLoad = await _channel.invokeMethod<bool>('loadQueue', {
         'items': queue.items,
         'startIndex': queue.startIndex,
-        'bandGainsDb': preset.approximateBandGainsDb,
+        'bandGainsDb': bandGainsDb,
       });
       return didLoad ?? false;
     } on PlatformException catch (error, stackTrace) {
@@ -167,10 +166,15 @@ class NativeEqPlayerService {
     });
   }
 
-  Future<AudioEqualizerApplyResult> setPreset(EqualizerPreset preset) async {
+  Future<AudioEqualizerApplyResult> setBandGains({
+    required String presetName,
+    required String displayName,
+    required List<double> bandGainsDb,
+  }) async {
     if (!isSupported) {
       return AudioEqualizerApplyResult.unsupported(
-        preset: preset,
+        presetName: presetName,
+        displayName: displayName,
         backend: defaultTargetPlatform.name,
         message: 'Native EQ player is not supported on this platform.',
       );
@@ -178,18 +182,24 @@ class NativeEqPlayerService {
     try {
       final result = await _channel.invokeMapMethod<String, dynamic>(
         'setPreset',
-        {'bandGainsDb': preset.approximateBandGainsDb},
+        {'bandGainsDb': bandGainsDb},
       );
-      return AudioEqualizerApplyResult.fromMap(preset: preset, map: result);
+      return AudioEqualizerApplyResult.fromMap(
+        presetName: presetName,
+        displayName: displayName,
+        map: result,
+      );
     } on PlatformException catch (error) {
       return AudioEqualizerApplyResult.unsupported(
-        preset: preset,
+        presetName: presetName,
+        displayName: displayName,
         backend: error.code,
         message: error.message ?? 'Native EQ preset failed.',
       );
     } on MissingPluginException catch (error) {
       return AudioEqualizerApplyResult.unsupported(
-        preset: preset,
+        presetName: presetName,
+        displayName: displayName,
         backend: 'missing_plugin',
         message: error.message ?? 'Native EQ player bridge is unavailable.',
       );

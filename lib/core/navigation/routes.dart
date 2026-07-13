@@ -36,6 +36,7 @@ import 'package:dope/features/settings/controller/settings_preferences_controlle
 import 'package:dope/features/settings/screens/about_screen.dart';
 import 'package:dope/features/settings/screens/debug_logs_screen.dart';
 import 'package:dope/features/settings/screens/device_color_selection_screen.dart';
+import 'package:dope/features/settings/screens/equalizer_selection_screen.dart';
 import 'package:dope/features/settings/screens/exclude_directories_screen.dart';
 import 'package:dope/features/settings/screens/language_selection_screen.dart';
 import 'package:dope/features/settings/screens/settings_preferences_screen.dart';
@@ -53,6 +54,7 @@ enum Routes {
   language,
   deviceColor,
   wheelStyle,
+  equalizer,
   excludeDirectories,
   nowPlaying,
   nowPlayingMoreOptions,
@@ -104,6 +106,8 @@ enum Routes {
         return context.localization.deviceColorSettingTitle;
       case wheelStyle:
         return 'Wheel Style';
+      case equalizer:
+        return 'EQ';
       case excludeDirectories:
         return context.localization.excludeDirectoriesScreenTitle;
       case nowPlaying:
@@ -261,6 +265,14 @@ final routerProvider = Provider(
                         parentNavigatorKey: rootNavigatorKey,
                         pageBuilder: (context, state) => const CupertinoPage(
                           child: WheelStyleSelectionScreen(),
+                        ),
+                      ),
+                      GoRoute(
+                        path: Routes.equalizer.name,
+                        name: Routes.equalizer.name,
+                        parentNavigatorKey: rootNavigatorKey,
+                        pageBuilder: (context, state) => const CupertinoPage(
+                          child: EqualizerSelectionScreen(),
                         ),
                       ),
                       GoRoute(

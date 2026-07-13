@@ -187,7 +187,7 @@ class _SplitScreenPlaceholderState extends ConsumerState<SplitScreenPlaceholder>
         splitScreenWidget = IconPreviewWidget(
           titleText: 'EQ',
           icon: CupertinoIcons.slider_horizontal_3,
-          contentText: currentSettings.equalizerPreset.title,
+          contentText: currentSettings.equalizerDisplayTitle,
         );
       } else if (splitScreenType == SplitScreenType.songSortOrder) {
         splitScreenWidget = IconPreviewWidget(

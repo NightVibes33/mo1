@@ -240,14 +240,19 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       return;
     }
 
-    final preset = ref.read(settingsPreferencesControllerProvider).equalizerPreset;
+    final settings = ref.read(settingsPreferencesControllerProvider);
     if (ref.read(nativeEqPlaybackActiveProvider)) {
       final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
       final wasPlaying = snapshot.isPlaying;
       final position = snapshot.position;
       final index = snapshot.currentIndex;
-      if (!preset.hasNeutralCurve) {
-        await ref.read(nativeEqPlayerServiceProvider).setPreset(preset);
+      if (!settings.activeEqualizerHasNeutralCurve) {
+        await ref.read(nativeEqPlayerServiceProvider).setBandGains(
+              presetName: settings.activeCustomEqualizerPreset?.id ??
+                  settings.equalizerPreset.name,
+              displayName: settings.equalizerDisplayTitle,
+              bandGainsDb: settings.activeEqualizerBandGainsDb,
+            );
         return;
       }
 
@@ -264,7 +269,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       return;
     }
 
-    if (preset.hasNeutralCurve) {
+    if (settings.activeEqualizerHasNeutralCurve) {
       await _syncEqualizerPreset();
       return;
     }
@@ -1193,7 +1198,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     required int initialIndex,
   }) async {
     final settings = ref.read(settingsPreferencesControllerProvider);
-    if (settings.equalizerPreset.hasNeutralCurve || musicMetadataList.isEmpty) {
+    if (settings.activeEqualizerHasNeutralCurve || musicMetadataList.isEmpty) {
       await _stopNativeEqPlayback();
       return false;
     }
@@ -1211,7 +1216,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
             extra: {
               'requestedCount': musicMetadataList.length,
               'initialIndex': initialIndex,
-              'preset': settings.equalizerPreset.name,
+              'preset': settings.activeCustomEqualizerPreset?.id ??
+                  settings.equalizerPreset.name,
+              'presetTitle': settings.equalizerDisplayTitle,
             },
           ),
         );
@@ -1236,7 +1243,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     await ref.read(audioPlayerProvider).stop();
     final didLoad = await ref
         .read(nativeEqPlayerServiceProvider)
-        .loadQueue(queue: preparedQueue, preset: settings.equalizerPreset);
+        .loadQueue(
+          queue: preparedQueue,
+          bandGainsDb: settings.activeEqualizerBandGainsDb,
+        );
     if (!didLoad) {
       await _stopNativeEqPlayback();
       return false;
@@ -1566,12 +1576,24 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> _syncEqualizerPreset() async {
-    final preset = ref.read(settingsPreferencesControllerProvider).equalizerPreset;
+    final settings = ref.read(settingsPreferencesControllerProvider);
+    final presetName = settings.activeCustomEqualizerPreset?.id ??
+        settings.equalizerPreset.name;
+    final displayName = settings.equalizerDisplayTitle;
+    final bandGainsDb = settings.activeEqualizerBandGainsDb;
     if (ref.read(nativeEqPlaybackActiveProvider)) {
-      await ref.read(nativeEqPlayerServiceProvider).setPreset(preset);
+      await ref.read(nativeEqPlayerServiceProvider).setBandGains(
+            presetName: presetName,
+            displayName: displayName,
+            bandGainsDb: bandGainsDb,
+          );
       return;
     }
-    await ref.read(audioEqualizerServiceProvider).applyPreset(preset);
+    await ref.read(audioEqualizerServiceProvider).applyBandGains(
+          presetName: presetName,
+          displayName: displayName,
+          bandGainsDb: bandGainsDb,
+        );
   }
 
   Future<void> togglePlayback() async {

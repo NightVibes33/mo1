@@ -3,6 +3,7 @@ import 'package:dope/features/settings/models/app_theme.dart';
 import 'package:dope/features/settings/models/click_wheel_sensitivity.dart';
 import 'package:dope/features/settings/models/click_wheel_size.dart';
 import 'package:dope/features/settings/models/custom_device_theme.dart';
+import 'package:dope/features/settings/models/custom_equalizer_preset.dart';
 import 'package:dope/features/settings/models/device_color.dart';
 import 'package:dope/features/settings/models/equalizer_preset.dart';
 import 'package:dope/features/settings/models/repeat_mode.dart';
@@ -25,6 +26,8 @@ class SettingsPreferencesModel {
   final bool clickWheelSound;
   final VolumeMode volumeMode;
   final EqualizerPreset equalizerPreset;
+  final List<CustomEqualizerPreset> customEqualizerPresets;
+  final String? activeCustomEqualizerPresetId;
   final SongSortOrder songSortOrder;
   final SongTransitionStyle songTransitionStyle;
   final int crossfadeDurationSeconds;
@@ -49,6 +52,8 @@ class SettingsPreferencesModel {
     required this.clickWheelSound,
     required this.volumeMode,
     required this.equalizerPreset,
+    required this.customEqualizerPresets,
+    required this.activeCustomEqualizerPresetId,
     required this.songSortOrder,
     required this.songTransitionStyle,
     required this.crossfadeDurationSeconds,
@@ -76,6 +81,31 @@ class SettingsPreferencesModel {
 
   bool get isUsingCustomDeviceTheme => activeCustomDeviceTheme != null;
 
+  CustomEqualizerPreset? get activeCustomEqualizerPreset {
+    if (activeCustomEqualizerPresetId == null ||
+        activeCustomEqualizerPresetId!.isEmpty) {
+      return null;
+    }
+    for (final preset in customEqualizerPresets) {
+      if (preset.id == activeCustomEqualizerPresetId) {
+        return preset;
+      }
+    }
+    return null;
+  }
+
+  bool get isUsingCustomEqualizerPreset => activeCustomEqualizerPreset != null;
+
+  List<double> get activeEqualizerBandGainsDb =>
+      activeCustomEqualizerPreset?.bandGainsDb ??
+      equalizerPreset.approximateBandGainsDb;
+
+  bool get activeEqualizerHasNeutralCurve =>
+      activeEqualizerBandGainsDb.every((gain) => gain == 0);
+
+  String get equalizerDisplayTitle =>
+      activeCustomEqualizerPreset?.name ?? equalizerPreset.title;
+
   DeviceColorStyle resolveDeviceColorStyle() {
     final customTheme = activeCustomDeviceTheme;
     if (customTheme != null) {
@@ -98,6 +128,9 @@ class SettingsPreferencesModel {
     bool? clickWheelSound,
     VolumeMode? volumeMode,
     EqualizerPreset? equalizerPreset,
+    List<CustomEqualizerPreset>? customEqualizerPresets,
+    String? activeCustomEqualizerPresetId,
+    bool clearActiveCustomEqualizerPresetId = false,
     SongSortOrder? songSortOrder,
     SongTransitionStyle? songTransitionStyle,
     int? crossfadeDurationSeconds,
@@ -125,6 +158,11 @@ class SettingsPreferencesModel {
       clickWheelSound: clickWheelSound ?? this.clickWheelSound,
       volumeMode: volumeMode ?? this.volumeMode,
       equalizerPreset: equalizerPreset ?? this.equalizerPreset,
+      customEqualizerPresets:
+          customEqualizerPresets ?? this.customEqualizerPresets,
+      activeCustomEqualizerPresetId: clearActiveCustomEqualizerPresetId
+          ? null
+          : activeCustomEqualizerPresetId ?? this.activeCustomEqualizerPresetId,
       songSortOrder: songSortOrder ?? this.songSortOrder,
       songTransitionStyle: songTransitionStyle ?? this.songTransitionStyle,
       crossfadeDurationSeconds:
@@ -154,6 +192,8 @@ class SettingsPreferencesModel {
         other.clickWheelSound == clickWheelSound &&
         other.volumeMode == volumeMode &&
         other.equalizerPreset == equalizerPreset &&
+        listEquals(other.customEqualizerPresets, customEqualizerPresets) &&
+        other.activeCustomEqualizerPresetId == activeCustomEqualizerPresetId &&
         other.songSortOrder == songSortOrder &&
         other.songTransitionStyle == songTransitionStyle &&
         other.crossfadeDurationSeconds == crossfadeDurationSeconds &&
@@ -180,6 +220,8 @@ class SettingsPreferencesModel {
     clickWheelSound,
     volumeMode,
     equalizerPreset,
+    Object.hashAll(customEqualizerPresets),
+    activeCustomEqualizerPresetId,
     songSortOrder,
     songTransitionStyle,
     crossfadeDurationSeconds,
