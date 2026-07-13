@@ -10,7 +10,7 @@ import 'package:dope/core/services/app_documents_service.dart';
 import 'package:dope/core/repositories/metadata_reader_repository.dart';
 import 'package:dope/core/services/debug_log_service.dart';
 import 'package:dope/core/services/music_metadata_lookup_service.dart';
-import 'package:dope/features/music/playlist/models/playlist_model.dart';
+import 'package:dope/features/music/playlist/models/playlist_model.dart' as playlist_models;
 import 'package:dope/features/music/songs/models/music_metadata_match.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:file_picker/file_picker.dart';
@@ -264,8 +264,11 @@ class AudioFilesServiceNotifier
     for (var index = 0; index < metadataBox.length; index++) {
       final storedMetadata = metadataBox.getAt(index);
       final path = storedMetadata?.filePath;
-      final fileDuration = path == null ? null : durationsByPath[path];
-      if (storedMetadata == null || fileDuration == null) {
+      if (storedMetadata == null || path == null) {
+        continue;
+      }
+      final fileDuration = durationsByPath[path];
+      if (fileDuration == null) {
         continue;
       }
       final storedDuration = storedMetadata.trackDuration;
@@ -298,7 +301,9 @@ class AudioFilesServiceNotifier
   Future<void> _repairPlaylistLocalDurations(
     Map<String, int> durationsByPath,
   ) async {
-    final playlistBox = Hive.box<PlaylistModel>(Constants.playlistBoxName);
+    final playlistBox = Hive.box<playlist_models.PlaylistModel>(
+      Constants.playlistBoxName,
+    );
     var repairedPlaylists = 0;
     for (var index = 0; index < playlistBox.length; index++) {
       final playlist = playlistBox.getAt(index);

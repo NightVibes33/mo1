@@ -24,11 +24,13 @@ final nativeEqPlaybackSnapshotProvider =
 class PreparedNativeEqQueue {
   final List<Map<String, Object?>> items;
   final List<MusicMetadata> metadataList;
+  final List<int> sourceIndexes;
   final int startIndex;
 
   const PreparedNativeEqQueue({
     required this.items,
     required this.metadataList,
+    required this.sourceIndexes,
     required this.startIndex,
   });
 }
@@ -63,17 +65,25 @@ class NativeEqPlayerService {
       return null;
     }
     final safeStartIndex = startIndex.clamp(0, metadataList.length - 1).toInt();
+    if (metadataList[safeStartIndex].isAppleMusicCatalogTrack) {
+      return null;
+    }
+
     final preparedItems = <Map<String, Object?>>[];
     final preparedMetadata = <MusicMetadata>[];
+    final sourceIndexes = <int>[];
 
     for (var index = 0; index < metadataList.length; index++) {
       final metadata = metadataList[index];
       if (metadata.isAppleMusicCatalogTrack) {
-        return null;
+        continue;
       }
       final sourcePath = metadata.filePath;
       if (sourcePath == null || sourcePath.isEmpty) {
-        return null;
+        if (index == safeStartIndex) {
+          return null;
+        }
+        continue;
       }
 
       final playablePath = metadata.isOnDevice
@@ -95,6 +105,7 @@ class NativeEqPlayerService {
         'durationMs': metadata.trackDuration ?? 0,
       });
       preparedMetadata.add(metadata.copyWith(filePath: metadata.filePath));
+      sourceIndexes.add(index);
     }
 
     if (preparedItems.isEmpty) {
@@ -112,6 +123,7 @@ class NativeEqPlayerService {
     return PreparedNativeEqQueue(
       items: preparedItems,
       metadataList: preparedMetadata,
+      sourceIndexes: sourceIndexes,
       startIndex: preparedStartIndex,
     );
   }

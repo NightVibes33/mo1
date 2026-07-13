@@ -44,6 +44,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   bool _isPreparingTransition = false;
   bool _isTransitioning = false;
   double _mainVolumeBeforeTransition = 1;
+  List<int> _nativeEqSourceIndexes = const [];
 
   @override
   Future<void> build() async {
@@ -89,12 +90,15 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
               details.currentMetadata?.isAppleMusicCatalogTrack == true) {
             return;
           }
-          if (snapshot.currentIndex != details.currentIndex &&
-              snapshot.currentIndex >= 0 &&
-              snapshot.currentIndex < details.metadataList.length) {
+          final visibleIndex = _nativeEqVisibleIndexForPreparedIndex(
+            snapshot.currentIndex,
+          );
+          if (visibleIndex != details.currentIndex &&
+              visibleIndex >= 0 &&
+              visibleIndex < details.metadataList.length) {
             ref
                 .read(nowPlayingDetailsProvider.notifier)
-                .setCurrentIndex(snapshot.currentIndex);
+                .setCurrentIndex(visibleIndex);
           }
           if (details.isPlaying != snapshot.isPlaying) {
             ref
@@ -223,29 +227,12 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       return;
     }
 
-    final isMixedAppleMusicQueue = metadataList.any(
-          (metadata) => metadata.isAppleMusicCatalogTrack,
-        ) &&
-        metadataList.any((metadata) => !metadata.isAppleMusicCatalogTrack);
-    if (isMixedAppleMusicQueue) {
-      ref
-          .read(crashLogServiceProvider)
-          .recordPlaybackBreadcrumb(
-            'Skipped EQ queue rebuild for mixed Apple Music queue',
-            data: _playbackCrashData(
-              extra: {'queueLength': metadataList.length},
-            ),
-          );
-      await _syncEqualizerPreset();
-      return;
-    }
-
     final settings = ref.read(settingsPreferencesControllerProvider);
     if (ref.read(nativeEqPlaybackActiveProvider)) {
       final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
       final wasPlaying = snapshot.isPlaying;
       final position = snapshot.position;
-      final index = snapshot.currentIndex;
+      final index = _nativeEqVisibleIndexForPreparedIndex(snapshot.currentIndex);
       if (!settings.activeEqualizerHasNeutralCurve) {
         await ref.read(nativeEqPlayerServiceProvider).setBandGains(
               presetName: settings.activeCustomEqualizerPreset?.id ??
@@ -262,7 +249,13 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         musicMetadataList: metadataList,
         initialIndex: index,
       );
-      await ref.read(audioPlayerProvider).seek(position, index: index);
+      await ref.read(audioPlayerProvider).seek(
+            position,
+            index: _defaultPlayerIndexForVisibleIndex(
+              nowPlayingDetails,
+              index,
+            ),
+          );
       if (wasPlaying) {
         await play();
       }
@@ -277,7 +270,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     final player = ref.read(audioPlayerProvider);
     final wasPlaying = player.playing || nowPlayingDetails.isPlaying;
     final position = player.position;
-    final index = player.currentIndex ?? nowPlayingDetails.currentIndex;
+    final index = _isMixedAppleMusicQueue(nowPlayingDetails)
+        ? nowPlayingDetails.currentIndex
+        : player.currentIndex ?? nowPlayingDetails.currentIndex;
     await setAudioSource(
       nowPlayingType: nowPlayingDetails.nowPlayingType,
       musicMetadataList: metadataList,
@@ -286,7 +281,13 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     if (ref.read(nativeEqPlaybackActiveProvider)) {
       await ref.read(nativeEqPlayerServiceProvider).seekTo(position);
     } else {
-      await ref.read(audioPlayerProvider).seek(position, index: index);
+      await ref.read(audioPlayerProvider).seek(
+            position,
+            index: _defaultPlayerIndexForVisibleIndex(
+              nowPlayingDetails,
+              index,
+            ),
+          );
     }
     if (wasPlaying) {
       await play();
@@ -604,7 +605,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
         ref
             .read(nowPlayingDetailsProvider.notifier)
-            .setCurrentIndex(snapshot.currentIndex);
+            .setCurrentIndex(
+              _nativeEqVisibleIndexForPreparedIndex(snapshot.currentIndex),
+            );
         ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
       }
       return;
@@ -706,7 +709,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           final updated = await ref.read(nativeEqPlayerServiceProvider).snapshot();
           ref
               .read(nowPlayingDetailsProvider.notifier)
-              .setCurrentIndex(updated.currentIndex);
+              .setCurrentIndex(
+                _nativeEqVisibleIndexForPreparedIndex(updated.currentIndex),
+              );
         }
         ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
         return;
@@ -791,9 +796,14 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         if (nowPlayingDetails.currentIndex == index) {
           await ref.read(nativeEqPlayerServiceProvider).play();
         } else {
+          final preparedIndex = _nativeEqPreparedIndexForVisibleIndex(index);
+          if (preparedIndex == -1) {
+            await _playUnifiedQueueIndex(index);
+            return;
+          }
           await ref
               .read(nativeEqPlayerServiceProvider)
-              .seekToIndex(index, position: Duration.zero);
+              .seekToIndex(preparedIndex, position: Duration.zero);
           await ref.read(nativeEqPlayerServiceProvider).play();
           ref.read(nowPlayingDetailsProvider.notifier).setCurrentIndex(index);
         }
@@ -890,9 +900,14 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       }
 
       if (ref.read(nativeEqPlaybackActiveProvider)) {
+        final preparedIndex = _nativeEqPreparedIndexForVisibleIndex(index);
+        if (preparedIndex == -1) {
+          await _playUnifiedQueueIndex(index);
+          return;
+        }
         await ref
             .read(nativeEqPlayerServiceProvider)
-            .seekToIndex(index, position: Duration.zero);
+            .seekToIndex(preparedIndex, position: Duration.zero);
         await ref.read(nativeEqPlayerServiceProvider).play();
         ref.read(nowPlayingDetailsProvider.notifier).setCurrentIndex(index);
         ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
@@ -1201,8 +1216,11 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       await _stopNativeEqPlayback();
       return false;
     }
+    final safeInitialIndex = initialIndex
+        .clamp(0, musicMetadataList.length - 1)
+        .toInt();
     if (!ref.read(nativeEqPlayerServiceProvider).isSupported ||
-        musicMetadataList.any((metadata) => metadata.isAppleMusicCatalogTrack)) {
+        musicMetadataList[safeInitialIndex].isAppleMusicCatalogTrack) {
       await _stopNativeEqPlayback();
       return false;
     }
@@ -1226,7 +1244,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         .read(nativeEqPlayerServiceProvider)
         .prepareQueue(
           metadataList: musicMetadataList,
-          startIndex: initialIndex,
+          startIndex: safeInitialIndex,
         );
     if (preparedQueue == null) {
       ref
@@ -1251,17 +1269,39 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       return false;
     }
 
+    _nativeEqSourceIndexes = preparedQueue.sourceIndexes;
     ref.read(nativeEqPlaybackActiveProvider.notifier).state = true;
     ref
         .read(nowPlayingDetailsProvider.notifier)
         .setNewMetadataList(
           nowPlayingType: nowPlayingType,
-          newMetadataList: preparedQueue.metadataList,
-          currentIndex: preparedQueue.startIndex,
+          newMetadataList: musicMetadataList,
+          currentIndex: safeInitialIndex,
           isPlaying: false,
         );
     await _syncEqualizerPreset();
     return true;
+  }
+
+  int _defaultPlayerIndexForVisibleIndex(
+    NowPlayingModel details,
+    int visibleIndex,
+  ) {
+    return _isMixedAppleMusicQueue(details) ? 0 : visibleIndex;
+  }
+
+  int _nativeEqVisibleIndexForPreparedIndex(int preparedIndex) {
+    if (preparedIndex >= 0 && preparedIndex < _nativeEqSourceIndexes.length) {
+      return _nativeEqSourceIndexes[preparedIndex];
+    }
+    return preparedIndex;
+  }
+
+  int _nativeEqPreparedIndexForVisibleIndex(int visibleIndex) {
+    if (_nativeEqSourceIndexes.isEmpty) {
+      return visibleIndex;
+    }
+    return _nativeEqSourceIndexes.indexOf(visibleIndex);
   }
 
   Future<void> _stopNativeEqPlayback() async {
@@ -1269,6 +1309,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       return;
     }
     await ref.read(nativeEqPlayerServiceProvider).stop();
+    _nativeEqSourceIndexes = const [];
     ref.read(nativeEqPlaybackActiveProvider.notifier).state = false;
   }
 
