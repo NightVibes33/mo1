@@ -154,22 +154,28 @@ class SongListTile extends StatelessWidget {
                           color: secondaryColor,
                         ),
                         const SizedBox(height: 2),
-                        _ScaledTileText(
-                          text: songMetadata.trackName ??
-                              context.localization.unknownSong,
-                          height: 20,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: primaryColor,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _ScaledTileText(
+                                text: songMetadata.trackName ??
+                                    context.localization.unknownSong,
+                                height: 20,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                            if (songMetadata.isExplicit) ...[
+                              const SizedBox(width: 6),
+                              _ExplicitBadge(color: secondaryColor),
+                            ],
+                          ],
                         ),
                       ],
                     ),
                   ),
                 ),
-                if (songMetadata.isExplicit) ...[
-                  const SizedBox(width: 8),
-                  _ExplicitBadge(color: secondaryColor),
-                ],
                 if (isCurrentlyPlaying) ...[
                   const SizedBox(width: 8),
                   Icon(

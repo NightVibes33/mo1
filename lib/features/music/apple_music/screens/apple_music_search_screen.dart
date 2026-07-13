@@ -560,18 +560,28 @@ class _AppleMusicListTile extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: CupertinoTheme.of(context).textTheme.textStyle
-                          .copyWith(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected
-                                ? context.appInverseTextColor
-                                : context.appPrimaryTextColor,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: CupertinoTheme.of(context).textTheme.textStyle
+                                .copyWith(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected
+                                      ? context.appInverseTextColor
+                                      : context.appPrimaryTextColor,
+                                ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                        ),
+                        if (isExplicit) ...[
+                          const SizedBox(width: 6),
+                          _AppleMusicExplicitBadge(color: trailingColor),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -588,10 +598,6 @@ class _AppleMusicListTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isExplicit) ...[
-                const SizedBox(width: 8),
-                _AppleMusicExplicitBadge(color: trailingColor),
-              ],
               if (canAddToLibrary)
                 CupertinoButton(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
