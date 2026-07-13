@@ -20,6 +20,7 @@ import 'package:dope/features/music/cover_flow/screens/cover_flow_album_selectio
 import 'package:dope/features/music/cover_flow/screens/cover_flow_screen.dart';
 import 'package:dope/features/music/genres/screens/genre_songs_screen.dart';
 import 'package:dope/features/music/genres/screens/genres_screen.dart';
+import 'package:dope/features/music/jellyfin/screens/jellyfin_screen.dart';
 import 'package:dope/features/music/navidrome/screens/navidrome_screen.dart';
 import 'package:dope/features/music/playlist/screens/playlist_rename_screen.dart';
 import 'package:dope/features/music/playlist/screens/playlist_songs_more_options_modal.dart';
@@ -58,6 +59,7 @@ enum Routes {
   musicMenu,
   appleMusic,
   navidrome,
+  jellyfin,
   coverFlow,
   coverFlowSelection,
   artists,
@@ -114,6 +116,8 @@ enum Routes {
         return 'Apple Music';
       case navidrome:
         return 'Connect Navidrome';
+      case jellyfin:
+        return 'Connect Jellyfin';
       case coverFlow:
         return context.localization.coverFlowScreenTitle;
       case coverFlowSelection:
@@ -339,6 +343,13 @@ final routerProvider = Provider(
                         parentNavigatorKey: rootNavigatorKey,
                         pageBuilder: (context, state) =>
                             const CupertinoPage(child: NavidromeScreen()),
+                      ),
+                      GoRoute(
+                        path: Routes.jellyfin.name,
+                        name: Routes.jellyfin.name,
+                        parentNavigatorKey: rootNavigatorKey,
+                        pageBuilder: (context, state) =>
+                            const CupertinoPage(child: JellyfinScreen()),
                       ),
                       GoRoute(
                         path: Routes.coverFlow.name,

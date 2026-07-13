@@ -15,6 +15,7 @@ enum _MusicListDisplayItems {
   coverFlow,
   appleMusic,
   navidrome,
+  jellyfin,
   importSongs,
   playlists,
   artists,
@@ -31,6 +32,8 @@ enum _MusicListDisplayItems {
         return 'Apple Music';
       case navidrome:
         return 'Navidrome';
+      case jellyfin:
+        return 'Jellyfin';
       case importSongs:
         return '+ MP3 Import';
       case playlists:
@@ -89,6 +92,9 @@ class _MusicMenuScreenState extends ConsumerState<MusicMenuScreen>
         break;
       case _MusicListDisplayItems.navidrome:
         await context.pushNamed(Routes.navidrome.name);
+        break;
+      case _MusicListDisplayItems.jellyfin:
+        await context.pushNamed(Routes.jellyfin.name);
         break;
       case _MusicListDisplayItems.importSongs:
         final importResult = await ref
