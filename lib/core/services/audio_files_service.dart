@@ -9,6 +9,8 @@ import 'package:dope/core/providers/device_directory_provider.dart';
 import 'package:dope/core/services/app_documents_service.dart';
 import 'package:dope/core/repositories/metadata_reader_repository.dart';
 import 'package:dope/core/services/debug_log_service.dart';
+import 'package:dope/core/services/music_metadata_lookup_service.dart';
+import 'package:dope/features/music/songs/models/music_metadata_match.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -437,6 +439,220 @@ class AudioFilesServiceNotifier
     );
   }
 
+  Future<MusicMetadata> _autoEnhanceImportedMetadata(
+    MusicMetadata metadata,
+  ) async {
+    if (!_shouldAutoLookupMetadata(metadata)) {
+      return metadata;
+    }
+
+    final query = _metadataLookupQuery(metadata);
+    if (query == null) {
+      return metadata;
+    }
+
+    try {
+      final lookupService = ref.read(musicMetadataLookupServiceProvider);
+      final matches = <MusicMetadataMatch>[
+        ...await lookupService.search(
+          source: MusicMetadataSource.itunes,
+          query: query,
+          limit: 5,
+        ),
+        ...await lookupService.search(
+          source: MusicMetadataSource.deezer,
+          query: query,
+          limit: 5,
+        ),
+      ];
+      final bestMatch = _bestHighConfidenceMatch(metadata, matches);
+      if (bestMatch == null) {
+        debugLogService.info(
+          'import',
+          'Auto metadata skipped; no high-confidence match.',
+          data: {'query': query, 'title': metadata.trackName},
+        );
+        return metadata;
+      }
+
+      String? thumbnailPath;
+      try {
+        thumbnailPath = await lookupService.cacheArtworkForMatch(
+          bestMatch,
+          metadata,
+        );
+      } catch (_) {
+        thumbnailPath = null;
+      }
+
+      final updated = bestMatch.applyTo(
+        metadata,
+        thumbnailPath: thumbnailPath ?? metadata.thumbnailPath,
+      );
+      debugLogService.info(
+        'import',
+        'Auto metadata applied.',
+        data: {
+          'query': query,
+          'source': bestMatch.source.name,
+          'matchTitle': bestMatch.title,
+          'matchArtist': bestMatch.artist,
+          'path': metadata.filePath,
+        },
+      );
+      return updated;
+    } catch (error, stackTrace) {
+      debugLogService.warning(
+        'import',
+        'Auto metadata lookup failed; keeping imported metadata.',
+        data: {'error': error, 'stackTrace': stackTrace, 'query': query},
+      );
+      return metadata;
+    }
+  }
+
+  bool _shouldAutoLookupMetadata(MusicMetadata metadata) {
+    if (metadata.isAppleMusicCatalogTrack || !metadata.isOnDevice) {
+      return false;
+    }
+    final title = metadata.trackName?.trim() ?? '';
+    final artist = metadata.getTrackArtistNames?.trim() ?? '';
+    final album = metadata.albumName?.trim() ?? '';
+    final hasArtwork = (metadata.thumbnailPath?.trim().isNotEmpty ?? false);
+    final weakTitle = title.isEmpty || title.toLowerCase().startsWith('unknown');
+    final weakArtist = artist.isEmpty || artist.toLowerCase().startsWith('unknown');
+    final weakAlbum = album.isEmpty || album.toLowerCase().startsWith('unknown');
+    return weakTitle || weakArtist || weakAlbum || !hasArtwork;
+  }
+
+  String? _metadataLookupQuery(MusicMetadata metadata) {
+    final title = _cleanLookupTerm(metadata.trackName);
+    final artist = _cleanLookupTerm(metadata.getTrackArtistNames);
+    final album = _cleanLookupTerm(metadata.albumName);
+    final fallbackTitle = _cleanLookupTerm(_fileStem(metadata.filePath));
+    final parts = <String>[
+      if (title != null) title,
+      if (artist != null) artist,
+      if (title == null && fallbackTitle != null) fallbackTitle,
+      if (album != null && title == null) album,
+    ];
+    if (parts.isEmpty) {
+      return null;
+    }
+    return parts.join(' ');
+  }
+
+  MusicMetadataMatch? _bestHighConfidenceMatch(
+    MusicMetadata metadata,
+    List<MusicMetadataMatch> matches,
+  ) {
+    MusicMetadataMatch? bestMatch;
+    var bestScore = 0.0;
+    for (final match in matches) {
+      final score = _metadataMatchScore(metadata, match);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = match;
+      }
+    }
+    return bestScore >= 0.82 ? bestMatch : null;
+  }
+
+  double _metadataMatchScore(MusicMetadata metadata, MusicMetadataMatch match) {
+    final title = _cleanLookupTerm(metadata.trackName) ?? _cleanLookupTerm(_fileStem(metadata.filePath));
+    final artist = _cleanLookupTerm(metadata.getTrackArtistNames);
+    final album = _cleanLookupTerm(metadata.albumName);
+    final titleScore = _similarity(title, match.title);
+    final artistScore = artist == null ? 0.55 : _similarity(artist, match.artist);
+    final albumScore = album == null || match.album.trim().isEmpty
+        ? 0.65
+        : _similarity(album, match.album);
+    final durationScore = _durationScore(metadata.trackDuration, match.durationMs);
+    return titleScore * 0.48 +
+        artistScore * 0.28 +
+        albumScore * 0.10 +
+        durationScore * 0.14;
+  }
+
+  double _durationScore(int? localMs, int? remoteMs) {
+    if (localMs == null || localMs <= 0 || remoteMs == null || remoteMs <= 0) {
+      return 0.65;
+    }
+    final deltaSeconds = ((localMs - remoteMs).abs() / 1000).round();
+    if (deltaSeconds <= 3) {
+      return 1;
+    }
+    if (deltaSeconds <= 8) {
+      return 0.82;
+    }
+    if (deltaSeconds <= 15) {
+      return 0.55;
+    }
+    return 0;
+  }
+
+  double _similarity(String? left, String right) {
+    final a = _normalizeLookupText(left);
+    final b = _normalizeLookupText(right);
+    if (a.isEmpty || b.isEmpty) {
+      return 0;
+    }
+    if (a == b) {
+      return 1;
+    }
+    if (a.contains(b) || b.contains(a)) {
+      return 0.9;
+    }
+    final distance = _levenshteinDistance(a, b);
+    final maxLength = a.length > b.length ? a.length : b.length;
+    return (1 - distance / maxLength).clamp(0, 1).toDouble();
+  }
+
+  int _levenshteinDistance(String a, String b) {
+    final previous = List<int>.generate(b.length + 1, (index) => index);
+    final current = List<int>.filled(b.length + 1, 0);
+    for (var i = 0; i < a.length; i++) {
+      current[0] = i + 1;
+      for (var j = 0; j < b.length; j++) {
+        final cost = a.codeUnitAt(i) == b.codeUnitAt(j) ? 0 : 1;
+        final insertion = current[j] + 1;
+        final deletion = previous[j + 1] + 1;
+        final substitution = previous[j] + cost;
+        current[j + 1] = [insertion, deletion, substitution].reduce((x, y) => x < y ? x : y);
+      }
+      previous.setAll(0, current);
+    }
+    return previous[b.length];
+  }
+
+  String? _cleanLookupTerm(String? value) {
+    final normalized = _normalizeLookupText(value);
+    return normalized.isEmpty ? null : normalized;
+  }
+
+  String _normalizeLookupText(String? value) {
+    if (value == null) {
+      return '';
+    }
+    return value
+        .toLowerCase()
+        .replaceAll(RegExp(r'\([^)]*\)|\[[^\]]*\]'), ' ')
+        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+        .replaceAll(RegExp(r'\b(feat|ft|featuring|explicit|clean|remaster|remastered|single|version)\b'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  String? _fileStem(String? path) {
+    if (path == null || path.trim().isEmpty) {
+      return null;
+    }
+    final normalized = path.replaceAll('\\', '/');
+    final name = normalized.split('/').last;
+    final dot = name.lastIndexOf('.');
+    return dot > 0 ? name.substring(0, dot) : name;
+  }
+
   Future<void> _deleteManagedAudioFile(MusicMetadata metadata) async {
     if (!metadata.isOnDevice || metadata.isAppleMusicCatalogTrack) {
       return;
@@ -713,16 +929,20 @@ class AudioFilesServiceNotifier
         sourceModifiedAtEpochMs: sourceDates?.modifiedAtEpochMs,
         importedAtEpochMs: DateTime.now().millisecondsSinceEpoch,
       );
-      importedMetadata.add(repairedMetadata);
+      final enhancedMetadata = await _autoEnhanceImportedMetadata(
+        repairedMetadata,
+      );
+      importedMetadata.add(enhancedMetadata);
       debugLogService.info(
         'import',
         'Imported metadata ready',
         data: {
-          'title': repairedMetadata.trackName,
-          'artist': repairedMetadata.getTrackArtistNames,
-          'album': repairedMetadata.albumName,
-          'path': repairedMetadata.filePath,
-          'originalSongIndex': repairedMetadata.originalSongIndex,
+          'title': enhancedMetadata.trackName,
+          'artist': enhancedMetadata.getTrackArtistNames,
+          'album': enhancedMetadata.albumName,
+          'path': enhancedMetadata.filePath,
+          'originalSongIndex': enhancedMetadata.originalSongIndex,
+          'autoMetadataApplied': enhancedMetadata != repairedMetadata,
         },
       );
     }
