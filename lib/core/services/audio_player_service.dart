@@ -615,6 +615,12 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
   Future<void> seekBackwards() async {
     final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+    final previousIndex = nowPlayingDetails.currentIndex - 1;
+    if (_shouldUseUnifiedQueueStep(nowPlayingDetails, previousIndex)) {
+      await _playUnifiedQueueIndex(previousIndex);
+      return;
+    }
+
     if (nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
       final snapshot = await ref
           .read(appleMusicPlaybackServiceProvider)
@@ -647,7 +653,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         return;
       }
 
-      final previousIndex = nowPlayingDetails.currentIndex - 1;
       if (previousIndex < 0) {
         final didRestart = await ref
             .read(appleMusicPlaybackServiceProvider)
@@ -692,12 +697,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final previousIndex = nowPlayingDetails.currentIndex - 1;
-      if (_shouldUseUnifiedQueueStep(nowPlayingDetails, previousIndex)) {
-        await _playUnifiedQueueIndex(previousIndex);
-        return;
-      }
-
       if (ref.read(nativeEqPlaybackActiveProvider)) {
         final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
         if (snapshot.position.inSeconds > 3) {
