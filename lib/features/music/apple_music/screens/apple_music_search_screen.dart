@@ -110,7 +110,10 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
       });
       return;
     }
-    await context.pushNamed(Routes.nowPlaying.name);
+    await context.pushNamed(
+      Routes.nowPlaying.name,
+      extra: Routes.appleMusic.name,
+    );
   }
 
   Future<void> _onSearchDefaultTileAction() async {

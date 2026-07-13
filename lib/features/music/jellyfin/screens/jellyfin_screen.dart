@@ -705,7 +705,10 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
         .playMetadataListAtIndex(metadataList: songs, index: songIndex);
     if (didStart && mounted) {
       unawaited(_reportPlaybackStart(selectedSong));
-      await context.pushNamed(Routes.nowPlaying.name);
+      await context.pushNamed(
+        Routes.nowPlaying.name,
+        extra: Routes.jellyfin.name,
+      );
     } else if (mounted) {
       setState(() => _errorText = 'Jellyfin playback failed.');
     }

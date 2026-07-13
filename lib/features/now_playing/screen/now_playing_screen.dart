@@ -34,7 +34,9 @@ enum _NowPlayingBottomBarPage {
 }
 
 class NowPlayingScreen extends ConsumerStatefulWidget {
-  const NowPlayingScreen({super.key});
+  final String? returnRouteName;
+
+  const NowPlayingScreen({super.key, this.returnRouteName});
 
   @override
   ConsumerState createState() => _NowPlayingScreenState();
@@ -249,6 +251,11 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   }
 
   void onMenuButtonPressed() {
+    final returnRouteName = widget.returnRouteName;
+    if (returnRouteName != null && returnRouteName != Routes.menu.name) {
+      context.goNamed(returnRouteName);
+      return;
+    }
     context.pop();
   }
 

@@ -54,7 +54,10 @@ class _SongsScreenState extends ConsumerState<SongsScreen> with CustomScreen {
         );
 
     if (didStart && mounted) {
-      await context.pushNamed(Routes.nowPlaying.name);
+      await context.pushNamed(
+        Routes.nowPlaying.name,
+        extra: Routes.songs.name,
+      );
     }
   }
 

@@ -798,7 +798,10 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
         .playMetadataListAtIndex(metadataList: songs, index: songIndex);
     if (didStart && mounted) {
       unawaited(_scrobble(selectedSong));
-      await context.pushNamed(Routes.nowPlaying.name);
+      await context.pushNamed(
+        Routes.nowPlaying.name,
+        extra: Routes.navidrome.name,
+      );
     } else if (mounted) {
       setState(() => _errorText = 'Navidrome playback failed.');
     }

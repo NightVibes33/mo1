@@ -58,7 +58,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               index: songIndex,
             );
         if (didStart && mounted) {
-          await context.pushNamed(Routes.nowPlaying.name);
+          await context.pushNamed(
+            Routes.nowPlaying.name,
+            extra: Routes.search.name,
+          );
         }
       } else if (searchResult.searchResultType == SearchResultType.artist) {
         final selectedArtistName = searchResult.result as String;

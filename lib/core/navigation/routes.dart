@@ -291,7 +291,9 @@ final routerProvider = Provider(
                               .read(settingsPreferencesControllerProvider)
                               .splitScreenEnabled) {
                         return CustomTransitionPage(
-                          child: const NowPlayingScreen(),
+                          child: NowPlayingScreen(
+                            returnRouteName: state.extra as String?,
+                          ),
                           transitionsBuilder:
                               (context, animation, reversedAnimation, child) {
                                 return FadeTransition(
@@ -306,7 +308,11 @@ final routerProvider = Provider(
                         );
                       }
 
-                      return const CupertinoPage(child: NowPlayingScreen());
+                      return CupertinoPage(
+                        child: NowPlayingScreen(
+                          returnRouteName: state.extra as String?,
+                        ),
+                      );
                     },
                     routes: [
                       GoRoute(
