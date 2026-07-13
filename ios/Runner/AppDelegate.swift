@@ -1837,12 +1837,13 @@ private final class NativeEqPlayer {
 
   private func configureEqBands(_ gains: [Double]) {
     let frequencies: [Float] = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+    let isNeutral = gains.isEmpty || gains.allSatisfy { abs($0) < 0.001 }
     for (index, band) in eq.bands.enumerated() {
       band.filterType = .parametric
       band.frequency = frequencies[min(index, frequencies.count - 1)]
       band.bandwidth = 1
       band.gain = Float(index < gains.count ? gains[index] : 0)
-      band.bypass = false
+      band.bypass = isNeutral
     }
   }
 
