@@ -1702,6 +1702,8 @@ private final class NativeEqPlayer {
   private var isLoaded = false
   private var isPlaying = false
   private var lastError = ""
+  private var currentBandGains: [Float] = Array(repeating: 0, count: 10)
+  private var eqRampTimer: Timer?
 
   init() {
     engine.attach(playerNode)
@@ -1757,6 +1759,8 @@ private final class NativeEqPlayer {
   }
 
   func stop() {
+    eqRampTimer?.invalidate()
+    eqRampTimer = nil
     playerNode.stop()
     engine.stop()
     currentFile = nil
@@ -1820,7 +1824,7 @@ private final class NativeEqPlayer {
   }
 
   func setBandGains(_ gains: [Double]) {
-    configureEqBands(gains)
+    rampEqBands(to: gains)
   }
 
   func setVolume(_ value: Float) {
@@ -1882,14 +1886,60 @@ private final class NativeEqPlayer {
   }
 
   private func configureEqBands(_ gains: [Double]) {
+    eqRampTimer?.invalidate()
+    eqRampTimer = nil
+    applyEqBandGains(normalizedBandGains(gains))
+  }
+
+  private func rampEqBands(to gains: [Double]) {
+    let targetGains = normalizedBandGains(gains)
+    let startGains = currentBandGains
+    eqRampTimer?.invalidate()
+
+    let steps = 8
+    var step = 0
+    setEqBypass(false)
+    eqRampTimer = Timer.scheduledTimer(withTimeInterval: 0.015, repeats: true) { [weak self] timer in
+      guard let self else {
+        timer.invalidate()
+        return
+      }
+      step += 1
+      let progress = Float(step) / Float(steps)
+      let interpolated = zip(startGains, targetGains).map { start, target in
+        start + (target - start) * progress
+      }
+      self.applyEqBandGains(interpolated)
+      if step >= steps {
+        timer.invalidate()
+        self.eqRampTimer = nil
+        self.applyEqBandGains(targetGains)
+      }
+    }
+  }
+
+  private func normalizedBandGains(_ gains: [Double]) -> [Float] {
+    return (0..<eq.bands.count).map { index in
+      Float(index < gains.count ? gains[index] : 0)
+    }
+  }
+
+  private func applyEqBandGains(_ gains: [Float]) {
     let frequencies: [Float] = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
-    let isNeutral = gains.isEmpty || gains.allSatisfy { abs($0) < 0.001 }
+    currentBandGains = gains
+    let isNeutral = gains.allSatisfy { abs($0) < 0.001 }
     for (index, band) in eq.bands.enumerated() {
       band.filterType = .parametric
       band.frequency = frequencies[min(index, frequencies.count - 1)]
       band.bandwidth = 1
-      band.gain = Float(index < gains.count ? gains[index] : 0)
+      band.gain = index < gains.count ? gains[index] : 0
       band.bypass = isNeutral
+    }
+  }
+
+  private func setEqBypass(_ bypass: Bool) {
+    for band in eq.bands {
+      band.bypass = bypass
     }
   }
 
