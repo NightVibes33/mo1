@@ -36,6 +36,7 @@ import 'package:dope/features/settings/controller/settings_preferences_controlle
 import 'package:dope/features/settings/screens/about_screen.dart';
 import 'package:dope/features/settings/screens/debug_logs_screen.dart';
 import 'package:dope/features/settings/screens/device_color_selection_screen.dart';
+import 'package:dope/features/settings/screens/equalizer_editor_screen.dart';
 import 'package:dope/features/settings/screens/equalizer_selection_screen.dart';
 import 'package:dope/features/settings/screens/exclude_directories_screen.dart';
 import 'package:dope/features/settings/screens/language_selection_screen.dart';
@@ -55,6 +56,7 @@ enum Routes {
   deviceColor,
   wheelStyle,
   equalizer,
+  equalizerEditor,
   excludeDirectories,
   nowPlaying,
   nowPlayingMoreOptions,
@@ -108,6 +110,8 @@ enum Routes {
         return 'Wheel Style';
       case equalizer:
         return 'EQ';
+      case equalizerEditor:
+        return 'Custom EQ';
       case excludeDirectories:
         return context.localization.excludeDirectoriesScreenTitle;
       case nowPlaying:
@@ -274,6 +278,35 @@ final routerProvider = Provider(
                         pageBuilder: (context, state) => const CupertinoPage(
                           child: EqualizerSelectionScreen(),
                         ),
+                        routes: [
+                          GoRoute(
+                            path: Routes.equalizerEditor.name,
+                            name: Routes.equalizerEditor.name,
+                            parentNavigatorKey: rootNavigatorKey,
+                            pageBuilder: (context, state) {
+                              final args = state.extra is EqualizerEditorArgs
+                                  ? state.extra as EqualizerEditorArgs
+                                  : const EqualizerEditorArgs(
+                                      initialName: 'Custom EQ',
+                                      initialBandGainsDb: [
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                        0,
+                                      ],
+                                    );
+                              return CupertinoPage(
+                                child: EqualizerEditorScreen(args: args),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                       GoRoute(
                         path: Routes.excludeDirectories.name,

@@ -5,9 +5,11 @@ import 'package:dope/features/settings/controller/settings_preferences_controlle
 import 'package:dope/features/settings/models/custom_equalizer_preset.dart';
 import 'package:dope/features/settings/models/equalizer_preset.dart';
 import 'package:dope/features/settings/models/settings_preferences_model.dart';
+import 'package:dope/features/settings/screens/equalizer_editor_screen.dart';
 import 'package:dope/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 class EqualizerSelectionScreen extends ConsumerStatefulWidget {
   const EqualizerSelectionScreen({super.key});
@@ -42,11 +44,12 @@ class _EqualizerSelectionScreenState extends ConsumerState<EqualizerSelectionScr
     if (selectedDisplayItem < 0 || selectedDisplayItem >= entries.length) {
       return;
     }
-    final customPreset = entries[selectedDisplayItem].customPreset;
-    if (customPreset == null) {
-      return;
+    final entry = entries[selectedDisplayItem];
+    if (entry.customPreset != null) {
+      _showCustomEqActions(entry.customPreset!);
+    } else if (entry.preset != null) {
+      _openEditor(EqualizerEditorArgs.duplicatePreset(entry.preset!));
     }
-    _showCustomEqActions(customPreset);
   }
 
   @override
@@ -79,7 +82,13 @@ class _EqualizerSelectionScreenState extends ConsumerState<EqualizerSelectionScr
     setState(() => selectedDisplayItem = index);
     switch (entry.type) {
       case _EqualizerSelectionEntryType.createCustom:
-        await _showCustomEqDialog();
+        final settings = ref.read(settingsPreferencesControllerProvider);
+        _openEditor(
+          EqualizerEditorArgs.create(
+            customPresetCount: settings.customEqualizerPresets.length,
+            initialBandGainsDb: settings.activeEqualizerBandGainsDb,
+          ),
+        );
         break;
       case _EqualizerSelectionEntryType.preset:
         await ref
@@ -94,105 +103,8 @@ class _EqualizerSelectionScreenState extends ConsumerState<EqualizerSelectionScr
     }
   }
 
-  Future<void> _showCustomEqDialog({CustomEqualizerPreset? existingPreset}) async {
-    final settings = ref.read(settingsPreferencesControllerProvider);
-    final nameController = TextEditingController(
-      text: existingPreset?.name ?? 'Custom ${settings.customEqualizerPresets.length + 1}',
-    );
-    final bandGains = [
-      ...(existingPreset?.bandGainsDb ?? settings.activeEqualizerBandGainsDb),
-    ];
-
-    await showCupertinoDialog<void>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return CupertinoAlertDialog(
-              title: Text(existingPreset == null ? 'Create Custom EQ' : 'Edit Custom EQ'),
-              content: Column(
-                children: [
-                  const SizedBox(height: 12),
-                  CupertinoTextField(
-                    controller: nameController,
-                    placeholder: 'Preset Name',
-                    textInputAction: TextInputAction.done,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '10-band EQ for MP3 and Navidrome playback. Save applies it right away.',
-                    style: TextStyle(fontSize: 12),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 330,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          for (var index = 0; index < CustomEqualizerPreset.bandCount; index++)
-                            _EqBandSlider(
-                              label: CustomEqualizerPreset.bandLabels[index],
-                              value: bandGains[index],
-                              onChanged: (value) {
-                                setDialogState(() => bandGains[index] = value);
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: () {
-                      setDialogState(() {
-                        for (var index = 0; index < bandGains.length; index++) {
-                          bandGains[index] = 0;
-                        }
-                      });
-                    },
-                    child: const Text('Reset Flat'),
-                  ),
-                ],
-              ),
-              actions: [
-                CupertinoDialogAction(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                CupertinoDialogAction(
-                  isDefaultAction: true,
-                  onPressed: () async {
-                    final notifier = ref.read(settingsPreferencesControllerProvider.notifier);
-                    final preset = existingPreset == null
-                        ? await notifier.saveCustomEqualizerPreset(
-                            name: nameController.text,
-                            bandGainsDb: bandGains,
-                          )
-                        : await notifier.updateCustomEqualizerPreset(
-                            presetId: existingPreset.id,
-                            name: nameController.text,
-                            bandGainsDb: bandGains,
-                          );
-                    if (!mounted || preset == null) {
-                      return;
-                    }
-                    Navigator.of(context).pop();
-                    final settingsAfterSave = ref.read(settingsPreferencesControllerProvider);
-                    final customIndex = settingsAfterSave.customEqualizerPresets
-                        .indexWhere((savedPreset) => savedPreset.id == preset.id);
-                    if (customIndex >= 0) {
-                      setState(() => selectedDisplayItem = 1 + customIndex);
-                    }
-                  },
-                  child: Text(existingPreset == null ? 'Save & Apply' : 'Update & Apply'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+  void _openEditor(EqualizerEditorArgs args) {
+    context.goNamed(Routes.equalizerEditor.name, extra: args);
   }
 
   Future<void> _showCustomEqActions(CustomEqualizerPreset preset) async {
@@ -200,11 +112,19 @@ class _EqualizerSelectionScreenState extends ConsumerState<EqualizerSelectionScr
       context: context,
       builder: (context) => CupertinoActionSheet(
         title: Text(preset.name),
-        message: const Text('Edit this curve or delete it from this device.'),
+        message: const Text('Apply, edit, duplicate, or delete this custom curve.'),
         actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('apply'),
+            child: const Text('Apply Custom EQ'),
+          ),
           CupertinoActionSheetAction(
             onPressed: () => Navigator.of(context).pop('edit'),
             child: const Text('Edit Custom EQ'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('duplicate'),
+            child: const Text('Duplicate'),
           ),
           CupertinoActionSheetAction(
             isDestructiveAction: true,
@@ -221,8 +141,20 @@ class _EqualizerSelectionScreenState extends ConsumerState<EqualizerSelectionScr
     if (!mounted) {
       return;
     }
-    if (action == 'edit') {
-      await _showCustomEqDialog(existingPreset: preset);
+    if (action == 'apply') {
+      await ref
+          .read(settingsPreferencesControllerProvider.notifier)
+          .selectCustomEqualizerPreset(preset.id);
+    } else if (action == 'edit') {
+      _openEditor(EqualizerEditorArgs.edit(preset));
+    } else if (action == 'duplicate') {
+      _openEditor(
+        EqualizerEditorArgs(
+          initialName: '${preset.name} Copy',
+          initialBandGainsDb: preset.bandGainsDb,
+          duplicateSource: true,
+        ),
+      );
     } else if (action == 'delete') {
       await _deleteCustomEq(preset);
     }
@@ -281,7 +213,8 @@ class _EqualizerSelectionScreenState extends ConsumerState<EqualizerSelectionScr
                 itemCount: entries.length,
                 prototypeItem: _EqualizerOptionTile(
                   title: 'Custom EQ',
-                  subtitle: 'Bass +0 dB  Mid +0 dB  High +0 dB',
+                  subtitle: 'Bass +0 dB  Mid +0 dB  Treble +0 dB',
+                  bandGainsDb: const [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                   isSelected: false,
                   isCreateAction: false,
                   isActive: false,
@@ -298,13 +231,14 @@ class _EqualizerSelectionScreenState extends ConsumerState<EqualizerSelectionScr
                   return _EqualizerOptionTile(
                     title: entry.title,
                     subtitle: entry.subtitle,
+                    bandGainsDb: entry.bandGainsDb(settings),
                     isSelected: selectedDisplayItem == index,
                     isCreateAction: entry.type == _EqualizerSelectionEntryType.createCustom,
                     isActive: isActive,
                     onTap: () async => _handleEntrySelection(index),
                     onEdit: entry.customPreset == null
                         ? null
-                        : () async => _showCustomEqDialog(existingPreset: entry.customPreset),
+                        : () => _openEditor(EqualizerEditorArgs.edit(entry.customPreset!)),
                     onDelete: entry.customPreset == null
                         ? null
                         : () async => _deleteCustomEq(entry.customPreset!),
@@ -355,11 +289,22 @@ class _EqualizerSelectionEntry {
   String get subtitle {
     switch (type) {
       case _EqualizerSelectionEntryType.createCustom:
-        return 'Build your own 10-band curve';
+        return 'Open the full 10-band editor';
       case _EqualizerSelectionEntryType.preset:
-        return preset!.hasNeutralCurve ? 'Neutral curve' : 'Built-in EQ preset';
+        return preset!.hasNeutralCurve ? 'Neutral curve' : _presetDescription(preset!);
       case _EqualizerSelectionEntryType.custom:
-        return customPreset!.curveSummary;
+        return customPreset!.curveSummary.replaceAll('High', 'Treble');
+    }
+  }
+
+  List<double> bandGainsDb(SettingsPreferencesModel settings) {
+    switch (type) {
+      case _EqualizerSelectionEntryType.createCustom:
+        return settings.activeEqualizerBandGainsDb;
+      case _EqualizerSelectionEntryType.preset:
+        return preset!.approximateBandGainsDb;
+      case _EqualizerSelectionEntryType.custom:
+        return customPreset!.bandGainsDb;
     }
   }
 }
@@ -367,6 +312,7 @@ class _EqualizerSelectionEntry {
 class _EqualizerOptionTile extends StatelessWidget {
   final String title;
   final String subtitle;
+  final List<double> bandGainsDb;
   final bool isSelected;
   final bool isCreateAction;
   final bool isActive;
@@ -377,6 +323,7 @@ class _EqualizerOptionTile extends StatelessWidget {
   const _EqualizerOptionTile({
     required this.title,
     required this.subtitle,
+    required this.bandGainsDb,
     required this.isSelected,
     required this.isCreateAction,
     required this.isActive,
@@ -398,7 +345,7 @@ class _EqualizerOptionTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        height: 54,
+        height: 64,
         width: double.infinity,
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -424,25 +371,24 @@ class _EqualizerOptionTile extends StatelessWidget {
             child: Row(
               children: [
                 SizedBox(
-                  height: 28,
-                  width: 28,
+                  height: 42,
+                  width: 58,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: isCreateAction
-                            ? const [Color(0xFFEDF4FF), Color(0xFF85B9FF)]
-                            : const [Color(0xFF2D2D2F), Color(0xFF09090A)],
-                      ),
+                      color: isCreateAction
+                          ? const Color(0xFFD9ECFF)
+                          : const Color(0xFF11151A),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFF5F94D8), width: 1.2),
                     ),
-                    child: Icon(
-                      isCreateAction ? CupertinoIcons.add : CupertinoIcons.slider_horizontal_3,
-                      size: 16,
-                      color: isCreateAction ? const Color(0xFF205AA3) : CupertinoColors.white,
-                    ),
+                    child: isCreateAction
+                        ? const Icon(CupertinoIcons.add, size: 22, color: Color(0xFF205AA3))
+                        : Padding(
+                            padding: const EdgeInsets.all(5),
+                            child: CustomPaint(
+                              painter: _MiniEqCurvePainter(bandGainsDb: bandGainsDb),
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -461,12 +407,12 @@ class _EqualizerOptionTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       Text(
                         subtitle,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           color: subtitleColor,
                         ),
                         maxLines: 1,
@@ -521,49 +467,70 @@ class _InlineActionButton extends StatelessWidget {
   }
 }
 
-class _EqBandSlider extends StatelessWidget {
-  final String label;
-  final double value;
-  final ValueChanged<double> onChanged;
+class _MiniEqCurvePainter extends CustomPainter {
+  final List<double> bandGainsDb;
 
-  const _EqBandSlider({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
+  const _MiniEqCurvePainter({required this.bandGainsDb});
 
   @override
-  Widget build(BuildContext context) {
-    final signedValue = value > 0 ? '+${value.round()}' : value.round().toString();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 50,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-          ),
-          Expanded(
-            child: CupertinoSlider(
-              min: CustomEqualizerPreset.minGainDb,
-              max: CustomEqualizerPreset.maxGainDb,
-              value: value,
-              onChanged: onChanged,
-            ),
-          ),
-          SizedBox(
-            width: 42,
-            child: Text(
-              '$signedValue dB',
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
+  void paint(Canvas canvas, Size size) {
+    final zeroPaint = Paint()
+      ..color = CupertinoColors.white.withValues(alpha: 0.18)
+      ..strokeWidth = 1;
+    canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), zeroPaint);
+
+    final path = Path();
+    for (var index = 0; index < bandGainsDb.length; index++) {
+      final x = bandGainsDb.length == 1 ? size.width / 2 : size.width * index / (bandGainsDb.length - 1);
+      final normalized = (bandGainsDb[index] - CustomEqualizerPreset.minGainDb) /
+          (CustomEqualizerPreset.maxGainDb - CustomEqualizerPreset.minGainDb);
+      final y = size.height - normalized * size.height;
+      if (index == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    final glowPaint = Paint()
+      ..color = const Color(0xFF41BFFF).withValues(alpha: 0.28)
+      ..strokeWidth = 5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    final curvePaint = Paint()
+      ..color = const Color(0xFF84D8FF)
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, glowPaint);
+    canvas.drawPath(path, curvePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MiniEqCurvePainter oldDelegate) {
+    return oldDelegate.bandGainsDb != bandGainsDb;
+  }
+}
+
+String _presetDescription(EqualizerPreset preset) {
+  switch (preset) {
+    case EqualizerPreset.bassBooster:
+      return 'More low-end punch';
+    case EqualizerPreset.bassReducer:
+      return 'Cuts heavy lows';
+    case EqualizerPreset.trebleBooster:
+      return 'Brighter high-end detail';
+    case EqualizerPreset.trebleReducer:
+      return 'Softens sharp highs';
+    case EqualizerPreset.vocalBooster:
+    case EqualizerPreset.spokenWord:
+      return 'Brings vocals forward';
+    case EqualizerPreset.smallSpeakers:
+      return 'Compensates for tiny speakers';
+    case EqualizerPreset.flat:
+    case EqualizerPreset.off:
+      return 'Neutral curve';
+    default:
+      return 'Built-in EQ curve';
   }
 }
