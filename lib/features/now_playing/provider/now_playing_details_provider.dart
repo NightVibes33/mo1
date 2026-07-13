@@ -20,7 +20,8 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
   @override
   NowPlayingModel build() {
     ref.read(audioPlayerProvider).currentIndexStream.listen((newIndex) {
-      if (state.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
+      if ((state.currentMetadata?.isAppleMusicCatalogTrack ?? false) ||
+          _isMixedAppleMusicQueue) {
         return;
       }
       if (newIndex != null &&
@@ -64,6 +65,19 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
       loopMode: LoopMode.off,
       isShuffleEnabled: false,
     );
+  }
+
+  bool get _isMixedAppleMusicQueue {
+    if (state.metadataList.length < 2) {
+      return false;
+    }
+    final hasAppleMusic = state.metadataList.any(
+      (metadata) => metadata.isAppleMusicCatalogTrack,
+    );
+    final hasNonAppleMusic = state.metadataList.any(
+      (metadata) => !metadata.isAppleMusicCatalogTrack,
+    );
+    return hasAppleMusic && hasNonAppleMusic;
   }
 
   void setNewMetadataList({

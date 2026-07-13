@@ -36,6 +36,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<PlayerState>? _playerStateSubscription;
   StreamSubscription<PlaybackEvent>? _playbackEventSubscription;
+  StreamSubscription<ProcessingState>? _processingStateSubscription;
   StreamSubscription<NativeEqPlaybackSnapshot>? _nativeEqSnapshotSubscription;
   Timer? _playbackCrashHeartbeatTimer;
   ProcessingState? _lastLoggedProcessingState;
@@ -52,11 +53,19 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     });
     _installPlaybackCrashLogging(player);
     _installNativeEqSnapshotSync();
+    _processingStateSubscription = player.processingStateStream.listen((
+      processingState,
+    ) {
+      if (processingState == ProcessingState.completed) {
+        unawaited(_advanceUnifiedQueueAfterCompletion());
+      }
+    });
     ref.onDispose(() {
       _playbackCrashHeartbeatTimer?.cancel();
       unawaited(_positionSubscription?.cancel());
       unawaited(_playerStateSubscription?.cancel());
       unawaited(_playbackEventSubscription?.cancel());
+      unawaited(_processingStateSubscription?.cancel());
       unawaited(_nativeEqSnapshotSubscription?.cancel());
       unawaited(_transitionPlayer?.dispose());
     });
@@ -436,9 +445,18 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       if (didLoadNativeEq) {
         return;
       }
-      final localMetadataList = musicMetadataList
-          .where((metadata) => !metadata.isAppleMusicCatalogTrack)
-          .toList(growable: false);
+      final containsAppleMusic = musicMetadataList.any(
+        (metadata) => metadata.isAppleMusicCatalogTrack,
+      );
+      final localMetadataList = containsAppleMusic
+          ? [
+              if (requestedMetadata != null &&
+                  !requestedMetadata.isAppleMusicCatalogTrack)
+                requestedMetadata,
+            ]
+          : musicMetadataList
+                .where((metadata) => !metadata.isAppleMusicCatalogTrack)
+                .toList(growable: false);
       final List<AudioSource> songSourcePlaylist = [];
       try {
         for (final musicMetadata in localMetadataList) {
@@ -454,6 +472,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
               data: {
                 'requestedCount': musicMetadataList.length,
                 'localCount': localMetadataList.length,
+                'containsAppleMusic': containsAppleMusic,
               },
             );
         await ref.read(audioPlayerProvider).stop();
@@ -493,6 +512,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
             data: {
               'localCount': localMetadataList.length,
               'safeInitialIndex': safeInitialIndex,
+              'containsAppleMusic': containsAppleMusic,
               'requestedTrack': requestedMetadata?.trackName,
               'requestedPath': requestedMetadata?.filePath,
             },
@@ -504,21 +524,31 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           .read(nowPlayingDetailsProvider.notifier)
           .setNewMetadataList(
             nowPlayingType: nowPlayingType,
-            newMetadataList: localMetadataList,
-            currentIndex: safeInitialIndex,
+            newMetadataList: containsAppleMusic
+                ? musicMetadataList
+                : localMetadataList,
+            currentIndex: containsAppleMusic
+                ? initialIndex.clamp(0, musicMetadataList.length - 1).toInt()
+                : safeInitialIndex,
           );
     });
   }
 
   Future<void> nextSong() async {
     final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+    final nextIndex = nowPlayingDetails.currentIndex + 1;
+    if (_shouldUseUnifiedQueueStep(nowPlayingDetails, nextIndex)) {
+      await _playUnifiedQueueIndex(nextIndex);
+      return;
+    }
+
     if (nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
-      final nextIndex = nowPlayingDetails.currentIndex + 1;
       if (nextIndex >= nowPlayingDetails.metadataList.length) {
         return;
       }
       final metadata = nowPlayingDetails.metadataList[nextIndex];
       if (!metadata.isAppleMusicCatalogTrack) {
+        await _playUnifiedQueueIndex(nextIndex);
         return;
       }
 
@@ -607,6 +637,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       }
       final metadata = nowPlayingDetails.metadataList[previousIndex];
       if (!metadata.isAppleMusicCatalogTrack) {
+        await _playUnifiedQueueIndex(previousIndex);
         return;
       }
 
@@ -639,6 +670,12 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      final previousIndex = nowPlayingDetails.currentIndex - 1;
+      if (_shouldUseUnifiedQueueStep(nowPlayingDetails, previousIndex)) {
+        await _playUnifiedQueueIndex(previousIndex);
+        return;
+      }
+
       if (ref.read(nativeEqPlaybackActiveProvider)) {
         final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
         if (snapshot.position.inSeconds > 3) {
@@ -722,6 +759,11 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           );
           return;
         }
+      }
+
+      if (_shouldUseUnifiedQueueStep(nowPlayingDetails, index)) {
+        await _playUnifiedQueueIndex(index);
+        return;
       }
 
       if (ref.read(nativeEqPlaybackActiveProvider)) {
@@ -842,6 +884,72 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     });
   }
 
+  bool _isMixedAppleMusicQueue(NowPlayingModel details) {
+    if (details.metadataList.length < 2) {
+      return false;
+    }
+    final hasAppleMusic = details.metadataList.any(
+      (metadata) => metadata.isAppleMusicCatalogTrack,
+    );
+    final hasNonAppleMusic = details.metadataList.any(
+      (metadata) => !metadata.isAppleMusicCatalogTrack,
+    );
+    return hasAppleMusic && hasNonAppleMusic;
+  }
+
+  bool _shouldUseUnifiedQueueStep(NowPlayingModel details, int targetIndex) {
+    return targetIndex >= 0 &&
+        targetIndex < details.metadataList.length &&
+        _isMixedAppleMusicQueue(details);
+  }
+
+  Future<void> _advanceUnifiedQueueAfterCompletion() async {
+    final details = ref.read(nowPlayingDetailsProvider);
+    final nextIndex = details.currentIndex + 1;
+    if (_shouldUseUnifiedQueueStep(details, nextIndex)) {
+      await _playUnifiedQueueIndex(nextIndex);
+    }
+  }
+
+  Future<bool> _playUnifiedQueueIndex(int index) async {
+    final details = ref.read(nowPlayingDetailsProvider);
+    if (index < 0 || index >= details.metadataList.length) {
+      return false;
+    }
+
+    final metadata = details.metadataList[index];
+    ref
+        .read(crashLogServiceProvider)
+        .recordPlaybackBreadcrumb(
+          'Unified mixed-source queue step',
+          data: _playbackCrashData(
+            extra: {
+              'targetIndex': index,
+              'targetTrack': metadata.trackName,
+              'targetPath': metadata.filePath,
+              'targetIsAppleMusic': metadata.isAppleMusicCatalogTrack,
+            },
+          ),
+        );
+
+    if (metadata.isAppleMusicCatalogTrack) {
+      return _playAppleMusicCatalogTrack(
+        metadata,
+        metadataList: details.metadataList,
+        currentIndex: index,
+        nowPlayingType: details.nowPlayingType,
+      );
+    }
+
+    await setAudioSource(
+      nowPlayingType: details.nowPlayingType,
+      musicMetadataList: details.metadataList,
+      initialIndex: index,
+    );
+    await play();
+    return true;
+  }
+
   Future<bool> playMetadataListAtIndex({
     required List<MusicMetadata> metadataList,
     required int index,
@@ -853,19 +961,10 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
     final selectedMetadata = metadataList[index];
     if (selectedMetadata.isAppleMusicCatalogTrack) {
-      final appleMusicList = metadataList
-          .where((metadata) => metadata.isAppleMusicCatalogTrack)
-          .toList(growable: false);
-      final appleMusicIndex = appleMusicList.indexWhere(
-        (metadata) => metadata.filePath == selectedMetadata.filePath,
-      );
-      if (appleMusicIndex == -1) {
-        return false;
-      }
       return _playAppleMusicCatalogTrack(
-        appleMusicList[appleMusicIndex],
-        metadataList: appleMusicList,
-        currentIndex: appleMusicIndex,
+        selectedMetadata,
+        metadataList: metadataList,
+        currentIndex: index,
         nowPlayingType: nowPlayingType,
       );
     }
@@ -997,19 +1096,27 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         );
 
     final requestedPlaybackList = metadataList ?? [metadata];
-    final boundedPlaybackList = _boundedAppleMusicPlaybackList(
-      playbackList: requestedPlaybackList,
-      currentIndex: currentIndex,
-    );
+    final containsMixedSources = requestedPlaybackList.any(
+          (entry) => entry.isAppleMusicCatalogTrack,
+        ) &&
+        requestedPlaybackList.any((entry) => !entry.isAppleMusicCatalogTrack);
+    final boundedPlaybackList = containsMixedSources
+        ? requestedPlaybackList
+        : _boundedAppleMusicPlaybackList(
+            playbackList: requestedPlaybackList,
+            currentIndex: currentIndex,
+          );
     final boundedCurrentIndex = boundedPlaybackList.indexWhere(
       (entry) => entry.appleMusicCatalogId == catalogId,
     );
     final playbackList = boundedCurrentIndex == -1
         ? [metadata]
         : boundedPlaybackList;
-    final safeCurrentIndex = boundedCurrentIndex == -1
-        ? 0
-        : boundedCurrentIndex;
+    final safeCurrentIndex = containsMixedSources
+        ? currentIndex.clamp(0, playbackList.length - 1).toInt()
+        : boundedCurrentIndex == -1
+            ? 0
+            : boundedCurrentIndex;
     final catalogIds = playbackList
         .map((entry) => entry.appleMusicCatalogId)
         .whereType<String>()
