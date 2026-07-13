@@ -214,7 +214,7 @@ class _EqualizerSelectionScreenState extends ConsumerState<EqualizerSelectionScr
                 controller: scrollController,
                 padding: listViewPadding,
                 itemCount: entries.length,
-                itemExtent: displayTileHeight,
+                prototypeItem: SizedBox(height: displayTileHeight),
                 itemBuilder: (context, index) {
                   final entry = entries[index];
                   final isActive = entry.type == _EqualizerSelectionEntryType.custom

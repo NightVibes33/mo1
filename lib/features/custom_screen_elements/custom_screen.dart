@@ -32,9 +32,6 @@ mixin CustomScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         selectedDisplayItem++;
       });
       _keepSelectedItemVisible();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _keepSelectedItemVisible();
-      });
     }
   }
 
@@ -44,9 +41,6 @@ mixin CustomScreen<T extends ConsumerStatefulWidget> on ConsumerState<T> {
         selectedDisplayItem--;
       });
       _keepSelectedItemVisible();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _keepSelectedItemVisible();
-      });
     }
   }
 
