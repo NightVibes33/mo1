@@ -214,15 +214,7 @@ class _EqualizerSelectionScreenState extends ConsumerState<EqualizerSelectionScr
                 controller: scrollController,
                 padding: listViewPadding,
                 itemCount: entries.length,
-                prototypeItem: _EqualizerOptionTile(
-                  title: 'Custom EQ',
-                  subtitle: 'Bass +0 dB  Mid +0 dB  Treble +0 dB',
-                  bandGainsDb: const [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                  isSelected: false,
-                  isCreateAction: false,
-                  isActive: false,
-                  onTap: () {},
-                ),
+                itemExtent: displayTileHeight,
                 itemBuilder: (context, index) {
                   final entry = entries[index];
                   final isActive = entry.type == _EqualizerSelectionEntryType.custom
