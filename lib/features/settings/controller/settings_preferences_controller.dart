@@ -7,7 +7,6 @@ import 'package:dope/core/extensions/build_context_extensions.dart';
 import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/navigation/routes.dart';
 import 'package:dope/core/providers/filtered_audio_files_provider.dart';
-import 'package:dope/core/services/audio_equalizer_service.dart';
 import 'package:dope/core/services/audio_files_service.dart';
 import 'package:dope/core/services/audio_player_service.dart';
 import 'package:dope/features/music/playlist/models/playlist_model.dart';
@@ -431,7 +430,9 @@ class SettingsPreferencesControllerNotifier
         .read(settingsPreferencesRepositoryProvider)
         .setEqualizerPreset(equalizerPresetName: updatedPreset.name);
     state = state.copyWith(equalizerPreset: updatedPreset);
-    await ref.read(audioEqualizerServiceProvider).applyPreset(updatedPreset);
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .reconfigureEqualizerPlayback();
   }
 
   Future<void> toggleSongSortOrder() async {
@@ -601,8 +602,8 @@ class SettingsPreferencesControllerNotifier
       wheelStyle: WheelStyle.modern,
     );
     await ref
-        .read(audioEqualizerServiceProvider)
-        .applyPreset(EqualizerPreset.off);
+        .read(audioPlayerServiceProvider.notifier)
+        .reconfigureEqualizerPlayback();
     await ref
         .read(audioPlayerServiceProvider.notifier)
         .syncSongTransitionStyle();
@@ -613,7 +614,11 @@ class SettingsPreferencesControllerNotifier
     if (state.volumeMode == VolumeMode.app) {
       final double currentVolume = ref.read(audioPlayerProvider).volume;
       if (currentVolume < 1) {
-        await ref.read(audioPlayerProvider).setVolume(currentVolume + 0.05);
+        final updatedVolume = (currentVolume + 0.05).clamp(0, 1).toDouble();
+        await ref.read(audioPlayerProvider).setVolume(updatedVolume);
+        if (ref.read(nativeEqPlaybackActiveProvider)) {
+          await ref.read(nativeEqPlayerServiceProvider).setVolume(updatedVolume);
+        }
       }
     } else {
       final double currentVolume = await VolumeController.instance.getVolume();
@@ -629,10 +634,12 @@ class SettingsPreferencesControllerNotifier
     if (state.volumeMode == VolumeMode.app) {
       final double currentVolume = ref.read(audioPlayerProvider).volume;
       if (currentVolume > 0) {
-        if (currentVolume <= 0.05) {
-          await ref.read(audioPlayerProvider).setVolume(0);
-        } else {
-          await ref.read(audioPlayerProvider).setVolume(currentVolume - 0.05);
+        final updatedVolume = currentVolume <= 0.05
+            ? 0.0
+            : (currentVolume - 0.05).clamp(0, 1).toDouble();
+        await ref.read(audioPlayerProvider).setVolume(updatedVolume);
+        if (ref.read(nativeEqPlaybackActiveProvider)) {
+          await ref.read(nativeEqPlayerServiceProvider).setVolume(updatedVolume);
         }
       }
     } else {

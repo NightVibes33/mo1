@@ -361,6 +361,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     }
   }
 
+  String? _getSubtitle(_SettingsDisplayItems settingsItem) {
+    switch (settingsItem) {
+      case _SettingsDisplayItems.equalizer:
+        return 'Supports MP3 and Navidrome. Apple Music is not affected.';
+      default:
+        return null;
+    }
+  }
+
   String? _getValue(
     SettingsPreferencesModel settingsState,
     _SettingsDisplayItems settingsItem,
@@ -537,14 +546,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 controller: scrollController,
                 padding: listViewPadding,
                 itemCount: displayItems.length,
-                prototypeItem: SettingsListTile(
-                  text: '',
-                  isSelected: false,
-                  onTap: () {},
-                ),
                 itemBuilder: (context, index) => SettingsListTile(
                   text: displayItems[index].title(context),
                   value: _getValue(settingsState, displayItems[index]),
+                  subtitle: _getSubtitle(displayItems[index]),
                   isSelected: selectedDisplayItem == index,
                   onTap: () async => _settingAction(displayItems[index]),
                 ),

@@ -5,6 +5,7 @@ import 'package:dope/core/extensions/go_router_extensions.dart';
 import 'package:dope/core/navigation/routes.dart';
 import 'package:dope/core/services/apple_music_playback_service.dart';
 import 'package:dope/core/services/audio_player_service.dart';
+import 'package:dope/core/services/native_eq_player_service.dart';
 import 'package:dope/core/widgets/empty_state_widget.dart';
 import 'package:dope/features/device/models/device_action.dart';
 import 'package:dope/features/device/services/device_buttons_service_provider.dart';
@@ -347,8 +348,11 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     final String? lyrics = currentMetadata?.lyrics;
     final bool hasLyrics = lyrics != null && lyrics.trim().isNotEmpty;
     final int? currentLyricsSongIndex = currentMetadata?.originalSongIndex;
+    final isNativeEq = ref.watch(nativeEqPlaybackActiveProvider);
     final lyricsPositionStream = isAppleMusic
         ? ref.read(appleMusicPlaybackServiceProvider).playbackPositions()
+        : isNativeEq
+        ? ref.read(nativeEqPlayerServiceProvider).playbackPositions()
         : ref.read(audioPlayerProvider).positionStream;
 
     if (_lastLyricsSongIndex != currentLyricsSongIndex) {

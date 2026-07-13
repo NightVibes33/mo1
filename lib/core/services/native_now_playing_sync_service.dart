@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dope/core/services/audio_player_service.dart';
+import 'package:dope/core/services/native_eq_player_service.dart';
 import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -43,6 +44,20 @@ class _NativeNowPlayingSyncController {
       _lastPositionSecond = null;
       unawaited(sync(force: true));
     });
+    _nativeEqSnapshotSubscription = _ref
+        .read(nativeEqPlayerServiceProvider)
+        .playbackSnapshots()
+        .listen((snapshot) {
+          if (!_ref.read(nativeEqPlaybackActiveProvider)) {
+            return;
+          }
+          final wholeSecond = snapshot.position.inSeconds;
+          if (_lastPositionSecond == wholeSecond && !snapshot.isPlaying) {
+            return;
+          }
+          _lastPositionSecond = wholeSecond;
+          unawaited(sync(force: true));
+        });
     unawaited(sync(force: true));
   }
 
@@ -51,6 +66,7 @@ class _NativeNowPlayingSyncController {
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<Duration?>? _durationSubscription;
   StreamSubscription<PlayerState>? _playerStateSubscription;
+  StreamSubscription<NativeEqPlaybackSnapshot>? _nativeEqSnapshotSubscription;
   StreamSubscription<int?>? _currentIndexSubscription;
 
   bool _disposed = false;
@@ -91,9 +107,16 @@ class _NativeNowPlayingSyncController {
     }
 
     final player = _ref.read(audioPlayerProvider);
-    final durationSeconds =
-        player.duration?.inSeconds ?? metadata.getTrackDuration ~/ 1000;
-    final rawPositionSeconds = player.position.inSeconds;
+    final nativeEqActive = _ref.read(nativeEqPlaybackActiveProvider);
+    final nativeEqSnapshot = nativeEqActive
+        ? await _ref.read(nativeEqPlayerServiceProvider).snapshot()
+        : null;
+    final durationSeconds = nativeEqSnapshot != null &&
+            nativeEqSnapshot.duration != Duration.zero
+        ? nativeEqSnapshot.duration.inSeconds
+        : player.duration?.inSeconds ?? metadata.getTrackDuration ~/ 1000;
+    final rawPositionSeconds = nativeEqSnapshot?.position.inSeconds ??
+        player.position.inSeconds;
     final positionSeconds = durationSeconds > 0
         ? rawPositionSeconds.clamp(0, durationSeconds).toInt()
         : rawPositionSeconds;
@@ -104,7 +127,9 @@ class _NativeNowPlayingSyncController {
       'album': metadata.albumName,
       'durationSeconds': durationSeconds,
       'positionSeconds': positionSeconds,
-      'isPlaying': nowPlaying.isPlaying && player.playing,
+      'isPlaying': nativeEqActive
+          ? nowPlaying.isPlaying && (nativeEqSnapshot?.isPlaying ?? false)
+          : nowPlaying.isPlaying && player.playing,
       'artworkPath': metadata.thumbnailPath,
     };
 
@@ -140,5 +165,6 @@ class _NativeNowPlayingSyncController {
     unawaited(_durationSubscription?.cancel());
     unawaited(_playerStateSubscription?.cancel());
     unawaited(_currentIndexSubscription?.cancel());
+    unawaited(_nativeEqSnapshotSubscription?.cancel());
   }
 }

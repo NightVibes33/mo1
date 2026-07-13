@@ -6,6 +6,7 @@ import 'package:dope/core/services/audio_equalizer_service.dart';
 import 'package:dope/core/services/apple_music_playback_service.dart';
 import 'package:dope/core/services/crash_log_service.dart';
 import 'package:dope/core/services/lyrics_lookup_service.dart';
+import 'package:dope/core/services/native_eq_player_service.dart';
 import 'package:dope/core/services/song_transition_analysis_service.dart';
 import 'package:dope/features/music/album/models/album_model.dart';
 import 'package:dope/features/music/playlist/models/playlist_model.dart';
@@ -35,6 +36,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<PlayerState>? _playerStateSubscription;
   StreamSubscription<PlaybackEvent>? _playbackEventSubscription;
+  StreamSubscription<NativeEqPlaybackSnapshot>? _nativeEqSnapshotSubscription;
   Timer? _playbackCrashHeartbeatTimer;
   ProcessingState? _lastLoggedProcessingState;
   int? _transitionSourceIndex;
@@ -49,14 +51,48 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       unawaited(_maybeStartSongTransition(position));
     });
     _installPlaybackCrashLogging(player);
+    _installNativeEqSnapshotSync();
     ref.onDispose(() {
       _playbackCrashHeartbeatTimer?.cancel();
       unawaited(_positionSubscription?.cancel());
       unawaited(_playerStateSubscription?.cancel());
       unawaited(_playbackEventSubscription?.cancel());
+      unawaited(_nativeEqSnapshotSubscription?.cancel());
       unawaited(_transitionPlayer?.dispose());
     });
     await syncSongTransitionStyle();
+  }
+
+
+
+  void _installNativeEqSnapshotSync() {
+    _nativeEqSnapshotSubscription = ref
+        .read(nativeEqPlayerServiceProvider)
+        .playbackSnapshots()
+        .listen((snapshot) {
+          if (!ref.read(nativeEqPlaybackActiveProvider) ||
+              !snapshot.isSupported ||
+              !snapshot.isLoaded) {
+            return;
+          }
+          final details = ref.read(nowPlayingDetailsProvider);
+          if (details.metadataList.isEmpty ||
+              details.currentMetadata?.isAppleMusicCatalogTrack == true) {
+            return;
+          }
+          if (snapshot.currentIndex != details.currentIndex &&
+              snapshot.currentIndex >= 0 &&
+              snapshot.currentIndex < details.metadataList.length) {
+            ref
+                .read(nowPlayingDetailsProvider.notifier)
+                .setCurrentIndex(snapshot.currentIndex);
+          }
+          if (details.isPlaying != snapshot.isPlaying) {
+            ref
+                .read(nowPlayingDetailsProvider.notifier)
+                .setPlaybackState(snapshot.isPlaying);
+          }
+        });
   }
 
   void _installPlaybackCrashLogging(AudioPlayer player) {
@@ -157,6 +193,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       'filePath': metadata?.filePath,
       'isOnDevice': metadata?.isOnDevice,
       'isAppleMusic': metadata?.isAppleMusicCatalogTrack,
+      'isNativeEqActive': ref.read(nativeEqPlaybackActiveProvider),
       'transitionStyle': settings.songTransitionStyle.name,
       'crossfadeSeconds': settings.crossfadeDurationSeconds,
       'isPreparingTransition': _isPreparingTransition,
@@ -164,6 +201,65 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       'transitionSourceIndex': _transitionSourceIndex,
       ...extra,
     };
+  }
+
+
+
+  Future<void> reconfigureEqualizerPlayback() async {
+    final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+    final metadataList = nowPlayingDetails.metadataList;
+    final currentMetadata = nowPlayingDetails.currentMetadata;
+    if (metadataList.isEmpty || currentMetadata?.isAppleMusicCatalogTrack == true) {
+      await _syncEqualizerPreset();
+      return;
+    }
+
+    final preset = ref.read(settingsPreferencesControllerProvider).equalizerPreset;
+    if (ref.read(nativeEqPlaybackActiveProvider)) {
+      final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
+      final wasPlaying = snapshot.isPlaying;
+      final position = snapshot.position;
+      final index = snapshot.currentIndex;
+      if (!preset.hasNeutralCurve) {
+        await ref.read(nativeEqPlayerServiceProvider).setPreset(preset);
+        return;
+      }
+
+      await _stopNativeEqPlayback();
+      await setAudioSource(
+        nowPlayingType: nowPlayingDetails.nowPlayingType,
+        musicMetadataList: metadataList,
+        initialIndex: index,
+      );
+      await ref.read(audioPlayerProvider).seek(position, index: index);
+      if (wasPlaying) {
+        await play();
+      }
+      return;
+    }
+
+    if (preset.hasNeutralCurve) {
+      await _syncEqualizerPreset();
+      return;
+    }
+
+    final player = ref.read(audioPlayerProvider);
+    final wasPlaying = player.playing || nowPlayingDetails.isPlaying;
+    final position = player.position;
+    final index = player.currentIndex ?? nowPlayingDetails.currentIndex;
+    await setAudioSource(
+      nowPlayingType: nowPlayingDetails.nowPlayingType,
+      musicMetadataList: metadataList,
+      initialIndex: index,
+    );
+    if (ref.read(nativeEqPlaybackActiveProvider)) {
+      await ref.read(nativeEqPlayerServiceProvider).seekTo(position);
+    } else {
+      await ref.read(audioPlayerProvider).seek(position, index: index);
+    }
+    if (wasPlaying) {
+      await play();
+    }
   }
 
   Future<void> syncSongTransitionStyle() async {
@@ -193,6 +289,12 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       return;
     }
 
+    if (ref.read(nativeEqPlaybackActiveProvider)) {
+      await ref.read(nativeEqPlayerServiceProvider).play();
+      ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
+      return;
+    }
+
     if (player.playing) {
       return;
     }
@@ -214,6 +316,12 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     final metadata = ref.read(nowPlayingDetailsProvider).currentMetadata;
     if (metadata?.isAppleMusicCatalogTrack ?? false) {
       await ref.read(appleMusicPlaybackServiceProvider).pause();
+      ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(false);
+      return;
+    }
+
+    if (ref.read(nativeEqPlaybackActiveProvider)) {
+      await ref.read(nativeEqPlayerServiceProvider).pause();
       ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(false);
       return;
     }
@@ -284,6 +392,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     state = await AsyncValue.guard(() async {
       await ref.read(appleMusicPlaybackServiceProvider).pause();
       await _cancelSongTransition();
+      await _stopNativeEqPlayback();
       await ref.read(audioPlayerProvider).stop();
       ref
           .read(nowPlayingDetailsProvider.notifier)
@@ -319,6 +428,14 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           : musicMetadataList[initialIndex
                 .clamp(0, musicMetadataList.length - 1)
                 .toInt()];
+      final didLoadNativeEq = await _trySetNativeEqAudioSource(
+        nowPlayingType: nowPlayingType,
+        musicMetadataList: musicMetadataList,
+        initialIndex: initialIndex,
+      );
+      if (didLoadNativeEq) {
+        return;
+      }
       final localMetadataList = musicMetadataList
           .where((metadata) => !metadata.isAppleMusicCatalogTrack)
           .toList(growable: false);
@@ -360,6 +477,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
                 .clamp(0, songSourcePlaylist.length - 1)
                 .toInt();
 
+      await _stopNativeEqPlayback();
       await ref
           .read(audioPlayerProvider)
           .setAudioSources(
@@ -426,6 +544,17 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         currentIndex: nextIndex,
         nowPlayingType: nowPlayingDetails.nowPlayingType,
       );
+      return;
+    }
+    if (ref.read(nativeEqPlaybackActiveProvider)) {
+      final didSkip = await ref.read(nativeEqPlayerServiceProvider).next();
+      if (didSkip) {
+        final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
+        ref
+            .read(nowPlayingDetailsProvider.notifier)
+            .setCurrentIndex(snapshot.currentIndex);
+        ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
+      }
       return;
     }
     await _cancelSongTransition();
@@ -510,6 +639,20 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      if (ref.read(nativeEqPlaybackActiveProvider)) {
+        final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
+        if (snapshot.position.inSeconds > 3) {
+          await ref.read(nativeEqPlayerServiceProvider).seekTo(Duration.zero);
+        } else {
+          await ref.read(nativeEqPlayerServiceProvider).previous();
+          final updated = await ref.read(nativeEqPlayerServiceProvider).snapshot();
+          ref
+              .read(nowPlayingDetailsProvider.notifier)
+              .setCurrentIndex(updated.currentIndex);
+        }
+        ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
+        return;
+      }
       if (ref.read(audioPlayerProvider).position.inSeconds > 3) {
         await _cancelSongTransition();
         await ref.read(audioPlayerProvider).seek(Duration.zero);
@@ -579,6 +722,20 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           );
           return;
         }
+      }
+
+      if (ref.read(nativeEqPlaybackActiveProvider)) {
+        if (nowPlayingDetails.currentIndex == index) {
+          await ref.read(nativeEqPlayerServiceProvider).play();
+        } else {
+          await ref
+              .read(nativeEqPlayerServiceProvider)
+              .seekToIndex(index, position: Duration.zero);
+          await ref.read(nativeEqPlayerServiceProvider).play();
+          ref.read(nowPlayingDetailsProvider.notifier).setCurrentIndex(index);
+        }
+        ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
+        return;
       }
 
       //In case the same song is already playing
@@ -666,6 +823,16 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         (element) => element.originalSongIndex == originalIndex,
       );
       if (index == -1) {
+        return;
+      }
+
+      if (ref.read(nativeEqPlaybackActiveProvider)) {
+        await ref
+            .read(nativeEqPlayerServiceProvider)
+            .seekToIndex(index, position: Duration.zero);
+        await ref.read(nativeEqPlayerServiceProvider).play();
+        ref.read(nowPlayingDetailsProvider.notifier).setCurrentIndex(index);
+        ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
         return;
       }
 
@@ -892,6 +1059,84 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         .clamp(start + 1, playbackList.length)
         .toInt();
     return playbackList.sublist(start, end);
+  }
+
+
+
+  Future<bool> _trySetNativeEqAudioSource({
+    required NowPlayingType nowPlayingType,
+    required List<MusicMetadata> musicMetadataList,
+    required int initialIndex,
+  }) async {
+    final settings = ref.read(settingsPreferencesControllerProvider);
+    if (settings.equalizerPreset.hasNeutralCurve || musicMetadataList.isEmpty) {
+      await _stopNativeEqPlayback();
+      return false;
+    }
+    if (!ref.read(nativeEqPlayerServiceProvider).isSupported ||
+        musicMetadataList.any((metadata) => metadata.isAppleMusicCatalogTrack)) {
+      await _stopNativeEqPlayback();
+      return false;
+    }
+
+    ref
+        .read(crashLogServiceProvider)
+        .recordPlaybackBreadcrumb(
+          'Preparing native EQ playback',
+          data: _playbackCrashData(
+            extra: {
+              'requestedCount': musicMetadataList.length,
+              'initialIndex': initialIndex,
+              'preset': settings.equalizerPreset.name,
+            },
+          ),
+        );
+
+    final preparedQueue = await ref
+        .read(nativeEqPlayerServiceProvider)
+        .prepareQueue(
+          metadataList: musicMetadataList,
+          startIndex: initialIndex,
+        );
+    if (preparedQueue == null) {
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackBreadcrumb(
+            'Native EQ preparation failed; using default player',
+            data: _playbackCrashData(),
+          );
+      await _stopNativeEqPlayback();
+      return false;
+    }
+
+    await ref.read(audioPlayerProvider).stop();
+    final didLoad = await ref
+        .read(nativeEqPlayerServiceProvider)
+        .loadQueue(queue: preparedQueue, preset: settings.equalizerPreset);
+    if (!didLoad) {
+      await _stopNativeEqPlayback();
+      return false;
+    }
+
+    ref.read(nativeEqPlaybackActiveProvider.notifier).state = true;
+    ref
+        .read(nowPlayingDetailsProvider.notifier)
+        .setNewMetadataList(
+          nowPlayingType: nowPlayingType,
+          newMetadataList: preparedQueue.metadataList,
+          currentIndex: preparedQueue.startIndex,
+          isPlaying: false,
+        );
+    await _syncEqualizerPreset();
+    return true;
+  }
+
+  Future<void> _stopNativeEqPlayback() async {
+    if (!ref.read(nativeEqPlaybackActiveProvider)) {
+      return;
+    }
+    await ref.read(nativeEqPlayerServiceProvider).stop();
+    ref.read(nativeEqPlaybackActiveProvider.notifier).state = false;
   }
 
   Future<void> _verifyAppleMusicManualStartAtZero(
@@ -1197,11 +1442,12 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> _syncEqualizerPreset() async {
-    await ref
-        .read(audioEqualizerServiceProvider)
-        .applyPreset(
-          ref.read(settingsPreferencesControllerProvider).equalizerPreset,
-        );
+    final preset = ref.read(settingsPreferencesControllerProvider).equalizerPreset;
+    if (ref.read(nativeEqPlaybackActiveProvider)) {
+      await ref.read(nativeEqPlayerServiceProvider).setPreset(preset);
+      return;
+    }
+    await ref.read(audioEqualizerServiceProvider).applyPreset(preset);
   }
 
   Future<void> togglePlayback() async {
@@ -1210,6 +1456,15 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
       if (nowPlayingDetails.currentMetadata?.isAppleMusicCatalogTrack ??
           false) {
+        if (nowPlayingDetails.isPlaying) {
+          await pause();
+        } else {
+          await play();
+        }
+        return;
+      }
+
+      if (ref.read(nativeEqPlaybackActiveProvider)) {
         if (nowPlayingDetails.isPlaying) {
           await pause();
         } else {
@@ -1239,6 +1494,13 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      if (ref.read(nativeEqPlaybackActiveProvider)) {
+        final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
+        await ref
+            .read(nativeEqPlayerServiceProvider)
+            .seekTo(snapshot.position + const Duration(seconds: 1));
+        return;
+      }
       final int currentDurationInSeconds = ref
           .read(audioPlayerProvider)
           .position
@@ -1271,6 +1533,14 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      if (ref.read(nativeEqPlaybackActiveProvider)) {
+        final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
+        final target = snapshot.position - const Duration(seconds: 1);
+        await ref
+            .read(nativeEqPlayerServiceProvider)
+            .seekTo(target.isNegative ? Duration.zero : target);
+        return;
+      }
       final currentSeconds = ref.read(audioPlayerProvider).position.inSeconds;
       final targetSeconds = (currentSeconds - 1)
           .clamp(0, currentSeconds)
@@ -1295,6 +1565,12 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
+      if (ref.read(nativeEqPlaybackActiveProvider)) {
+        await ref
+            .read(nativeEqPlayerServiceProvider)
+            .seekTo(Duration(seconds: targetDurationInSeconds));
+        return;
+      }
       final int maxDurationInSeconds =
           ref.read(audioPlayerProvider).duration?.inSeconds ?? 0;
       final clampedTarget = targetDurationInSeconds

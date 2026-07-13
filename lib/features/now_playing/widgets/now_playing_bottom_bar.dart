@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:dope/core/services/apple_music_playback_service.dart';
 import 'package:dope/core/services/audio_player_service.dart';
+import 'package:dope/core/services/native_eq_player_service.dart';
 import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:dope/features/now_playing/widgets/scrubber_bar.dart';
 import 'package:dope/features/now_playing/widgets/seek_bar.dart';
@@ -42,21 +43,29 @@ class NowPlayingBottomBar extends ConsumerWidget {
       );
     }
 
+    final isNativeEq = ref.watch(nativeEqPlaybackActiveProvider);
     return RepaintBoundary(
       child: StreamBuilder<Duration>(
-        stream: ref.read(audioPlayerProvider).positionStream,
+        stream: isNativeEq
+            ? ref.read(nativeEqPlayerServiceProvider).playbackPositions()
+            : ref.read(audioPlayerProvider).positionStream,
         builder: (context, snapshot) {
-          final playerIndex = ref.read(audioPlayerProvider).currentIndex ?? 0;
+          final playerIndex = isNativeEq
+              ? nowPlayingDetails.currentIndex
+              : ref.read(audioPlayerProvider).currentIndex ?? 0;
           final safeIndex = playerIndex
               .clamp(0, metadataList.length - 1)
               .toInt();
+          final nativeEqSnapshot = isNativeEq
+              ? ref.watch(nativeEqPlaybackSnapshotProvider).value
+              : null;
           final totalDuration = math.max(
             1.0,
-            _metadataDurationSeconds(metadataList[safeIndex].trackDuration),
+            nativeEqSnapshot == null || nativeEqSnapshot.duration == Duration.zero
+                ? _metadataDurationSeconds(metadataList[safeIndex].trackDuration)
+                : nativeEqSnapshot.duration.inMilliseconds / 1000,
           );
-          final currentDuration = (snapshot.data?.inSeconds.toDouble() ?? 0)
-              .clamp(0.0, totalDuration)
-              .toDouble();
+          final currentDuration = (snapshot.data?.inMilliseconds ?? 0) / 1000;
 
           return _PlaybackBar(
             showScrubber: showScrubber,

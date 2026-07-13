@@ -29,6 +29,7 @@ import UIKit
     if let controller = window?.rootViewController as? FlutterViewController {
       AppleMusicLookupChannel.register(with: controller.binaryMessenger)
       EqualizerChannel.register(with: controller.binaryMessenger)
+      NativeEqPlayerChannel.register(with: controller.binaryMessenger)
       NativeColorPickerChannel.register(with: controller.binaryMessenger)
       NowPlayingChannel.register(with: controller.binaryMessenger)
     }
@@ -1535,5 +1536,336 @@ private enum NativeCrashLogWriter {
     } catch {
       NSLog("døPe native crash log write failed: \(error.localizedDescription)")
     }
+  }
+}
+
+
+private enum NativeEqPlayerChannel {
+  private static let player = NativeEqPlayer()
+
+  static func register(with messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "mo1/native_eq_player",
+      binaryMessenger: messenger
+    )
+    channel.setMethodCallHandler { call, result in
+      let arguments = call.arguments as? [String: Any] ?? [:]
+      do {
+        switch call.method {
+        case "loadQueue":
+          let items = arguments["items"] as? [[String: Any]] ?? []
+          let startIndex = arguments["startIndex"] as? Int ?? 0
+          let bandGains = doubleArray(arguments["bandGainsDb"])
+          try player.loadQueue(items: items, startIndex: startIndex, bandGains: bandGains)
+          result(true)
+        case "play":
+          player.play()
+          result(true)
+        case "pause":
+          player.pause()
+          result(true)
+        case "stop":
+          player.stop()
+          result(true)
+        case "seekToSeconds":
+          let seconds = arguments["seconds"] as? Double ?? 0
+          try player.seek(to: seconds)
+          result(true)
+        case "seekToIndex":
+          let index = arguments["index"] as? Int ?? 0
+          let seconds = arguments["seconds"] as? Double ?? 0
+          try player.seek(toIndex: index, seconds: seconds)
+          result(true)
+        case "next":
+          result(player.next())
+        case "previous":
+          result(player.previous())
+        case "setPreset":
+          let bandGains = doubleArray(arguments["bandGainsDb"])
+          player.setBandGains(bandGains)
+          result(["isApplied": true, "backend": "av_audio_engine", "message": "Native EQ preset applied."])
+        case "setVolume":
+          let value = arguments["value"] as? Double ?? 1
+          player.setVolume(Float(max(0, min(1, value))))
+          result(true)
+        case "snapshot":
+          result(player.snapshot())
+        default:
+          result(FlutterMethodNotImplemented)
+        }
+      } catch {
+        result(FlutterError(
+          code: "NATIVE_EQ_PLAYER_FAILED",
+          message: error.localizedDescription,
+          details: player.snapshot()
+        ))
+      }
+    }
+  }
+
+  private static func doubleArray(_ value: Any?) -> [Double] {
+    guard let values = value as? [Any] else {
+      return []
+    }
+    return values.compactMap { entry in
+      if let double = entry as? Double { return double }
+      if let int = entry as? Int { return Double(int) }
+      if let number = entry as? NSNumber { return number.doubleValue }
+      return nil
+    }
+  }
+
+}
+
+private final class NativeEqPlayer {
+  private struct QueueItem {
+    let id: String
+    let filePath: String
+    let title: String
+    let artist: String
+    let album: String
+    let durationMs: Int
+  }
+
+  private enum PlayerError: LocalizedError {
+    case emptyQueue
+    case badIndex
+    case unreadableFile(String)
+
+    var errorDescription: String? {
+      switch self {
+      case .emptyQueue:
+        return "Native EQ queue is empty."
+      case .badIndex:
+        return "Native EQ queue index is invalid."
+      case .unreadableFile(let path):
+        return "Native EQ cannot read file: \(path)"
+      }
+    }
+  }
+
+  private let engine = AVAudioEngine()
+  private let playerNode = AVAudioPlayerNode()
+  private let eq = AVAudioUnitEQ(numberOfBands: 10)
+  private var queue: [QueueItem] = []
+  private var currentIndex = 0
+  private var currentFile: AVAudioFile?
+  private var currentSampleRate: Double = 44100
+  private var scheduledFrame: AVAudioFramePosition = 0
+  private var pausedFrame: AVAudioFramePosition = 0
+  private var isLoaded = false
+  private var isPlaying = false
+  private var lastError = ""
+
+  init() {
+    engine.attach(playerNode)
+    engine.attach(eq)
+    engine.connect(playerNode, to: eq, format: nil)
+    engine.connect(eq, to: engine.mainMixerNode, format: nil)
+    configureEqBands([])
+  }
+
+  func loadQueue(items rawItems: [[String: Any]], startIndex: Int, bandGains: [Double]) throws {
+    stop()
+    queue = rawItems.compactMap { item in
+      guard let filePath = item["filePath"] as? String, !filePath.isEmpty else {
+        return nil
+      }
+      return QueueItem(
+        id: item["id"] as? String ?? filePath,
+        filePath: filePath,
+        title: item["title"] as? String ?? "Unknown Song",
+        artist: item["artist"] as? String ?? "Unknown Artist",
+        album: item["album"] as? String ?? "Unknown Album",
+        durationMs: item["durationMs"] as? Int ?? 0
+      )
+    }
+    guard !queue.isEmpty else { throw PlayerError.emptyQueue }
+    guard startIndex >= 0 && startIndex < queue.count else { throw PlayerError.badIndex }
+    currentIndex = startIndex
+    configureEqBands(bandGains)
+    try loadCurrentFile(startFrame: 0, autoPlay: false)
+  }
+
+  func play() {
+    do {
+      if !isLoaded, !queue.isEmpty {
+        try loadCurrentFile(startFrame: pausedFrame, autoPlay: false)
+      }
+      if !engine.isRunning {
+        try engine.start()
+      }
+      playerNode.play()
+      isPlaying = true
+      lastError = ""
+    } catch {
+      lastError = error.localizedDescription
+      isPlaying = false
+    }
+  }
+
+  func pause() {
+    pausedFrame = currentFramePosition()
+    playerNode.pause()
+    isPlaying = false
+  }
+
+  func stop() {
+    playerNode.stop()
+    engine.stop()
+    currentFile = nil
+    scheduledFrame = 0
+    pausedFrame = 0
+    isLoaded = false
+    isPlaying = false
+  }
+
+  func seek(to seconds: Double) throws {
+    try seek(toIndex: currentIndex, seconds: seconds)
+  }
+
+  func seek(toIndex index: Int, seconds: Double) throws {
+    guard index >= 0 && index < queue.count else { throw PlayerError.badIndex }
+    let wasPlaying = isPlaying
+    currentIndex = index
+    let frame = AVAudioFramePosition(max(0, seconds) * currentSampleRate)
+    try loadCurrentFile(startFrame: frame, autoPlay: wasPlaying)
+  }
+
+  @discardableResult
+  func next() -> Bool {
+    guard currentIndex + 1 < queue.count else { return false }
+    do {
+      try seek(toIndex: currentIndex + 1, seconds: 0)
+      return true
+    } catch {
+      lastError = error.localizedDescription
+      return false
+    }
+  }
+
+  @discardableResult
+  func previous() -> Bool {
+    if currentFramePositionSeconds() > 3 {
+      do {
+        try seek(to: 0)
+        return true
+      } catch {
+        lastError = error.localizedDescription
+        return false
+      }
+    }
+    guard currentIndex > 0 else {
+      do {
+        try seek(to: 0)
+        return true
+      } catch {
+        lastError = error.localizedDescription
+        return false
+      }
+    }
+    do {
+      try seek(toIndex: currentIndex - 1, seconds: 0)
+      return true
+    } catch {
+      lastError = error.localizedDescription
+      return false
+    }
+  }
+
+  func setBandGains(_ gains: [Double]) {
+    configureEqBands(gains)
+  }
+
+  func setVolume(_ value: Float) {
+    playerNode.volume = value
+  }
+
+  func snapshot() -> [String: Any] {
+    return [
+      "isSupported": true,
+      "isLoaded": isLoaded,
+      "isPlaying": isPlaying,
+      "currentIndex": currentIndex,
+      "positionSeconds": currentFramePositionSeconds(),
+      "durationSeconds": durationSeconds(),
+      "error": lastError
+    ]
+  }
+
+  private func loadCurrentFile(startFrame requestedStartFrame: AVAudioFramePosition, autoPlay: Bool) throws {
+    guard currentIndex >= 0 && currentIndex < queue.count else { throw PlayerError.badIndex }
+    let item = queue[currentIndex]
+    let url = URL(fileURLWithPath: item.filePath)
+    guard FileManager.default.fileExists(atPath: url.path) else {
+      throw PlayerError.unreadableFile(item.filePath)
+    }
+
+    playerNode.stop()
+    if engine.isRunning {
+      engine.stop()
+    }
+    let file = try AVAudioFile(forReading: url)
+    guard file.length > 0 else {
+      throw PlayerError.unreadableFile(item.filePath)
+    }
+    currentFile = file
+    currentSampleRate = file.processingFormat.sampleRate
+    let startFrame = min(max(0, requestedStartFrame), file.length - 1)
+    scheduledFrame = startFrame
+    pausedFrame = startFrame
+    let frameCount = AVAudioFrameCount(max(1, file.length - startFrame))
+    playerNode.scheduleSegment(
+      file,
+      startingFrame: startFrame,
+      frameCount: frameCount,
+      at: nil
+    ) { [weak self] in
+      DispatchQueue.main.async {
+        guard let self else { return }
+        if self.isPlaying {
+          _ = self.next()
+        }
+      }
+    }
+    isLoaded = true
+    lastError = ""
+    if autoPlay {
+      play()
+    }
+  }
+
+  private func configureEqBands(_ gains: [Double]) {
+    let frequencies: [Float] = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+    for (index, band) in eq.bands.enumerated() {
+      band.filterType = .parametric
+      band.frequency = frequencies[min(index, frequencies.count - 1)]
+      band.bandwidth = 1
+      band.gain = Float(index < gains.count ? gains[index] : 0)
+      band.bypass = false
+    }
+  }
+
+  private func currentFramePosition() -> AVAudioFramePosition {
+    guard isLoaded else { return 0 }
+    if isPlaying,
+       let nodeTime = playerNode.lastRenderTime,
+       let playerTime = playerNode.playerTime(forNodeTime: nodeTime) {
+      return scheduledFrame + AVAudioFramePosition(playerTime.sampleTime)
+    }
+    return pausedFrame
+  }
+
+  private func currentFramePositionSeconds() -> Double {
+    let seconds = Double(currentFramePosition()) / max(1, currentSampleRate)
+    return min(max(0, seconds), durationSeconds())
+  }
+
+  private func durationSeconds() -> Double {
+    if let currentFile {
+      return Double(currentFile.length) / max(1, currentFile.processingFormat.sampleRate)
+    }
+    guard currentIndex >= 0 && currentIndex < queue.count else { return 0 }
+    return Double(queue[currentIndex].durationMs) / 1000
   }
 }
