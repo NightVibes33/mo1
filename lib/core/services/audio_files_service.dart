@@ -467,7 +467,7 @@ class AudioFilesServiceNotifier
       ];
       final bestMatch = _bestHighConfidenceMatch(metadata, matches);
       if (bestMatch == null) {
-        debugLogService.info(
+        ref.read(debugLogServiceProvider).info(
           'import',
           'Auto metadata skipped; no high-confidence match.',
           data: {'query': query, 'title': metadata.trackName},
@@ -489,7 +489,7 @@ class AudioFilesServiceNotifier
         metadata,
         thumbnailPath: thumbnailPath ?? metadata.thumbnailPath,
       );
-      debugLogService.info(
+      ref.read(debugLogServiceProvider).info(
         'import',
         'Auto metadata applied.',
         data: {
@@ -502,7 +502,7 @@ class AudioFilesServiceNotifier
       );
       return updated;
     } catch (error, stackTrace) {
-      debugLogService.warning(
+      ref.read(debugLogServiceProvider).warning(
         'import',
         'Auto metadata lookup failed; keeping imported metadata.',
         data: {'error': error, 'stackTrace': stackTrace, 'query': query},
@@ -784,7 +784,7 @@ class AudioFilesServiceNotifier
       final sourcePath = file.path;
       if (sourcePath == null || sourcePath.isEmpty) {
         skippedCount++;
-        debugLogService.warning(
+        ref.read(debugLogServiceProvider).warning(
           'import',
           'Skipped file with empty source path',
         );
@@ -795,7 +795,7 @@ class AudioFilesServiceNotifier
       }
       if (!metadataReaderRepository.isSupportedAudioFormat(sourcePath)) {
         skippedCount++;
-        debugLogService.warning(
+        ref.read(debugLogServiceProvider).warning(
           'import',
           'Skipped unsupported file',
           data: {'path': sourcePath},
@@ -811,7 +811,7 @@ class AudioFilesServiceNotifier
       try {
         if (!sourceFile.existsSync()) {
           skippedCount++;
-          debugLogService.warning(
+          ref.read(debugLogServiceProvider).warning(
             'import',
             'Skipped missing source file',
             data: {'path': sourcePath, 'name': displayName},
@@ -835,7 +835,7 @@ class AudioFilesServiceNotifier
       if (existingFingerprints.contains(fingerprint) ||
           !selectedFingerprints.add(fingerprint)) {
         duplicateCount++;
-        debugLogService.info(
+        ref.read(debugLogServiceProvider).info(
           'import',
           'Skipped duplicate file',
           data: {'name': displayName, 'bytes': byteLength},
@@ -859,7 +859,7 @@ class AudioFilesServiceNotifier
         importedDisplayNamesByPath[copied.path] = displayName;
         importedSourceDatesByPath[copied.path] = sourceDates;
         existingFingerprints.add(fingerprint);
-        debugLogService.info(
+        ref.read(debugLogServiceProvider).info(
           'import',
           'Copied import file',
           data: {
@@ -886,7 +886,7 @@ class AudioFilesServiceNotifier
       if (updateState) {
         state = AsyncData(_storedMetadata(metadataBox));
       }
-      debugLogService.info(
+      ref.read(debugLogServiceProvider).info(
         'import',
         'Import finished with no copied audio files',
         data: {'duplicates': duplicateCount, 'skipped': skippedCount},
@@ -933,7 +933,7 @@ class AudioFilesServiceNotifier
         repairedMetadata,
       );
       importedMetadata.add(enhancedMetadata);
-      debugLogService.info(
+      ref.read(debugLogServiceProvider).info(
         'import',
         'Imported metadata ready',
         data: {
