@@ -223,6 +223,23 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       return;
     }
 
+    final isMixedAppleMusicQueue = metadataList.any(
+          (metadata) => metadata.isAppleMusicCatalogTrack,
+        ) &&
+        metadataList.any((metadata) => !metadata.isAppleMusicCatalogTrack);
+    if (isMixedAppleMusicQueue) {
+      ref
+          .read(crashLogServiceProvider)
+          .recordPlaybackBreadcrumb(
+            'Skipped EQ queue rebuild for mixed Apple Music queue',
+            data: _playbackCrashData(
+              extra: {'queueLength': metadataList.length},
+            ),
+          );
+      await _syncEqualizerPreset();
+      return;
+    }
+
     final preset = ref.read(settingsPreferencesControllerProvider).equalizerPreset;
     if (ref.read(nativeEqPlaybackActiveProvider)) {
       final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
