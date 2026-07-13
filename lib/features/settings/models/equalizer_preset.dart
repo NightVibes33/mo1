@@ -82,45 +82,45 @@ enum EqualizerPreset {
       case EqualizerPreset.acoustic:
         return const [3, 2, 1, 0, 1, 2, 4, 4, 3, 2];
       case EqualizerPreset.bassBooster:
-        return const [6, 5, 4, 3, 1, 0, 0, 0, 0, 0];
+        return const [7, 6, 5, 3, 1, 0, 0, 0, 0, 0];
       case EqualizerPreset.bassReducer:
-        return const [-6, -5, -4, -3, -1, 0, 0, 0, 0, 0];
+        return const [-7, -6, -5, -3, -1, 0, 0, 0, 0, 0];
       case EqualizerPreset.classical:
-        return const [3, 2, 1, -1, -2, -1, 1, 3, 4, 4];
+        return const [4, 3, 2, 0, -2, -2, 0, 2, 4, 5];
       case EqualizerPreset.dance:
-        return const [5, 4, 3, 1, 0, 1, 2, 3, 2, 1];
+        return const [6, 5, 3, 0, -2, -1, 1, 3, 4, 3];
       case EqualizerPreset.deep:
-        return const [6, 5, 3, 2, 1, 0, -1, -3, -4, -5];
+        return const [7, 6, 4, 2, 0, -1, -2, -3, -4, -5];
       case EqualizerPreset.electronic:
-        return const [4, 3, 1, -1, -2, -1, 1, 2, 3, 4];
+        return const [5, 4, 2, -1, -3, -2, 1, 3, 5, 6];
       case EqualizerPreset.hipHop:
-        return const [5, 4, 3, 2, -1, -2, -1, 1, 3, 4];
+        return const [6, 5, 4, 2, -1, -2, 0, 2, 4, 5];
       case EqualizerPreset.jazz:
-        return const [3, 2, 1, -1, -2, -1, 1, 3, 4, 3];
+        return const [3, 2, 1, 1, 0, 1, 3, 4, 3, 2];
       case EqualizerPreset.latin:
-        return const [3, 2, 1, -1, -2, -1, 2, 4, 5, 4];
+        return const [4, 3, 1, 0, -1, 1, 3, 5, 5, 3];
       case EqualizerPreset.loudness:
-        return const [5, 4, 2, -1, -3, -2, -1, 1, 2, 2];
+        return const [6, 5, 3, 0, -2, -1, 0, 2, 4, 5];
       case EqualizerPreset.lounge:
-        return const [-3, -2, -1, 1, 3, 4, 4, 2, 1, 0];
+        return const [-3, -2, -1, 1, 3, 4, 3, 2, 1, 0];
       case EqualizerPreset.piano:
         return const [-2, -1, 1, 3, 4, 3, 2, 1, 0, -1];
       case EqualizerPreset.pop:
-        return const [-2, -1, 0, 3, 4, 5, 4, 2, -1, -2];
+        return const [-2, -1, 0, 3, 5, 5, 4, 2, -1, -2];
       case EqualizerPreset.rhythmAndBlues:
-        return const [5, 4, 3, 1, -1, -2, -1, 1, 2, 2];
+        return const [5, 4, 3, 1, -1, 0, 2, 3, 3, 2];
       case EqualizerPreset.rock:
-        return const [4, 3, 2, 0, -1, 0, 2, 3, 4, 4];
+        return const [5, 4, 3, 0, -2, 0, 2, 4, 5, 5];
       case EqualizerPreset.smallSpeakers:
-        return const [-5, -4, -2, 1, 3, 4, 4, 3, 2, 1];
+        return const [-6, -5, -3, 0, 3, 5, 5, 4, 3, 2];
       case EqualizerPreset.spokenWord:
-        return const [-4, -3, -2, 1, 3, 4, 3, 2, 1, 0];
+        return const [-6, -5, -3, 0, 4, 6, 5, 3, 0, -2];
       case EqualizerPreset.trebleBooster:
-        return const [0, 0, 0, 0, 1, 2, 3, 4, 5, 6];
+        return const [-1, -1, 0, 0, 1, 2, 4, 5, 6, 7];
       case EqualizerPreset.trebleReducer:
-        return const [0, 0, 0, 0, -1, -2, -3, -4, -5, -6];
+        return const [1, 1, 0, 0, -1, -2, -4, -5, -6, -7];
       case EqualizerPreset.vocalBooster:
-        return const [-2, -2, -1, 1, 3, 5, 4, 2, 0, -1];
+        return const [-3, -2, -1, 1, 4, 6, 5, 3, 0, -1];
     }
   }
 
