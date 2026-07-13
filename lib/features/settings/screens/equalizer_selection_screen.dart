@@ -26,6 +26,9 @@ class _EqualizerSelectionScreenState extends ConsumerState<EqualizerSelectionScr
   String get routeName => Routes.equalizer.name;
 
   @override
+  double get displayTileHeight => 64;
+
+  @override
   List<_EqualizerSelectionEntry> get displayItems {
     final settings = ref.read(settingsPreferencesControllerProvider);
     return [
