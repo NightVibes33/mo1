@@ -92,13 +92,6 @@ class ImportLocalAudioResult {
   }
 }
 
-class _SourceFileDates {
-  final int? createdAtEpochMs;
-  final int? modifiedAtEpochMs;
-
-  const _SourceFileDates({this.createdAtEpochMs, this.modifiedAtEpochMs});
-}
-
 class AudioFilesServiceNotifier
     extends AsyncNotifier<UnmodifiableListView<MusicMetadata>> {
   static const List<String> _importableExtensions = [
@@ -176,6 +169,7 @@ class AudioFilesServiceNotifier
             return UnmodifiableListView(result);
           }
         } else {
+          await _repairStoredLocalAddedDates(metadataBox);
           await _repairStoredLocalDurations(metadataBox);
           return _storedMetadata(metadataBox);
         }
@@ -211,6 +205,100 @@ class AudioFilesServiceNotifier
       return File(path).existsSync();
     } catch (_) {
       return false;
+    }
+  }
+
+  Future<void> _repairStoredLocalAddedDates(
+    Box<MusicMetadata> metadataBox,
+  ) async {
+    final repairedDatesByPath = <String, int>{};
+    var repairedCount = 0;
+    for (var index = 0; index < metadataBox.length; index++) {
+      final metadata = metadataBox.getAt(index);
+      final path = metadata?.filePath;
+      final importedAt = metadata?.importedAtEpochMs;
+      if (metadata == null ||
+          path == null ||
+          path.isEmpty ||
+          importedAt == null ||
+          !metadata.isOnDevice ||
+          metadata.isAppleMusicCatalogTrack ||
+          path.startsWith('applemusic://')) {
+        continue;
+      }
+      if (metadata.sourceCreatedAtEpochMs == importedAt &&
+          metadata.sourceModifiedAtEpochMs == importedAt) {
+        continue;
+      }
+      await metadataBox.putAt(
+        index,
+        metadata.copyWith(
+          sourceCreatedAtEpochMs: importedAt,
+          sourceModifiedAtEpochMs: importedAt,
+        ),
+      );
+      repairedDatesByPath[path] = importedAt;
+      repairedCount++;
+    }
+
+    if (repairedDatesByPath.isNotEmpty &&
+        Hive.isBoxOpen(Constants.playlistBoxName)) {
+      await _repairPlaylistLocalAddedDates(repairedDatesByPath);
+    }
+
+    if (repairedCount > 0) {
+      ref.read(debugLogServiceProvider).info(
+        'import',
+        'Repaired stored local audio date-added order.',
+        data: {'repaired': repairedCount},
+      );
+    }
+  }
+
+  Future<void> _repairPlaylistLocalAddedDates(
+    Map<String, int> addedDatesByPath,
+  ) async {
+    final playlistBox = Hive.box<playlist_models.PlaylistModel>(
+      Constants.playlistBoxName,
+    );
+    var repairedPlaylists = 0;
+    for (var index = 0; index < playlistBox.length; index++) {
+      final playlist = playlistBox.getAt(index);
+      if (playlist == null) {
+        continue;
+      }
+
+      var changed = false;
+      final repairedSongs = playlist.songs.map((song) {
+        final path = song.filePath;
+        final importedAt = path == null ? null : addedDatesByPath[path];
+        if (importedAt == null ||
+            (song.sourceCreatedAtEpochMs == importedAt &&
+                song.sourceModifiedAtEpochMs == importedAt)) {
+          return song;
+        }
+        changed = true;
+        return song.copyWith(
+          sourceCreatedAtEpochMs: importedAt,
+          sourceModifiedAtEpochMs: importedAt,
+        );
+      }).toList(growable: false);
+
+      if (changed) {
+        await playlistBox.putAt(
+          index,
+          playlist.copyWith(songs: repairedSongs),
+        );
+        repairedPlaylists++;
+      }
+    }
+
+    if (repairedPlaylists > 0) {
+      ref.read(debugLogServiceProvider).info(
+        'import',
+        'Repaired playlist local audio date-added order.',
+        data: {'playlists': repairedPlaylists},
+      );
     }
   }
 
@@ -623,7 +711,12 @@ class AudioFilesServiceNotifier
             metadata,
             thumbnailPath: thumbnailPath ?? metadata.thumbnailPath,
           )
-          .copyWith(trackDuration: metadata.trackDuration);
+          .copyWith(
+            trackDuration: metadata.trackDuration,
+            sourceCreatedAtEpochMs: metadata.sourceCreatedAtEpochMs,
+            sourceModifiedAtEpochMs: metadata.sourceModifiedAtEpochMs,
+            importedAtEpochMs: metadata.importedAtEpochMs,
+          );
       ref.read(debugLogServiceProvider).info(
         'import',
         'Auto metadata applied.',
@@ -911,7 +1004,6 @@ class AudioFilesServiceNotifier
 
     final metadataReaderRepository = ref.read(metadataReaderRepositoryProvider);
     final importedDisplayNamesByPath = <String, String>{};
-    final importedSourceDatesByPath = <String, _SourceFileDates>{};
     final List<String> importedAudioPaths = [];
     final selectedFingerprints = <String>{};
     var duplicateCount = 0;
@@ -967,7 +1059,6 @@ class AudioFilesServiceNotifier
         continue;
       }
 
-      final sourceDates = _sourceFileDates(sourceFile);
       final fingerprint = _fileFingerprint(displayName, byteLength);
       if (existingFingerprints.contains(fingerprint) ||
           !selectedFingerprints.add(fingerprint)) {
@@ -994,7 +1085,6 @@ class AudioFilesServiceNotifier
         );
         importedAudioPaths.add(copied.path);
         importedDisplayNamesByPath[copied.path] = displayName;
-        importedSourceDatesByPath[copied.path] = sourceDates;
         existingFingerprints.add(fingerprint);
         ref.read(debugLogServiceProvider).info(
           'import',
@@ -1059,12 +1149,12 @@ class AudioFilesServiceNotifier
         duplicateCount++;
         continue;
       }
-      final sourceDates = importedSourceDatesByPath[metadata.filePath];
+      final importedAt = DateTime.now().millisecondsSinceEpoch;
       final repairedMetadata = metadata.copyWith(
         originalSongIndex: startIndex + importedMetadata.length,
-        sourceCreatedAtEpochMs: sourceDates?.createdAtEpochMs,
-        sourceModifiedAtEpochMs: sourceDates?.modifiedAtEpochMs,
-        importedAtEpochMs: DateTime.now().millisecondsSinceEpoch,
+        sourceCreatedAtEpochMs: importedAt,
+        sourceModifiedAtEpochMs: importedAt,
+        importedAtEpochMs: importedAt,
       );
       final enhancedMetadata = await _autoEnhanceImportedMetadata(
         repairedMetadata,
@@ -1179,26 +1269,6 @@ class AudioFilesServiceNotifier
 
   String _fileFingerprint(String pathOrName, int byteLength) {
     return '${_normalizedStem(pathOrName)}:$byteLength';
-  }
-
-  _SourceFileDates _sourceFileDates(File file) {
-    try {
-      final stat = file.statSync();
-      return _SourceFileDates(
-        createdAtEpochMs: _epochFromDateTime(stat.changed),
-        modifiedAtEpochMs: _epochFromDateTime(stat.modified),
-      );
-    } catch (_) {
-      return const _SourceFileDates();
-    }
-  }
-
-  int? _epochFromDateTime(DateTime? value) {
-    if (value == null) {
-      return null;
-    }
-    final epoch = value.millisecondsSinceEpoch;
-    return epoch <= 0 ? null : epoch;
   }
 
   String? _fingerprintForExistingMetadata(MusicMetadata metadata) {
