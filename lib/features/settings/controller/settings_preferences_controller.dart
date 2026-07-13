@@ -9,6 +9,7 @@ import 'package:dope/core/navigation/routes.dart';
 import 'package:dope/core/providers/filtered_audio_files_provider.dart';
 import 'package:dope/core/services/audio_files_service.dart';
 import 'package:dope/core/services/audio_player_service.dart';
+import 'package:dope/core/services/native_eq_player_service.dart';
 import 'package:dope/features/music/playlist/models/playlist_model.dart';
 import 'package:dope/features/settings/models/app_text_size.dart';
 import 'package:dope/features/settings/models/app_theme.dart';
