@@ -8,6 +8,7 @@ import 'package:dope/features/settings/models/equalizer_preset.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:path_provider/path_provider.dart';
 
 final nativeEqPlayerServiceProvider = Provider<NativeEqPlayerService>((ref) {
@@ -134,16 +135,14 @@ class NativeEqPlayerService {
       _debugLogService.warning(
         'equalizer',
         'Native EQ queue load failed; falling back.',
-        error: error,
-        stackTrace: stackTrace,
+        data: {'error': error, 'stackTrace': stackTrace},
       );
       return false;
     } on MissingPluginException catch (error, stackTrace) {
       _debugLogService.warning(
         'equalizer',
         'Native EQ player bridge is unavailable.',
-        error: error,
-        stackTrace: stackTrace,
+        data: {'error': error, 'stackTrace': stackTrace},
       );
       return false;
     }
@@ -248,9 +247,11 @@ class NativeEqPlayerService {
       _debugLogService.warning(
         'equalizer',
         'Navidrome EQ cache failed.',
-        error: error,
-        stackTrace: stackTrace,
-        data: {'trackName': metadata.trackName},
+        data: {
+          'trackName': metadata.trackName,
+          'error': error,
+          'stackTrace': stackTrace,
+        },
       );
       return null;
     }
