@@ -1452,13 +1452,50 @@ private enum AppleMusicLookupChannel {
     if let isrc = song.isrc, !isrc.isEmpty {
       item["isrc"] = isrc
     }
-    if let contentRating = song.contentRating {
-      let ratingText = String(describing: contentRating).lowercased()
+    if let ratingText = contentRatingText(for: song) {
       item["contentRating"] = ratingText
       item["isExplicit"] = ratingText.contains("explicit")
     }
 
     return item
+  }
+
+  @available(iOS 15.0, *)
+  private static func contentRatingText(for song: Song) -> String? {
+    if let contentRating = song.contentRating {
+      return String(describing: contentRating).lowercased()
+    }
+
+    guard let data = try? JSONEncoder().encode(song),
+          let json = try? JSONSerialization.jsonObject(with: data) else {
+      return nil
+    }
+
+    return nestedStringValue(named: "contentRating", in: json)?.lowercased()
+  }
+
+  private static func nestedStringValue(named key: String, in value: Any) -> String? {
+    if let dictionary = value as? [String: Any] {
+      if let direct = dictionary[key] as? String, !direct.isEmpty {
+        return direct
+      }
+      for nested in dictionary.values {
+        if let found = nestedStringValue(named: key, in: nested) {
+          return found
+        }
+      }
+      return nil
+    }
+
+    if let array = value as? [Any] {
+      for nested in array {
+        if let found = nestedStringValue(named: key, in: nested) {
+          return found
+        }
+      }
+    }
+
+    return nil
   }
 
   @available(iOS 15.0, *)
