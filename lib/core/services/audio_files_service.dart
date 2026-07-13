@@ -408,6 +408,7 @@ class AudioFilesServiceNotifier
       filePath: incoming.filePath,
       thumbnailPath: _mergedAppleMusicThumbnailPath(existing, incoming),
       isOnDevice: false,
+      isExplicit: incoming.isExplicit,
       lyrics: incoming.lyrics,
       sourceCreatedAtEpochMs:
           incoming.sourceCreatedAtEpochMs ?? existing.sourceCreatedAtEpochMs,

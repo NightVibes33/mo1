@@ -1315,9 +1315,13 @@ private enum AppleMusicLookupChannel {
     var result: [String: Any] = [
       "id": identifier,
       "title": item.title ?? "",
-      "artist": item.artist ?? item.albumArtist ?? ""
+      "artist": item.artist ?? item.albumArtist ?? "",
+      "isExplicit": item.isExplicitItem
     ]
 
+    if item.isExplicitItem {
+      result["contentRating"] = "explicit"
+    }
     if let album = item.albumTitle, !album.isEmpty {
       result["album"] = album
     }
@@ -1447,6 +1451,11 @@ private enum AppleMusicLookupChannel {
     }
     if let isrc = song.isrc, !isrc.isEmpty {
       item["isrc"] = isrc
+    }
+    if let contentRating = song.contentRating {
+      let ratingText = String(describing: contentRating).lowercased()
+      item["contentRating"] = ratingText
+      item["isExplicit"] = ratingText.contains("explicit")
     }
 
     return item

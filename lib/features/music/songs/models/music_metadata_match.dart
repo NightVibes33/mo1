@@ -33,6 +33,7 @@ class MusicMetadataMatch {
   final String? catalogUrl;
   final String? isrc;
   final int? dateAddedEpochMs;
+  final bool isExplicit;
 
   const MusicMetadataMatch({
     required this.source,
@@ -52,6 +53,7 @@ class MusicMetadataMatch {
     this.catalogUrl,
     this.isrc,
     this.dateAddedEpochMs,
+    this.isExplicit = false,
   });
 
   String get subtitle {
@@ -86,6 +88,7 @@ class MusicMetadataMatch {
       filePath: '${MusicMetadata.appleMusicCatalogPathPrefix}$id',
       originalSongIndex: originalSongIndex,
       isOnDevice: false,
+      isExplicit: isExplicit,
       sourceCreatedAtEpochMs: dateAddedEpochMs,
       importedAtEpochMs: DateTime.now().millisecondsSinceEpoch,
     );
@@ -108,6 +111,7 @@ class MusicMetadataMatch {
       discNumber: discNumber,
       year: releaseDate?.year,
       trackDuration: durationMs,
+      isExplicit: isExplicit,
     );
   }
 }

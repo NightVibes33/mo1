@@ -123,6 +123,7 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
       originalSongIndex: widget.songMetadata.originalSongIndex,
       isOnDevice: widget.songMetadata.isOnDevice,
       rating: widget.songMetadata.rating,
+      isExplicit: widget.songMetadata.isExplicit,
       lyrics: _nonEmpty(lyricsInput),
     );
 

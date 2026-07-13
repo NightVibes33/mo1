@@ -5,6 +5,34 @@ import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/utils/metadata_artwork.dart';
 import 'package:flutter/cupertino.dart';
 
+class _ExplicitBadge extends StatelessWidget {
+  final Color color;
+
+  const _ExplicitBadge({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 18,
+      width: 18,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        border: Border.all(color: color, width: 1.2),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        'E',
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
 class _ScaledTileText extends StatelessWidget {
   final String text;
   final double height;
@@ -138,12 +166,18 @@ class SongListTile extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (isCurrentlyPlaying)
+                if (songMetadata.isExplicit) ...[
+                  const SizedBox(width: 8),
+                  _ExplicitBadge(color: secondaryColor),
+                ],
+                if (isCurrentlyPlaying) ...[
+                  const SizedBox(width: 8),
                   Icon(
                     CupertinoIcons.volume_up,
                     size: 18,
                     color: primaryColor,
                   ),
+                ],
               ],
             ),
           ),

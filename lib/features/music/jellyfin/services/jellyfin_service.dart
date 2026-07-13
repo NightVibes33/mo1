@@ -591,6 +591,13 @@ class JellyfinService {
     return parts.join(', ');
   }
 
+  bool _isExplicitSong(Map<String, dynamic> songJson) {
+    return parseExplicitFlag(songJson['OfficialRating']) ||
+        parseExplicitFlag(songJson['CustomRating']) ||
+        parseExplicitFlag(songJson['CriticRating']) ||
+        parseExplicitFlag(songJson['InheritedParentalRatingValue']);
+  }
+
   MusicMetadata _songMetadataFromJson(
     JellyfinConnection connection,
     Map<String, dynamic> songJson,
@@ -621,6 +628,7 @@ class JellyfinService {
       originalSongIndex: -100000 - index,
       isOnDevice: false,
       rating: _userData(songJson)?['IsFavorite'] == true ? 5 : 0,
+      isExplicit: _isExplicitSong(songJson),
       sourceCreatedAtEpochMs: _epochMsFromDate(songJson['DateCreated']),
     );
   }

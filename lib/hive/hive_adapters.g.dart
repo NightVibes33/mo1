@@ -73,6 +73,7 @@ class MusicMetadataAdapter extends TypeAdapter<MusicMetadata> {
       rating: fields[16] == null ? 0 : (fields[16] as num).toInt(),
       lyrics: fields[17] as String?,
       sourceCreatedAtEpochMs: (fields[18] as num?)?.toInt(),
+      isExplicit: fields[21] == null ? false : fields[21] as bool,
       sourceModifiedAtEpochMs: (fields[19] as num?)?.toInt(),
       importedAtEpochMs: (fields[20] as num?)?.toInt(),
     );
@@ -81,7 +82,7 @@ class MusicMetadataAdapter extends TypeAdapter<MusicMetadata> {
   @override
   void write(BinaryWriter writer, MusicMetadata obj) {
     writer
-      ..writeByte(21)
+      ..writeByte(22)
       ..writeByte(0)
       ..write(obj.trackName)
       ..writeByte(1)
@@ -123,7 +124,9 @@ class MusicMetadataAdapter extends TypeAdapter<MusicMetadata> {
       ..writeByte(19)
       ..write(obj.sourceModifiedAtEpochMs)
       ..writeByte(20)
-      ..write(obj.importedAtEpochMs);
+      ..write(obj.importedAtEpochMs)
+      ..writeByte(21)
+      ..write(obj.isExplicit);
   }
 
   @override

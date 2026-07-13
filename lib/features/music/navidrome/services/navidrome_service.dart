@@ -656,6 +656,9 @@ class NavidromeService {
             ).toString(),
       originalSongIndex: -index - 1,
       isOnDevice: false,
+      isExplicit: parseExplicitFlag(songJson['explicit']) ||
+          parseExplicitFlag(songJson['contentRating']) ||
+          parseExplicitFlag(songJson['contentAdvisoryRating']),
     );
   }
 

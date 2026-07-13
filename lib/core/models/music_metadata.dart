@@ -133,6 +133,28 @@ List<String>? _artistNamesFromValue(dynamic value) {
   return artists.isEmpty ? null : artists;
 }
 
+bool parseExplicitFlag(dynamic value) {
+  if (value == null) {
+    return false;
+  }
+  if (value is bool) {
+    return value;
+  }
+  final text = value.toString().trim().toLowerCase();
+  if (text.isEmpty) {
+    return false;
+  }
+  return text == 'explicit' ||
+      text == 'explicitcontent' ||
+      text == 'explicit content' ||
+      text == 'parentalratingexplicit' ||
+      text == 'parental rating explicit' ||
+      text == 'true' ||
+      text == '1' ||
+      text == 'yes' ||
+      text == 'e';
+}
+
 String _fileNameWithoutExtension(String path) {
   final normalized = path.replaceAll('\\', '/');
   final slash = normalized.lastIndexOf('/');
@@ -295,6 +317,8 @@ class MusicMetadata extends HiveObject {
   /// Rating of the track.
   final int rating;
 
+  final bool isExplicit;
+
   final String? lyrics;
   final int? sourceCreatedAtEpochMs;
   final int? sourceModifiedAtEpochMs;
@@ -318,6 +342,7 @@ class MusicMetadata extends HiveObject {
     this.originalSongIndex = 0,
     this.isOnDevice = true,
     this.rating = 0,
+    this.isExplicit = false,
     this.lyrics,
     this.sourceCreatedAtEpochMs,
     this.sourceModifiedAtEpochMs,
@@ -424,6 +449,7 @@ class MusicMetadata extends HiveObject {
     originalSongIndex: map['originalSongIndex'],
     isOnDevice: map['isOnDevice'],
     rating: map['rating'],
+    isExplicit: parseExplicitFlag(map['isExplicit']),
     lyrics: _cleanMetadataString(map['lyrics']),
     sourceCreatedAtEpochMs: parseInteger(map['sourceCreatedAtEpochMs']),
     sourceModifiedAtEpochMs: parseInteger(map['sourceModifiedAtEpochMs']),
@@ -448,6 +474,7 @@ class MusicMetadata extends HiveObject {
     'originalSongIndex': originalSongIndex,
     'isOnDevice': isOnDevice,
     'rating': rating,
+    'isExplicit': isExplicit,
     'lyrics': lyrics,
     'sourceCreatedAtEpochMs': sourceCreatedAtEpochMs,
     'sourceModifiedAtEpochMs': sourceModifiedAtEpochMs,
@@ -477,6 +504,7 @@ class MusicMetadata extends HiveObject {
     int? originalSongIndex,
     bool? isOnDevice,
     int? rating,
+    bool? isExplicit,
     String? lyrics,
     int? sourceCreatedAtEpochMs,
     int? sourceModifiedAtEpochMs,
@@ -500,6 +528,7 @@ class MusicMetadata extends HiveObject {
       originalSongIndex: originalSongIndex ?? this.originalSongIndex,
       isOnDevice: isOnDevice ?? this.isOnDevice,
       rating: rating ?? this.rating,
+      isExplicit: isExplicit ?? this.isExplicit,
       lyrics: lyrics ?? this.lyrics,
       sourceCreatedAtEpochMs:
           sourceCreatedAtEpochMs ?? this.sourceCreatedAtEpochMs,
@@ -561,6 +590,7 @@ class MusicMetadata extends HiveObject {
       originalSongIndex: originalSongIndex,
       isOnDevice: isOnDevice,
       rating: rating,
+      isExplicit: isExplicit,
       lyrics: lyrics,
       sourceCreatedAtEpochMs: sourceCreatedAtEpochMs,
       sourceModifiedAtEpochMs: sourceModifiedAtEpochMs,
@@ -713,6 +743,7 @@ class MusicMetadata extends HiveObject {
         bitrate == other.bitrate &&
         filePath == other.filePath &&
         rating == other.rating &&
+        isExplicit == other.isExplicit &&
         lyrics == other.lyrics &&
         sourceCreatedAtEpochMs == other.sourceCreatedAtEpochMs &&
         sourceModifiedAtEpochMs == other.sourceModifiedAtEpochMs &&
@@ -735,6 +766,7 @@ class MusicMetadata extends HiveObject {
     bitrate,
     filePath,
     rating,
+    isExplicit,
     lyrics,
     sourceCreatedAtEpochMs,
     sourceModifiedAtEpochMs,

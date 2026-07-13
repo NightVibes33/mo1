@@ -475,6 +475,7 @@ class _AppleMusicSearchScreenState extends ConsumerState<AppleMusicSearchScreen>
                     title: match.title.isEmpty ? 'Unknown Song' : match.title,
                     description: _resultDescription(match),
                     artworkUrl: match.artworkUrl,
+                    isExplicit: match.isExplicit,
                     isSelected: selectedDisplayItem == index,
                     isAddLoading: _addingToLibraryDisplayIndex == index,
                     onTap: () => unawaited(_onAppleMusicResultAction(index)),
@@ -497,6 +498,7 @@ class _AppleMusicListTile extends StatelessWidget {
   final String description;
   final String? artworkUrl;
   final bool isSelected;
+  final bool isExplicit;
   final bool isLoading;
   final bool isAddLoading;
   final VoidCallback onTap;
@@ -507,6 +509,7 @@ class _AppleMusicListTile extends StatelessWidget {
     required this.description,
     required this.isSelected,
     required this.onTap,
+    this.isExplicit = false,
     this.artworkUrl,
     this.isLoading = false,
     this.isAddLoading = false,
@@ -585,6 +588,10 @@ class _AppleMusicListTile extends StatelessWidget {
                   ],
                 ),
               ),
+              if (isExplicit) ...[
+                const SizedBox(width: 8),
+                _AppleMusicExplicitBadge(color: trailingColor),
+              ],
               if (canAddToLibrary)
                 CupertinoButton(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -609,6 +616,34 @@ class _AppleMusicListTile extends StatelessWidget {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AppleMusicExplicitBadge extends StatelessWidget {
+  final Color color;
+
+  const _AppleMusicExplicitBadge({required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 18,
+      width: 18,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        border: Border.all(color: color, width: 1.2),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        'E',
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          height: 1,
         ),
       ),
     );

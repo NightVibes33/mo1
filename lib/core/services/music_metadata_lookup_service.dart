@@ -454,6 +454,15 @@ class AppleMusicCatalogBridge {
   }
 }
 
+bool _explicitFromJson(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    if (parseExplicitFlag(json[key])) {
+      return true;
+    }
+  }
+  return false;
+}
+
 MusicMetadataMatch _itunesMatchFromJson(
   Map<String, dynamic> json, {
   MusicMetadataSource source = MusicMetadataSource.itunes,
@@ -477,6 +486,11 @@ MusicMetadataMatch _itunesMatchFromJson(
     previewUrl: _stringOrNull(json['previewUrl']),
     catalogUrl: _stringOrNull(json['trackViewUrl']),
     isrc: _stringOrNull(json['isrc']),
+    isExplicit: _explicitFromJson(json, const [
+      'trackExplicitness',
+      'collectionExplicitness',
+      'contentAdvisoryRating',
+    ]),
   );
 }
 
@@ -499,6 +513,11 @@ MusicMetadataMatch _deezerMatchFromJson(Map<String, dynamic> json) {
         : null,
     durationMs: durationSeconds == null ? null : durationSeconds * 1000,
     previewUrl: _stringOrNull(json['preview']),
+    isExplicit: _explicitFromJson(json, const [
+      'explicit_lyrics',
+      'explicit_content_lyrics',
+      'explicit_content_cover',
+    ]),
   );
 }
 
@@ -520,6 +539,11 @@ MusicMetadataMatch _appleMusicMatchFromJson(Map<String, dynamic> json) {
     catalogUrl: _stringOrNull(json['catalogUrl']),
     isrc: _stringOrNull(json['isrc']),
     dateAddedEpochMs: _integer(json['dateAddedMs']),
+    isExplicit: _explicitFromJson(json, const [
+      'isExplicit',
+      'contentRating',
+      'contentAdvisoryRating',
+    ]),
   );
 }
 
