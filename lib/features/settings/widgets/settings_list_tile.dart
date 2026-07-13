@@ -24,7 +24,7 @@ class SettingsListTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        height: subtitle == null ? 30 : 44,
+        height: subtitle == null ? 30 : 54,
         width: double.infinity,
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -70,11 +70,12 @@ class SettingsListTile extends StatelessWidget {
                       if (subtitle != null)
                         Text(
                           subtitle!,
-                          maxLines: 1,
+                          maxLines: 2,
+                          softWrap: true,
                           overflow: TextOverflow.ellipsis,
                           style: CupertinoTheme.of(context).textTheme.textStyle
                               .copyWith(
-                                fontSize: 9.5,
+                                fontSize: 9,
                                 fontWeight: FontWeight.bold,
                                 color: isSelected
                                     ? context.appInverseTextColor.withValues(
