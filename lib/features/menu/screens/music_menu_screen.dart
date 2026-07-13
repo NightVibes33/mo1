@@ -30,7 +30,7 @@ enum _MusicListDisplayItems {
       case appleMusic:
         return 'Apple Music';
       case navidrome:
-        return 'Connect Navidrome';
+        return 'Navidrome';
       case importSongs:
         return '+ MP3 Import';
       case playlists:

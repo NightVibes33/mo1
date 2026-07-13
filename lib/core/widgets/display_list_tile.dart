@@ -61,42 +61,47 @@ class DisplayListTile extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Flexible(
-                  child: AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    style: CupertinoTheme.of(context).textTheme.textStyle
-                        .copyWith(
-                          fontSize: isSelected ? 16.5 : 16,
-                          fontWeight: FontWeight.bold,
-                          color: isSelected
-                              ? context.appInverseTextColor
-                              : context.appPrimaryTextColor,
-                          shadows: isSelected
-                              ? [
-                                  Shadow(
-                                    color: CupertinoColors.black.withValues(
-                                      alpha: 0.18,
+                Expanded(
+                  child: FittedBox(
+                    alignment: Alignment.centerLeft,
+                    fit: BoxFit.scaleDown,
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      style: CupertinoTheme.of(context).textTheme.textStyle
+                          .copyWith(
+                            fontSize: isSelected ? 16.5 : 16,
+                            fontWeight: FontWeight.bold,
+                            color: isSelected
+                                ? context.appInverseTextColor
+                                : context.appPrimaryTextColor,
+                            shadows: isSelected
+                                ? [
+                                    Shadow(
+                                      color: CupertinoColors.black.withValues(
+                                        alpha: 0.18,
+                                      ),
+                                      blurRadius: 6,
                                     ),
-                                    blurRadius: 6,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                    child: Text(
-                      text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                                  ]
+                                : null,
+                          ),
+                      child: Text(text, maxLines: 1, softWrap: false),
                     ),
                   ),
                 ),
-                AnimatedOpacity(
-                  opacity: isSelected ? 1 : 0,
+                AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
-                  child: Icon(
-                    CupertinoIcons.right_chevron,
-                    color: context.appInverseTextColor,
-                    size: 18,
+                  curve: Curves.easeOut,
+                  width: isSelected ? 18 : 0,
+                  child: AnimatedOpacity(
+                    opacity: isSelected ? 1 : 0,
+                    duration: const Duration(milliseconds: 160),
+                    child: Icon(
+                      CupertinoIcons.right_chevron,
+                      color: context.appInverseTextColor,
+                      size: 18,
+                    ),
                   ),
                 ),
               ],
