@@ -14,6 +14,7 @@ class JellyfinConnectionNotifier extends Notifier<JellyfinConnection?> {
   static const String _userIdKey = 'jellyfin.userId';
   static const String _serverNameKey = 'jellyfin.serverName';
   static const String _deviceIdKey = 'jellyfin.deviceId';
+  static const String _audioQualityKey = 'jellyfin.audioQuality';
 
   @override
   JellyfinConnection? build() {
@@ -29,6 +30,9 @@ class JellyfinConnectionNotifier extends Notifier<JellyfinConnection?> {
       userId: preferences.getString(_userIdKey) ?? '',
       serverName: preferences.getString(_serverNameKey) ?? '',
       deviceId: preferences.getString(_deviceIdKey) ?? '',
+      audioQuality: JellyfinAudioQuality.fromName(
+        preferences.getString(_audioQualityKey),
+      ),
     ).normalized();
 
     return connection.isComplete ? connection : null;
@@ -46,6 +50,10 @@ class JellyfinConnectionNotifier extends Notifier<JellyfinConnection?> {
     await preferences.setString(_userIdKey, normalizedConnection.userId);
     await preferences.setString(_serverNameKey, normalizedConnection.serverName);
     await preferences.setString(_deviceIdKey, normalizedConnection.deviceId);
+    await preferences.setString(
+      _audioQualityKey,
+      normalizedConnection.audioQuality.name,
+    );
     state = normalizedConnection;
   }
 
@@ -57,6 +65,18 @@ class JellyfinConnectionNotifier extends Notifier<JellyfinConnection?> {
     await preferences.remove(_userIdKey);
     await preferences.remove(_serverNameKey);
     await preferences.remove(_deviceIdKey);
+    await preferences.remove(_audioQualityKey);
     state = null;
+  }
+}
+
+
+extension JellyfinConnectionQualityActions on JellyfinConnectionNotifier {
+  Future<void> updateAudioQuality(JellyfinAudioQuality quality) async {
+    final current = state;
+    if (current == null) {
+      return;
+    }
+    await save(current.copyWith(audioQuality: quality));
   }
 }

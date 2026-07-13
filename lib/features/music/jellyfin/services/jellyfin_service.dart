@@ -14,12 +14,6 @@ class JellyfinServiceException implements Exception {
   String toString() => message;
 }
 
-class JellyfinLoginResult {
-  final JellyfinConnection connection;
-
-  const JellyfinLoginResult({required this.connection});
-}
-
 class JellyfinService {
   static const String _clientName = 'dope';
   static const String _clientVersion = '3.0.0';
@@ -67,7 +61,9 @@ class JellyfinService {
     final response = await _getJson(connection, '/System/Info/Public');
     final name = response['ServerName']?.toString() ?? connection.serverName;
     final version = response['Version']?.toString();
-    return version == null || version.isEmpty ? name : '$name • $version';
+    return version == null || version.isEmpty
+        ? '$name • ${connection.audioQuality.label}'
+        : '$name • $version • ${connection.audioQuality.label}';
   }
 
   Future<List<JellyfinBrowserItem>> musicLibraries(
@@ -331,6 +327,93 @@ class JellyfinService {
     return _songsFromItems(connection, _items(response));
   }
 
+  Future<List<MusicMetadata>> randomSongs(
+    JellyfinConnection connection,
+  ) async {
+    final response = await _getJson(
+      connection,
+      '/Users/${connection.userId}/Items',
+      queryParameters: {
+        'Recursive': 'true',
+        'IncludeItemTypes': 'Audio',
+        'SortBy': 'Random',
+        'Fields': _itemFields,
+        'Limit': '100',
+      },
+    );
+    return _songsFromItems(connection, _items(response));
+  }
+
+  Future<List<MusicMetadata>> recentlyPlayed(
+    JellyfinConnection connection,
+  ) async {
+    final response = await _getJson(
+      connection,
+      '/Users/${connection.userId}/Items',
+      queryParameters: {
+        'Recursive': 'true',
+        'IncludeItemTypes': 'Audio',
+        'SortBy': 'DatePlayed',
+        'SortOrder': 'Descending',
+        'Fields': _itemFields,
+        'Limit': '100',
+      },
+    );
+    return _songsFromItems(connection, _items(response));
+  }
+
+  Future<List<MusicMetadata>> resumableSongs(
+    JellyfinConnection connection,
+  ) async {
+    final response = await _getJson(
+      connection,
+      '/Users/${connection.userId}/Items/Resume',
+      queryParameters: {
+        'IncludeItemTypes': 'Audio',
+        'Fields': _itemFields,
+        'Limit': '100',
+      },
+    );
+    return _songsFromItems(connection, _items(response));
+  }
+
+  Future<void> createPlaylist(
+    JellyfinConnection connection,
+    String name,
+  ) async {
+    await _postJson(
+      connection.serverUrl,
+      '/Playlists',
+      connection: connection,
+      queryParameters: {'userId': connection.userId},
+      body: jsonEncode({'Name': name.trim(), 'MediaType': 'Audio'}),
+    );
+  }
+
+  Future<void> deletePlaylist(
+    JellyfinConnection connection,
+    String playlistId,
+  ) async {
+    await _deleteJson(connection, '/Items/$playlistId');
+  }
+
+  Future<void> addSongToPlaylist(
+    JellyfinConnection connection,
+    String playlistId,
+    MusicMetadata song,
+  ) async {
+    final id = _songIdFromMetadata(song);
+    if (id == null) {
+      throw const JellyfinServiceException('Missing Jellyfin song id.');
+    }
+    await _postJson(
+      connection.serverUrl,
+      '/Playlists/$playlistId/Items',
+      connection: connection,
+      queryParameters: {'ids': id, 'userId': connection.userId},
+    );
+  }
+
   Future<void> favoriteSong(
     JellyfinConnection connection,
     MusicMetadata song,
@@ -353,6 +436,24 @@ class JellyfinService {
     await _deleteJson(connection, '/Users/${connection.userId}/FavoriteItems/$id');
   }
 
+  Future<void> favoriteItem(
+    JellyfinConnection connection,
+    String itemId,
+  ) async {
+    await _postJson(
+      connection.serverUrl,
+      '/Users/${connection.userId}/FavoriteItems/$itemId',
+      connection: connection,
+    );
+  }
+
+  Future<void> unfavoriteItem(
+    JellyfinConnection connection,
+    String itemId,
+  ) async {
+    await _deleteJson(connection, '/Users/${connection.userId}/FavoriteItems/$itemId');
+  }
+
   Future<void> reportPlaybackStart(
     JellyfinConnection connection,
     MusicMetadata song,
@@ -370,12 +471,15 @@ class JellyfinService {
   }
 
   Uri streamUri(JellyfinConnection connection, String itemId) {
+    final maxBitrate = connection.audioQuality.maxStreamingBitrate;
     return _buildUri(
       connection.serverUrl,
       '/Audio/$itemId/stream',
       queryParameters: {
-        'static': 'true',
         'api_key': connection.accessToken,
+        if (maxBitrate == null) 'static': 'true',
+        if (maxBitrate != null) 'static': 'false',
+        if (maxBitrate != null) 'maxStreamingBitrate': maxBitrate,
       },
     );
   }
@@ -415,8 +519,9 @@ class JellyfinService {
     String? body,
     JellyfinConnection? connection,
     String? deviceId,
+    Map<String, String> queryParameters = const {},
   }) async {
-    final uri = _buildUri(serverUrl, path);
+    final uri = _buildUri(serverUrl, path, queryParameters: queryParameters);
     final request = await _httpClient.postUrl(uri);
     _applyHeaders(request, connection: connection, deviceId: deviceId);
     request.headers.contentType = ContentType.json;

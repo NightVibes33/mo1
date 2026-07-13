@@ -39,7 +39,12 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
   static const String _artistsAction = 'artists';
   static const String _playlistsAction = 'playlists';
   static const String _favoritesAction = 'favorites';
+  static const String _randomSongsAction = 'randomSongs';
   static const String _recentlyAddedAction = 'recentlyAdded';
+  static const String _recentlyPlayedAction = 'recentlyPlayed';
+  static const String _resumeAction = 'resume';
+  static const String _createPlaylistAction = 'createPlaylist';
+  static const String _qualityAction = 'quality';
   static const String _librariesAction = 'libraries';
   static const String _serverInfoAction = 'serverInfo';
   static const String _disconnectAction = 'disconnect';
@@ -90,10 +95,21 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
       JellyfinBrowserItem.action(id: _artistsAction, title: 'Artists'),
       JellyfinBrowserItem.action(id: _playlistsAction, title: 'Playlists'),
       JellyfinBrowserItem.action(id: _favoritesAction, title: 'Favorites'),
+      JellyfinBrowserItem.action(id: _randomSongsAction, title: 'Random Songs'),
       JellyfinBrowserItem.action(
         id: _recentlyAddedAction,
         title: 'Recently Added',
       ),
+      JellyfinBrowserItem.action(
+        id: _recentlyPlayedAction,
+        title: 'Recently Played',
+      ),
+      JellyfinBrowserItem.action(id: _resumeAction, title: 'Resume'),
+      JellyfinBrowserItem.action(
+        id: _createPlaylistAction,
+        title: 'Create Playlist',
+      ),
+      JellyfinBrowserItem.action(id: _qualityAction, title: 'Audio Quality'),
       JellyfinBrowserItem.action(id: _librariesAction, title: 'Music Libraries'),
       JellyfinBrowserItem.action(id: _serverInfoAction, title: 'Server Info'),
       JellyfinBrowserItem.action(
@@ -196,12 +212,46 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
           );
         }
         break;
+      case _randomSongsAction:
+        if (connection != null) {
+          await _loadSongPage(
+            title: 'Random Songs',
+            loader: () => ref.read(jellyfinServiceProvider).randomSongs(connection),
+          );
+        }
+        break;
       case _recentlyAddedAction:
         if (connection != null) {
           await _loadSongPage(
             title: 'Recently Added',
             loader: () => ref.read(jellyfinServiceProvider).recentlyAdded(connection),
           );
+        }
+        break;
+      case _recentlyPlayedAction:
+        if (connection != null) {
+          await _loadSongPage(
+            title: 'Recently Played',
+            loader: () => ref.read(jellyfinServiceProvider).recentlyPlayed(connection),
+          );
+        }
+        break;
+      case _resumeAction:
+        if (connection != null) {
+          await _loadSongPage(
+            title: 'Resume',
+            loader: () => ref.read(jellyfinServiceProvider).resumableSongs(connection),
+          );
+        }
+        break;
+      case _createPlaylistAction:
+        if (connection != null) {
+          await _createPlaylist(connection);
+        }
+        break;
+      case _qualityAction:
+        if (connection != null) {
+          await _chooseAudioQuality(connection);
         }
         break;
       case _librariesAction:
@@ -439,6 +489,95 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
     );
   }
 
+  Future<void> _createPlaylist(JellyfinConnection connection) async {
+    final name = await _promptForText(
+      title: 'Create Playlist',
+      placeholder: 'Playlist name',
+    );
+    if (!mounted || name == null || name.trim().isEmpty) {
+      return;
+    }
+    try {
+      await ref.read(jellyfinServiceProvider).createPlaylist(
+            connection,
+            name.trim(),
+          );
+      _setStatus('Playlist created.');
+    } on JellyfinServiceException catch (error) {
+      _setError(error.message);
+    } catch (_) {
+      _setError('Jellyfin playlist request failed.');
+    }
+  }
+
+  Future<void> _chooseAudioQuality(JellyfinConnection connection) async {
+    final quality = await showCupertinoModalPopup<JellyfinAudioQuality>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Jellyfin Audio Quality'),
+        message: Text(connection.audioQuality.description),
+        actions: [
+          for (final option in JellyfinAudioQuality.values)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop(option),
+              child: Text(option.label),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (!mounted || quality == null) {
+      return;
+    }
+    await ref
+        .read(jellyfinConnectionProvider.notifier)
+        .updateAudioQuality(quality);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _statusText = '${quality.label} enabled. Reload Jellyfin pages for new stream URLs.');
+  }
+
+  Future<String?> _promptForText({
+    required String title,
+    required String placeholder,
+    String initialValue = '',
+  }) async {
+    final controller = TextEditingController(text: initialValue);
+    final result = await showCupertinoDialog<String>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            controller: controller,
+            autofocus: true,
+            clearButtonMode: OverlayVisibilityMode.editing,
+            placeholder: placeholder,
+            onSubmitted: (value) => Navigator.of(context).pop(value),
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
+
   Future<void> _showServerInfo(JellyfinConnection connection) async {
     if (_isBusy) {
       return;
@@ -584,6 +723,69 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
     }
   }
 
+  Future<void> _showBrowserActions(JellyfinBrowserItem item) async {
+    final connection = ref.read(jellyfinConnectionProvider);
+    if (connection == null) {
+      return;
+    }
+
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text(item.title),
+        message: Text(item.subtitle ?? 'Jellyfin item'),
+        actions: [
+          if (item.type == JellyfinBrowserItemType.playlist)
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.of(context).pop('deletePlaylist'),
+              child: const Text('Delete Playlist'),
+            ),
+          if (item.type == JellyfinBrowserItemType.artist ||
+              item.type == JellyfinBrowserItemType.album)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('favorite'),
+              child: const Text('Favorite'),
+            ),
+          if (item.type == JellyfinBrowserItemType.artist ||
+              item.type == JellyfinBrowserItemType.album)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('unfavorite'),
+              child: const Text('Unfavorite'),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (!mounted || action == null) {
+      return;
+    }
+
+    try {
+      switch (action) {
+        case 'deletePlaylist':
+          await ref.read(jellyfinServiceProvider).deletePlaylist(connection, item.id);
+          _setStatus('Playlist deleted.');
+          break;
+        case 'favorite':
+          await ref.read(jellyfinServiceProvider).favoriteItem(connection, item.id);
+          _setStatus('Item favorited.');
+          break;
+        case 'unfavorite':
+          await ref.read(jellyfinServiceProvider).unfavoriteItem(connection, item.id);
+          _setStatus('Item unfavorited.');
+          break;
+      }
+    } on JellyfinServiceException catch (error) {
+      _setError(error.message);
+    } catch (_) {
+      _setError('Jellyfin action failed.');
+    }
+  }
+
   Future<void> _showSongActions(JellyfinBrowserItem item) async {
     final song = item.song;
     final connection = ref.read(jellyfinConnectionProvider);
@@ -604,6 +806,14 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
           CupertinoActionSheetAction(
             onPressed: () => Navigator.of(context).pop('unfavorite'),
             child: const Text('Unfavorite Song'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('addToPlaylist'),
+            child: const Text('Add to Server Playlist'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('reportPlayed'),
+            child: const Text('Report Played'),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
@@ -626,12 +836,57 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
           await ref.read(jellyfinServiceProvider).unfavoriteSong(connection, song);
           _setStatus('Song unfavorited.');
           break;
+        case 'addToPlaylist':
+          await _addSongToPlaylist(connection, song);
+          break;
+        case 'reportPlayed':
+          await ref.read(jellyfinServiceProvider).reportPlaybackStart(connection, song);
+          _setStatus('Playback reported.');
+          break;
       }
     } on JellyfinServiceException catch (error) {
       _setError(error.message);
     } catch (_) {
       _setError('Jellyfin action failed.');
     }
+  }
+
+  Future<void> _addSongToPlaylist(
+    JellyfinConnection connection,
+    MusicMetadata song,
+  ) async {
+    final playlists = await ref.read(jellyfinServiceProvider).playlists(connection);
+    if (!mounted) {
+      return;
+    }
+    if (playlists.isEmpty) {
+      _setError('No Jellyfin playlists found.');
+      return;
+    }
+    final playlist = await showCupertinoModalPopup<JellyfinBrowserItem>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Add to Playlist'),
+        actions: [
+          for (final item in playlists)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop(item),
+              child: Text(item.title),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (!mounted || playlist == null) {
+      return;
+    }
+    await ref
+        .read(jellyfinServiceProvider)
+        .addSongToPlaylist(connection, playlist.id, song);
+    _setStatus('Song added to ${playlist.title}.');
   }
 
   Future<void> _disconnectJellyfin() async {
@@ -734,6 +989,7 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
                     text: text,
                     isSelected: selectedDisplayItem == index,
                     onTap: () => unawaited(_onDisplayItemAction(index)),
+                    onLongPress: () => unawaited(_showBrowserActions(item)),
                   );
                 },
               ),
