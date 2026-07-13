@@ -143,6 +143,15 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
   @override
   Future<void> onSelectPressed() => _onDisplayItemAction(selectedDisplayItem);
 
+  @override
+  void onMenuButtonPressed() {
+    if (_pageStack.isNotEmpty) {
+      _goBack();
+      return;
+    }
+    context.pop();
+  }
+
   Future<void> _onDisplayItemAction(int displayIndex) async {
     final items = _currentItems;
     if (displayIndex < 0 || displayIndex >= items.length) {
