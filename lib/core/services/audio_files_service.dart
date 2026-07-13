@@ -10,6 +10,7 @@ import 'package:dope/core/services/app_documents_service.dart';
 import 'package:dope/core/repositories/metadata_reader_repository.dart';
 import 'package:dope/core/services/debug_log_service.dart';
 import 'package:dope/core/services/music_metadata_lookup_service.dart';
+import 'package:dope/features/music/playlist/models/playlist_model.dart';
 import 'package:dope/features/music/songs/models/music_metadata_match.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:file_picker/file_picker.dart';
@@ -175,6 +176,7 @@ class AudioFilesServiceNotifier
             return UnmodifiableListView(result);
           }
         } else {
+          await _repairStoredLocalDurations(metadataBox);
           return _storedMetadata(metadataBox);
         }
       }
@@ -209,6 +211,132 @@ class AudioFilesServiceNotifier
       return File(path).existsSync();
     } catch (_) {
       return false;
+    }
+  }
+
+  Future<void> _repairStoredLocalDurations(
+    Box<MusicMetadata> metadataBox,
+  ) async {
+    final pathsToRepair = <String>[];
+    final seenPaths = <String>{};
+    for (final metadata in metadataBox.values) {
+      final path = metadata.filePath;
+      if (path == null ||
+          path.isEmpty ||
+          !metadata.isOnDevice ||
+          metadata.isAppleMusicCatalogTrack ||
+          path.startsWith('applemusic://') ||
+          !seenPaths.add(path)) {
+        continue;
+      }
+      try {
+        if (File(path).existsSync()) {
+          pathsToRepair.add(path);
+        }
+      } catch (_) {
+        continue;
+      }
+    }
+
+    if (pathsToRepair.isEmpty) {
+      return;
+    }
+
+    final extractedMetadata = await compute(
+      ref.read(metadataReaderRepositoryProvider).extractMetadataFromFiles,
+      pathsToRepair,
+    );
+    final durationsByPath = <String, int>{};
+    for (final metadata in extractedMetadata) {
+      final path = metadata.filePath;
+      final duration = metadata.trackDuration;
+      if (path != null && duration != null && duration > 0) {
+        durationsByPath[path] = duration;
+      }
+    }
+
+    if (durationsByPath.isEmpty) {
+      return;
+    }
+
+    final repairedDurationsByPath = <String, int>{};
+    var repairedCount = 0;
+    for (var index = 0; index < metadataBox.length; index++) {
+      final storedMetadata = metadataBox.getAt(index);
+      final path = storedMetadata?.filePath;
+      final fileDuration = path == null ? null : durationsByPath[path];
+      if (storedMetadata == null || fileDuration == null) {
+        continue;
+      }
+      final storedDuration = storedMetadata.trackDuration;
+      if (storedDuration != null &&
+          (storedDuration - fileDuration).abs() <= 1000) {
+        continue;
+      }
+      await metadataBox.putAt(
+        index,
+        storedMetadata.copyWith(trackDuration: fileDuration),
+      );
+      repairedDurationsByPath[path] = fileDuration;
+      repairedCount++;
+    }
+
+    if (repairedDurationsByPath.isNotEmpty &&
+        Hive.isBoxOpen(Constants.playlistBoxName)) {
+      await _repairPlaylistLocalDurations(repairedDurationsByPath);
+    }
+
+    if (repairedCount > 0) {
+      ref.read(debugLogServiceProvider).info(
+        'import',
+        'Repaired stored local audio durations from file metadata.',
+        data: {'repaired': repairedCount},
+      );
+    }
+  }
+
+  Future<void> _repairPlaylistLocalDurations(
+    Map<String, int> durationsByPath,
+  ) async {
+    final playlistBox = Hive.box<PlaylistModel>(Constants.playlistBoxName);
+    var repairedPlaylists = 0;
+    for (var index = 0; index < playlistBox.length; index++) {
+      final playlist = playlistBox.getAt(index);
+      if (playlist == null) {
+        continue;
+      }
+
+      var changed = false;
+      final repairedSongs = playlist.songs.map((song) {
+        final path = song.filePath;
+        final fileDuration = path == null ? null : durationsByPath[path];
+        if (fileDuration == null) {
+          return song;
+        }
+        final storedDuration = song.trackDuration;
+        if (storedDuration != null &&
+            (storedDuration - fileDuration).abs() <= 1000) {
+          return song;
+        }
+        changed = true;
+        return song.copyWith(trackDuration: fileDuration);
+      }).toList(growable: false);
+
+      if (changed) {
+        await playlistBox.putAt(
+          index,
+          playlist.copyWith(songs: repairedSongs),
+        );
+        repairedPlaylists++;
+      }
+    }
+
+    if (repairedPlaylists > 0) {
+      ref.read(debugLogServiceProvider).info(
+        'import',
+        'Repaired playlist local audio durations from file metadata.',
+        data: {'playlists': repairedPlaylists},
+      );
     }
   }
 
@@ -485,10 +613,12 @@ class AudioFilesServiceNotifier
         thumbnailPath = null;
       }
 
-      final updated = bestMatch.applyTo(
-        metadata,
-        thumbnailPath: thumbnailPath ?? metadata.thumbnailPath,
-      );
+      final updated = bestMatch
+          .applyTo(
+            metadata,
+            thumbnailPath: thumbnailPath ?? metadata.thumbnailPath,
+          )
+          .copyWith(trackDuration: metadata.trackDuration);
       ref.read(debugLogServiceProvider).info(
         'import',
         'Auto metadata applied.',
@@ -498,6 +628,8 @@ class AudioFilesServiceNotifier
           'matchTitle': bestMatch.title,
           'matchArtist': bestMatch.artist,
           'path': metadata.filePath,
+          'localDurationMs': metadata.trackDuration,
+          'remoteDurationMs': bestMatch.durationMs,
         },
       );
       return updated;
