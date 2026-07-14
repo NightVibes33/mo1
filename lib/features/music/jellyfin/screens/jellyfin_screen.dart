@@ -704,25 +704,12 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
         .read(audioPlayerServiceProvider.notifier)
         .playMetadataListAtIndex(metadataList: songs, index: songIndex);
     if (didStart && mounted) {
-      unawaited(_reportPlaybackStart(selectedSong));
       await context.pushNamed(
         Routes.nowPlaying.name,
         extra: Routes.jellyfin.name,
       );
     } else if (mounted) {
       setState(() => _errorText = 'Jellyfin playback failed.');
-    }
-  }
-
-  Future<void> _reportPlaybackStart(MusicMetadata song) async {
-    final connection = ref.read(jellyfinConnectionProvider);
-    if (connection == null) {
-      return;
-    }
-    try {
-      await ref.read(jellyfinServiceProvider).reportPlaybackStart(connection, song);
-    } catch (_) {
-      // Playback should not fail just because Jellyfin history failed.
     }
   }
 
@@ -843,7 +830,6 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
           await _addSongToPlaylist(connection, song);
           break;
         case 'reportPlayed':
-          await ref.read(jellyfinServiceProvider).reportPlaybackStart(connection, song);
           _setStatus('Playback reported.');
           break;
       }

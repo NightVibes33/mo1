@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/providers/filtered_audio_files_provider.dart';
@@ -9,6 +10,10 @@ import 'package:dope/core/services/lyrics_lookup_service.dart';
 import 'package:dope/core/services/native_eq_player_service.dart';
 import 'package:dope/core/services/song_transition_analysis_service.dart';
 import 'package:dope/features/music/album/models/album_model.dart';
+import 'package:dope/features/music/jellyfin/providers/jellyfin_connection_provider.dart';
+import 'package:dope/features/music/jellyfin/providers/jellyfin_service_provider.dart';
+import 'package:dope/features/music/navidrome/providers/navidrome_connection_provider.dart';
+import 'package:dope/features/music/navidrome/providers/navidrome_service_provider.dart';
 import 'package:dope/features/music/playlist/models/playlist_model.dart';
 import 'package:dope/features/now_playing/models/now_playing_model.dart';
 import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
@@ -45,6 +50,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   bool _isTransitioning = false;
   double _mainVolumeBeforeTransition = 1;
   List<int> _nativeEqSourceIndexes = const [];
+  int? _lastNativeEqCompletionSerial;
+  String? _lastRemotePlaybackReportKey;
 
   @override
   Future<void> build() async {
@@ -61,6 +68,29 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         unawaited(_advanceUnifiedQueueAfterCompletion());
       }
     });
+    ref.listen<NowPlayingModel>(nowPlayingDetailsProvider, (previous, next) {
+      final previousMetadata = previous?.currentMetadata;
+      final nextMetadata = next.currentMetadata;
+      final changedTrack = previousMetadata?.filePath != nextMetadata?.filePath;
+      if (previous?.isPlaying == true && (!next.isPlaying || changedTrack)) {
+        unawaited(_reportRemotePlaybackStopped(previousMetadata));
+      }
+      if (!next.isPlaying) {
+        _lastRemotePlaybackReportKey = null;
+        return;
+      }
+      final metadata = next.currentMetadata;
+      if (metadata == null) {
+        return;
+      }
+      final reportKey = '${metadata.filePath}:${next.currentIndex}:${next.nowPlayingType.name}';
+      if (reportKey == _lastRemotePlaybackReportKey) {
+        return;
+      }
+      _lastRemotePlaybackReportKey = reportKey;
+      unawaited(_reportRemotePlaybackStart(metadata));
+    });
+
     ref.onDispose(() {
       _playbackCrashHeartbeatTimer?.cancel();
       unawaited(_positionSubscription?.cancel());
@@ -81,8 +111,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         .playbackSnapshots()
         .listen((snapshot) {
           if (!ref.read(nativeEqPlaybackActiveProvider) ||
-              !snapshot.isSupported ||
-              !snapshot.isLoaded) {
+              !snapshot.isSupported) {
             return;
           }
           final details = ref.read(nowPlayingDetailsProvider);
@@ -90,6 +119,21 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
               details.currentMetadata?.isAppleMusicCatalogTrack == true) {
             return;
           }
+          final completionSerial = snapshot.completionSerial;
+          final lastCompletionSerial = _lastNativeEqCompletionSerial;
+          if (lastCompletionSerial == null) {
+            _lastNativeEqCompletionSerial = completionSerial;
+          } else if (completionSerial != lastCompletionSerial &&
+              snapshot.completedIndex >= 0) {
+            _lastNativeEqCompletionSerial = completionSerial;
+            unawaited(_advanceNativeEqQueueAfterCompletion(snapshot));
+            return;
+          }
+
+          if (!snapshot.isLoaded) {
+            return;
+          }
+
           final visibleIndex = _nativeEqVisibleIndexForPreparedIndex(
             snapshot.currentIndex,
           );
@@ -181,6 +225,75 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           );
     } catch (_) {
       // Crash logging must never be able to crash playback.
+    }
+  }
+
+  Future<void> _reportRemotePlaybackStopped(MusicMetadata? metadata) async {
+    final path = metadata?.filePath;
+    if (metadata == null ||
+        path == null ||
+        path.isEmpty ||
+        metadata.isAppleMusicCatalogTrack) {
+      return;
+    }
+    final uri = Uri.tryParse(path);
+    if (uri == null) {
+      return;
+    }
+    try {
+      if (uri.path.contains('/rest/stream.view') ||
+          uri.path.endsWith('/stream.view')) {
+        final connection = ref.read(navidromeConnectionProvider);
+        if (connection != null) {
+          await ref.read(navidromeServiceProvider).scrobble(connection, metadata);
+        }
+      } else if (uri.path.contains('/Audio/') &&
+          uri.path.contains('/stream')) {
+        final connection = ref.read(jellyfinConnectionProvider);
+        if (connection != null) {
+          await ref
+              .read(jellyfinServiceProvider)
+              .reportPlaybackStopped(
+                connection,
+                metadata,
+                position: ref.read(audioPlayerProvider).position,
+              );
+        }
+      }
+    } catch (_) {
+      // Remote listening history must never interrupt playback.
+    }
+  }
+
+  Future<void> _reportRemotePlaybackStart(MusicMetadata metadata) async {
+    final path = metadata.filePath;
+    if (path == null || path.isEmpty || metadata.isAppleMusicCatalogTrack) {
+      return;
+    }
+    final uri = Uri.tryParse(path);
+    if (uri == null) {
+      return;
+    }
+    try {
+      if (uri.path.contains('/rest/stream.view') ||
+          uri.path.endsWith('/stream.view')) {
+        final connection = ref.read(navidromeConnectionProvider);
+        if (connection != null) {
+          await ref
+              .read(navidromeServiceProvider)
+              .reportNowPlaying(connection, metadata);
+        }
+      } else if (uri.path.contains('/Audio/') &&
+          uri.path.contains('/stream')) {
+        final connection = ref.read(jellyfinConnectionProvider);
+        if (connection != null) {
+          await ref
+              .read(jellyfinServiceProvider)
+              .reportPlaybackStart(connection, metadata);
+        }
+      }
+    } catch (_) {
+      // Remote listening history must never interrupt playback.
     }
   }
 
@@ -393,18 +506,16 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   Future<void> shuffleAllSongs() async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      //If Album or Playlist is being played then Switch to original List of Songs
-      if (ref.read(nowPlayingDetailsProvider).nowPlayingType !=
-          NowPlayingType.songs) {
-        await setAudioSource(
-          musicMetadataList: ref.read(filteredAudioFilesProvider).requireValue,
-        );
+      final sourceSongs = ref.read(filteredAudioFilesProvider).requireValue;
+      if (sourceSongs.isEmpty) {
+        return;
       }
-
+      final shuffledSongs = [...sourceSongs]..shuffle(Random());
       await setShuffleMode(true);
-      await ref.read(audioPlayerProvider).shuffle();
-      await nextSong();
-      Future.delayed(const Duration(milliseconds: 100), play);
+      await playMetadataListAtIndex(
+        metadataList: shuffledSongs,
+        index: 0,
+      );
 
       await ref
           .read(settingsPreferencesControllerProvider.notifier)
@@ -941,10 +1052,53 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
   Future<void> _advanceUnifiedQueueAfterCompletion() async {
     final details = ref.read(nowPlayingDetailsProvider);
-    final nextIndex = details.currentIndex + 1;
-    if (_shouldUseUnifiedQueueStep(details, nextIndex)) {
+    if (!_isMixedAppleMusicQueue(details)) {
+      return;
+    }
+    final nextIndex = _nextCompletionIndex(details);
+    if (nextIndex != null) {
       await _playUnifiedQueueIndex(nextIndex);
     }
+  }
+
+  Future<void> _advanceNativeEqQueueAfterCompletion(
+    NativeEqPlaybackSnapshot snapshot,
+  ) async {
+    final details = ref.read(nowPlayingDetailsProvider);
+    if (details.metadataList.isEmpty) {
+      return;
+    }
+    final completedVisibleIndex = _nativeEqVisibleIndexForPreparedIndex(
+      snapshot.completedIndex,
+    );
+    if (completedVisibleIndex >= 0 &&
+        completedVisibleIndex < details.metadataList.length &&
+        completedVisibleIndex != details.currentIndex) {
+      ref
+          .read(nowPlayingDetailsProvider.notifier)
+          .setCurrentIndex(completedVisibleIndex);
+    }
+    final updatedDetails = ref.read(nowPlayingDetailsProvider);
+    final nextIndex = _nextCompletionIndex(updatedDetails);
+    if (nextIndex == null) {
+      ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(false);
+      return;
+    }
+    await _playUnifiedQueueIndex(nextIndex);
+  }
+
+  int? _nextCompletionIndex(NowPlayingModel details) {
+    if (details.metadataList.isEmpty) {
+      return null;
+    }
+    final nextIndex = details.currentIndex + 1;
+    if (nextIndex < details.metadataList.length) {
+      return nextIndex;
+    }
+    if (details.loopMode == LoopMode.all && details.metadataList.length > 1) {
+      return 0;
+    }
+    return null;
   }
 
   Future<bool> _playUnifiedQueueIndex(int index) async {
@@ -1109,6 +1263,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
     final localPlayer = ref.read(audioPlayerProvider);
     await _cancelSongTransition();
+    await _stopNativeEqPlayback();
     if (localPlayer.playing) {
       await localPlayer.pause();
     }
@@ -1257,6 +1412,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       return false;
     }
 
+    await ref.read(appleMusicPlaybackServiceProvider).pause();
     await ref.read(audioPlayerProvider).stop();
     final didLoad = await ref
         .read(nativeEqPlayerServiceProvider)
@@ -1270,6 +1426,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
 
     _nativeEqSourceIndexes = preparedQueue.sourceIndexes;
+    final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
+    _lastNativeEqCompletionSerial = snapshot.completionSerial;
     ref.read(nativeEqPlaybackActiveProvider.notifier).state = true;
     ref
         .read(nowPlayingDetailsProvider.notifier)
@@ -1310,13 +1468,14 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
     await ref.read(nativeEqPlayerServiceProvider).stop();
     _nativeEqSourceIndexes = const [];
+    _lastNativeEqCompletionSerial = null;
     ref.read(nativeEqPlaybackActiveProvider.notifier).state = false;
   }
 
   Future<void> _verifyAppleMusicManualStartAtZero(
     MusicMetadata metadata,
   ) async {
-    await Future<void>.delayed(const Duration(milliseconds: 280));
+    await Future<void>.delayed(const Duration(milliseconds: 160));
     final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
     if (nowPlayingDetails.currentMetadata?.filePath != metadata.filePath) {
       return;
@@ -1326,8 +1485,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         .read(appleMusicPlaybackServiceProvider)
         .playbackSnapshot();
     final position = snapshot.position;
-    if (position > const Duration(milliseconds: 450) &&
-        position < const Duration(seconds: 2)) {
+    if (position > const Duration(milliseconds: 650) &&
+        position < const Duration(milliseconds: 1600)) {
       final didSeek = await ref
           .read(appleMusicPlaybackServiceProvider)
           .seekTo(Duration.zero);
@@ -1368,12 +1527,12 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> _pauseAppleMusicPlaybackIfCurrent() async {
+    await ref.read(appleMusicPlaybackServiceProvider).pause();
     if (ref
             .read(nowPlayingDetailsProvider)
             .currentMetadata
             ?.isAppleMusicCatalogTrack ??
         false) {
-      await ref.read(appleMusicPlaybackServiceProvider).pause();
       ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(false);
     }
   }

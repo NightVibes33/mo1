@@ -1663,7 +1663,7 @@ private enum NativeEqPlayerChannel {
 
 }
 
-private final class NativeEqPlayer {
+private final class NativeEqPlayer: NSObject {
   private struct QueueItem {
     let id: String
     let filePath: String
@@ -1704,13 +1704,54 @@ private final class NativeEqPlayer {
   private var lastError = ""
   private var currentBandGains: [Float] = Array(repeating: 0, count: 10)
   private var eqRampTimer: Timer?
+  private var completionSerial = 0
+  private var completedIndex = -1
 
-  init() {
+  override init() {
+    super.init()
     engine.attach(playerNode)
     engine.attach(eq)
     engine.connect(playerNode, to: eq, format: nil)
     engine.connect(eq, to: engine.mainMixerNode, format: nil)
     configureEqBands([])
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleAudioSessionInterruption(_:)),
+      name: AVAudioSession.interruptionNotification,
+      object: AVAudioSession.sharedInstance()
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleAudioRouteChange(_:)),
+      name: AVAudioSession.routeChangeNotification,
+      object: AVAudioSession.sharedInstance()
+    )
+  }
+
+  @objc private func handleAudioSessionInterruption(_ notification: Notification) {
+    guard let info = notification.userInfo,
+          let rawType = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+          let type = AVAudioSession.InterruptionType(rawValue: rawType) else { return }
+    switch type {
+    case .began:
+      pause()
+    case .ended:
+      if let rawOptions = info[AVAudioSessionInterruptionOptionKey] as? UInt {
+        let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
+        if options.contains(.shouldResume) { play() }
+      }
+    @unknown default:
+      pause()
+    }
+  }
+
+  @objc private func handleAudioRouteChange(_ notification: Notification) {
+    guard let info = notification.userInfo,
+          let rawReason = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
+          let reason = AVAudioSession.RouteChangeReason(rawValue: rawReason) else { return }
+    if reason == .oldDeviceUnavailable {
+      pause()
+    }
   }
 
   func loadQueue(items rawItems: [[String: Any]], startIndex: Int, bandGains: [Double]) throws {
@@ -1745,6 +1786,7 @@ private final class NativeEqPlayer {
       }
       playerNode.play()
       isPlaying = true
+      completedIndex = -1
       lastError = ""
     } catch {
       lastError = error.localizedDescription
@@ -1768,6 +1810,7 @@ private final class NativeEqPlayer {
     pausedFrame = 0
     isLoaded = false
     isPlaying = false
+    completedIndex = -1
   }
 
   func seek(to seconds: Double) throws {
@@ -1839,6 +1882,8 @@ private final class NativeEqPlayer {
       "currentIndex": currentIndex,
       "positionSeconds": currentFramePositionSeconds(),
       "durationSeconds": durationSeconds(),
+      "completionSerial": completionSerial,
+      "completedIndex": completedIndex,
       "error": lastError
     ]
   }
@@ -1874,7 +1919,11 @@ private final class NativeEqPlayer {
       DispatchQueue.main.async {
         guard let self else { return }
         if self.isPlaying {
-          _ = self.next()
+          self.completedIndex = self.currentIndex
+          self.completionSerial += 1
+          self.isPlaying = false
+          self.isLoaded = false
+          self.playerNode.stop()
         }
       }
     }
@@ -1898,7 +1947,6 @@ private final class NativeEqPlayer {
 
     let steps = 8
     var step = 0
-    setEqBypass(false)
     eqRampTimer = Timer.scheduledTimer(withTimeInterval: 0.015, repeats: true) { [weak self] timer in
       guard let self else {
         timer.invalidate()

@@ -37,9 +37,9 @@ class NavidromeService {
       'search3.view',
       extraQueryParameters: {
         'query': query.trim(),
-        'artistCount': '20',
-        'albumCount': '20',
-        'songCount': '20',
+        'artistCount': '50',
+        'albumCount': '50',
+        'songCount': '100',
       },
     );
     return _searchItemsFromContainer(connection, response['searchResult3']);
@@ -301,7 +301,7 @@ class NavidromeService {
     final response = await _getSubsonicResponse(
       connection,
       'getSongsByGenre.view',
-      extraQueryParameters: {'genre': genre, 'count': '100'},
+      extraQueryParameters: {'genre': genre, 'count': '500'},
     );
     return _songsFromContainer(connection, response['songsByGenre'], 'song');
   }
@@ -556,6 +556,21 @@ class NavidromeService {
     );
   }
 
+  Future<void> reportNowPlaying(
+    NavidromeConnection connection,
+    MusicMetadata song,
+  ) async {
+    final id = _songIdFromMetadata(song);
+    if (id == null) {
+      return;
+    }
+    await _getSubsonicResponse(
+      connection,
+      'scrobble.view',
+      extraQueryParameters: {'id': id, 'submission': 'false'},
+    );
+  }
+
   Future<void> scrobble(
     NavidromeConnection connection,
     MusicMetadata song,
@@ -654,12 +669,19 @@ class NavidromeService {
               'getCoverArt.view',
               extraQueryParameters: {'id': coverArtId},
             ).toString(),
-      originalSongIndex: -index - 1,
+      originalSongIndex: _stableRemoteIndex('navidrome', songId, index),
       isOnDevice: false,
       isExplicit: parseExplicitFlag(songJson['explicit']) ||
           parseExplicitFlag(songJson['contentRating']) ||
           parseExplicitFlag(songJson['contentAdvisoryRating']),
     );
+  }
+
+  int _stableRemoteIndex(String source, String? id, int fallbackIndex) {
+    final seed = id == null || id.isEmpty ? '$source:$fallbackIndex' : '$source:$id';
+    final digest = sha1.convert(utf8.encode(seed));
+    final value = digest.bytes.take(4).fold<int>(0, (acc, byte) => (acc << 8) | byte);
+    return -1 - (value & 0x3fffffff);
   }
 
   List<NavidromeBrowserItem> _searchItemsFromContainer(

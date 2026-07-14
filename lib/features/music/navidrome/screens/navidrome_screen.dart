@@ -797,25 +797,12 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
         .read(audioPlayerServiceProvider.notifier)
         .playMetadataListAtIndex(metadataList: songs, index: songIndex);
     if (didStart && mounted) {
-      unawaited(_scrobble(selectedSong));
       await context.pushNamed(
         Routes.nowPlaying.name,
         extra: Routes.navidrome.name,
       );
     } else if (mounted) {
       setState(() => _errorText = 'Navidrome playback failed.');
-    }
-  }
-
-  Future<void> _scrobble(MusicMetadata song) async {
-    final connection = ref.read(navidromeConnectionProvider);
-    if (connection == null) {
-      return;
-    }
-    try {
-      await ref.read(navidromeServiceProvider).scrobble(connection, song);
-    } catch (_) {
-      // Playback should not fail just because server history failed.
     }
   }
 

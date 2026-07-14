@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dope/core/constants/constants.dart';
 import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/providers/filtered_audio_files_provider.dart';
@@ -17,9 +19,18 @@ final nowPlayingDetailsProvider =
     );
 
 class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
+  final List<StreamSubscription<dynamic>> _subscriptions = [];
+
   @override
   NowPlayingModel build() {
-    ref.read(audioPlayerProvider).currentIndexStream.listen((newIndex) {
+    ref.onDispose(() {
+      for (final subscription in _subscriptions) {
+        unawaited(subscription.cancel());
+      }
+      _subscriptions.clear();
+    });
+
+    _subscriptions.add(ref.read(audioPlayerProvider).currentIndexStream.listen((newIndex) {
       if ((state.currentMetadata?.isAppleMusicCatalogTrack ?? false) ||
           _isMixedAppleMusicQueue) {
         return;
@@ -32,30 +43,30 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
           currentMetadata: state.metadataList[newIndex],
         );
       }
-    });
+    }));
 
-    ref.read(audioPlayerProvider).playingStream.listen((isPlaying) {
+    _subscriptions.add(ref.read(audioPlayerProvider).playingStream.listen((isPlaying) {
       if (state.currentMetadata?.isAppleMusicCatalogTrack ?? false) {
         return;
       }
       if (isPlaying != state.isPlaying) {
         state = state.copyWith(isPlaying: isPlaying);
       }
-    });
+    }));
 
-    ref.read(audioPlayerProvider).loopModeStream.listen((loopMode) {
+    _subscriptions.add(ref.read(audioPlayerProvider).loopModeStream.listen((loopMode) {
       if (loopMode != state.loopMode) {
         state = state.copyWith(loopMode: loopMode);
       }
-    });
+    }));
 
-    ref.read(audioPlayerProvider).shuffleModeEnabledStream.listen((
+    _subscriptions.add(ref.read(audioPlayerProvider).shuffleModeEnabledStream.listen((
       isShuffleEnabled,
     ) {
       if (isShuffleEnabled != state.isShuffleEnabled) {
         state = state.copyWith(isShuffleEnabled: isShuffleEnabled);
       }
-    });
+    }));
 
     return NowPlayingModel(
       currentIndex: 0,

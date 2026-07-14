@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dope/core/constants/constants.dart';
@@ -13,6 +14,7 @@ import 'package:dope/core/services/music_metadata_lookup_service.dart';
 import 'package:dope/features/music/playlist/models/playlist_model.dart' as playlist_models;
 import 'package:dope/features/music/songs/models/music_metadata_match.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1059,7 +1061,7 @@ class AudioFilesServiceNotifier
         continue;
       }
 
-      final fingerprint = _fileFingerprint(displayName, byteLength);
+      final fingerprint = _fileFingerprintForFile(sourceFile, displayName, byteLength);
       if (existingFingerprints.contains(fingerprint) ||
           !selectedFingerprints.add(fingerprint)) {
         duplicateCount++;
@@ -1271,6 +1273,28 @@ class AudioFilesServiceNotifier
     return '${_normalizedStem(pathOrName)}:$byteLength';
   }
 
+  String _fileFingerprintForFile(File file, String pathOrName, int byteLength) {
+    try {
+      final randomAccessFile = file.openSync();
+      try {
+        final sample = <int>[];
+        final headLength = byteLength < 4096 ? byteLength : 4096;
+        sample.addAll(randomAccessFile.readSync(headLength));
+        if (byteLength > 4096) {
+          final tailLength = byteLength < 8192 ? byteLength - 4096 : 4096;
+          randomAccessFile.setPositionSync(byteLength - tailLength);
+          sample.addAll(randomAccessFile.readSync(tailLength));
+        }
+        final digest = sha1.convert(utf8.encode(_normalizedStem(pathOrName)) + sample);
+        return '$byteLength:$digest';
+      } finally {
+        randomAccessFile.closeSync();
+      }
+    } catch (_) {
+      return _fileFingerprint(pathOrName, byteLength);
+    }
+  }
+
   String? _fingerprintForExistingMetadata(MusicMetadata metadata) {
     if (!metadata.isOnDevice || metadata.isAppleMusicCatalogTrack) {
       return null;
@@ -1284,7 +1308,8 @@ class AudioFilesServiceNotifier
       if (!file.existsSync()) {
         return null;
       }
-      return _fileFingerprint(path, file.lengthSync());
+      final length = file.lengthSync();
+      return _fileFingerprintForFile(file, path, length);
     } catch (_) {
       return null;
     }

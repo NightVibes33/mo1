@@ -377,9 +377,41 @@ class CrashLogService with WidgetsBindingObserver {
     return safeValue?.toString() ?? '';
   }
 
+  String _redactUri(Uri uri) {
+    const sensitiveKeys = {
+      'api_key',
+      'apikey',
+      'access_token',
+      'token',
+      'password',
+      'pass',
+      'p',
+      'salt',
+      's',
+      't',
+    };
+    final redactedQuery = <String, dynamic>{};
+    uri.queryParametersAll.forEach((key, values) {
+      redactedQuery[key] = sensitiveKeys.contains(key.toLowerCase())
+          ? '<redacted>'
+          : values;
+    });
+    return uri.replace(queryParameters: redactedQuery).toString();
+  }
+
   Object? _jsonSafe(Object? value) {
-    if (value == null || value is String || value is num || value is bool) {
+    if (value == null || value is num || value is bool) {
       return value;
+    }
+    if (value is String) {
+      final uri = Uri.tryParse(value);
+      if (uri != null && uri.hasScheme && uri.hasAuthority) {
+        return _redactUri(uri);
+      }
+      return value;
+    }
+    if (value is Uri) {
+      return _redactUri(value);
     }
     if (value is DateTime) {
       return value.toIso8601String();

@@ -569,7 +569,7 @@ class _EditorHelpCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Text(
-          'Wheel: left/right changes band, rotate adjusts ${CustomEqualizerPreset.bandLabels[selectedBand]}, select saves, long-press resets selected band. EQ supports MP3 and Navidrome; Apple Music is not affected.',
+          'Wheel: left/right changes band, rotate adjusts ${CustomEqualizerPreset.bandLabels[selectedBand]}, select saves, long-press resets selected band. EQ supports MP3, Navidrome, and Jellyfin; Apple Music is not affected.',
           style: TextStyle(
             color: CupertinoColors.white.withValues(alpha: 0.66),
             fontSize: 12,

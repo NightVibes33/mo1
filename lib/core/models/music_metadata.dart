@@ -538,6 +538,54 @@ class MusicMetadata extends HiveObject {
     );
   }
 
+  MusicMetadata copyWithCleared({
+    bool trackName = false,
+    bool trackArtistNames = false,
+    bool albumName = false,
+    bool albumArtistName = false,
+    bool trackNumber = false,
+    bool albumLength = false,
+    bool year = false,
+    bool genres = false,
+    bool discNumber = false,
+    bool mimeType = false,
+    bool trackDuration = false,
+    bool bitrate = false,
+    bool filePath = false,
+    bool thumbnailPath = false,
+    bool lyrics = false,
+    bool sourceCreatedAtEpochMs = false,
+    bool sourceModifiedAtEpochMs = false,
+    bool importedAtEpochMs = false,
+  }) {
+    return MusicMetadata(
+      trackName: trackName ? null : this.trackName,
+      trackArtistNames: trackArtistNames ? const [] : this.trackArtistNames,
+      albumName: albumName ? null : this.albumName,
+      albumArtistName: albumArtistName ? null : this.albumArtistName,
+      trackNumber: trackNumber ? null : this.trackNumber,
+      albumLength: albumLength ? null : this.albumLength,
+      year: year ? null : this.year,
+      genres: genres ? const [] : this.genres,
+      discNumber: discNumber ? null : this.discNumber,
+      mimeType: mimeType ? null : this.mimeType,
+      trackDuration: trackDuration ? null : this.trackDuration,
+      bitrate: bitrate ? null : this.bitrate,
+      filePath: filePath ? null : this.filePath,
+      thumbnailPath: thumbnailPath ? null : this.thumbnailPath,
+      originalSongIndex: originalSongIndex,
+      isOnDevice: isOnDevice,
+      rating: rating,
+      isExplicit: isExplicit,
+      lyrics: lyrics ? null : this.lyrics,
+      sourceCreatedAtEpochMs:
+          sourceCreatedAtEpochMs ? null : this.sourceCreatedAtEpochMs,
+      sourceModifiedAtEpochMs:
+          sourceModifiedAtEpochMs ? null : this.sourceModifiedAtEpochMs,
+      importedAtEpochMs: importedAtEpochMs ? null : this.importedAtEpochMs,
+    );
+  }
+
   bool get isAppleMusicCatalogTrack {
     return filePath?.startsWith(appleMusicCatalogPathPrefix) ?? false;
   }
@@ -580,7 +628,7 @@ class MusicMetadata extends HiveObject {
       trackNumber: trackNumber,
       albumLength: albumLength,
       year: year,
-      genres: genres,
+      genres: genres ? const [] : this.genres,
       discNumber: discNumber,
       mimeType: mimeType,
       trackDuration: trackDuration,

@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/services/audio_equalizer_service.dart';
 import 'package:dope/core/services/debug_log_service.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -259,7 +261,8 @@ class NativeEqPlayerService {
       final cacheDir = await _eqCacheDirectory();
       await _trimCache(cacheDir);
       final extension = _extensionFromUri(uri);
-      final file = File('${cacheDir.path}/${metadata.originalSongIndex}_${uri.hashCode}.$extension');
+      final cacheKey = sha1.convert(utf8.encode(urlText)).toString();
+      final file = File('${cacheDir.path}/$cacheKey.$extension');
       if (await file.exists() && await file.length() > 0) {
         return file.path;
       }
@@ -289,13 +292,36 @@ class NativeEqPlayerService {
   }
 
   Future<void> _downloadToFile(Uri uri, File file) async {
-    final request = await _httpClient.getUrl(uri);
-    final response = await request.close();
+    final partialFile = File('${file.path}.partial');
+    if (await partialFile.exists()) {
+      await partialFile.delete();
+    }
+    final request = await _httpClient.getUrl(uri).timeout(
+      const Duration(seconds: 15),
+    );
+    final response = await request.close().timeout(
+      const Duration(seconds: 30),
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw HttpException('HTTP ${response.statusCode}', uri: uri);
     }
-    final sink = file.openWrite();
-    await response.pipe(sink);
+    final sink = partialFile.openWrite();
+    try {
+      await response.pipe(sink).timeout(const Duration(minutes: 3));
+    } catch (_) {
+      await sink.close();
+      if (await partialFile.exists()) {
+        await partialFile.delete();
+      }
+      rethrow;
+    }
+    if (!await partialFile.exists() || await partialFile.length() == 0) {
+      throw const FileSystemException('Downloaded EQ cache file was empty');
+    }
+    if (await file.exists()) {
+      await file.delete();
+    }
+    await partialFile.rename(file.path);
   }
 
   Future<void> _trimCache(Directory dir) async {
@@ -344,6 +370,8 @@ class NativeEqPlaybackSnapshot {
   final int currentIndex;
   final Duration position;
   final Duration duration;
+  final int completionSerial;
+  final int completedIndex;
   final String? error;
 
   const NativeEqPlaybackSnapshot({
@@ -353,6 +381,8 @@ class NativeEqPlaybackSnapshot {
     required this.currentIndex,
     required this.position,
     required this.duration,
+    required this.completionSerial,
+    required this.completedIndex,
     this.error,
   });
 
@@ -364,6 +394,8 @@ class NativeEqPlaybackSnapshot {
       currentIndex: 0,
       position: Duration.zero,
       duration: Duration.zero,
+      completionSerial: 0,
+      completedIndex: -1,
     );
   }
 
@@ -378,6 +410,8 @@ class NativeEqPlaybackSnapshot {
       currentIndex: _intValue(map['currentIndex']),
       position: _durationFromSeconds(map['positionSeconds']),
       duration: _durationFromSeconds(map['durationSeconds']),
+      completionSerial: _intValue(map['completionSerial']),
+      completedIndex: _intValue(map['completedIndex'], fallback: -1),
       error: map['error'] as String?,
     );
   }
@@ -393,12 +427,12 @@ Duration _durationFromSeconds(Object? value) {
   return Duration.zero;
 }
 
-int _intValue(Object? value) {
+int _intValue(Object? value, {int fallback = 0}) {
   if (value is int) {
     return value;
   }
   if (value is num) {
     return value.toInt();
   }
-  return 0;
+  return fallback;
 }

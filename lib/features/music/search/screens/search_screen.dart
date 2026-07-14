@@ -62,6 +62,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
             Routes.nowPlaying.name,
             extra: Routes.search.name,
           );
+        } else if (mounted) {
+          await showCupertinoDialog<void>(
+            context: context,
+            builder: (context) => CupertinoAlertDialog(
+              title: const Text('Playback Failed'),
+              content: const Text('That song could not be started. Try another result or check Debug Logs.'),
+              actions: [
+                CupertinoDialogAction(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
         }
       } else if (searchResult.searchResultType == SearchResultType.artist) {
         final selectedArtistName = searchResult.result as String;

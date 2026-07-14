@@ -84,7 +84,7 @@ class JellyfinService {
     JellyfinConnection connection,
     String libraryId,
   ) async {
-    final response = await _getJson(
+    final items = await _pagedItems(
       connection,
       '/Users/${connection.userId}/Items',
       queryParameters: {
@@ -94,10 +94,9 @@ class JellyfinService {
         'SortBy': 'SortName',
         'SortOrder': 'Ascending',
         'Fields': _itemFields,
-        'Limit': '500',
       },
     );
-    return _songsFromItems(connection, _items(response));
+    return _songsFromItems(connection, items);
   }
 
   Future<List<JellyfinBrowserItem>> searchResults(
@@ -159,7 +158,7 @@ class JellyfinService {
   }
 
   Future<List<MusicMetadata>> songs(JellyfinConnection connection) async {
-    final response = await _getJson(
+    final items = await _pagedItems(
       connection,
       '/Users/${connection.userId}/Items',
       queryParameters: {
@@ -168,14 +167,13 @@ class JellyfinService {
         'SortBy': 'SortName',
         'SortOrder': 'Ascending',
         'Fields': _itemFields,
-        'Limit': '500',
       },
     );
-    return _songsFromItems(connection, _items(response));
+    return _songsFromItems(connection, items);
   }
 
   Future<List<JellyfinBrowserItem>> albums(JellyfinConnection connection) async {
-    final response = await _getJson(
+    final items = await _pagedItems(
       connection,
       '/Users/${connection.userId}/Items',
       queryParameters: {
@@ -184,33 +182,31 @@ class JellyfinService {
         'SortBy': 'SortName',
         'SortOrder': 'Ascending',
         'Fields': _itemFields,
-        'Limit': '300',
       },
     );
-    return _items(response).map(_albumItemFromJson).toList(growable: false);
+    return items.map(_albumItemFromJson).toList(growable: false);
   }
 
   Future<List<JellyfinBrowserItem>> artists(
     JellyfinConnection connection,
   ) async {
-    final response = await _getJson(
+    final items = await _pagedItems(
       connection,
       '/Artists/AlbumArtists',
       queryParameters: {
         'userId': connection.userId,
         'SortBy': 'SortName',
         'SortOrder': 'Ascending',
-        'Limit': '300',
       },
     );
-    return _items(response).map(_artistItemFromJson).toList(growable: false);
+    return items.map(_artistItemFromJson).toList(growable: false);
   }
 
   Future<List<MusicMetadata>> artistSongs(
     JellyfinConnection connection,
     String artistId,
   ) async {
-    final response = await _getJson(
+    final items = await _pagedItems(
       connection,
       '/Users/${connection.userId}/Items',
       queryParameters: {
@@ -220,10 +216,9 @@ class JellyfinService {
         'SortBy': 'Album,ParentIndexNumber,IndexNumber,SortName',
         'SortOrder': 'Ascending',
         'Fields': _itemFields,
-        'Limit': '300',
       },
     );
-    return _songsFromItems(connection, _items(response));
+    return _songsFromItems(connection, items);
   }
 
   Future<List<MusicMetadata>> albumSongs(
@@ -247,7 +242,7 @@ class JellyfinService {
   Future<List<JellyfinBrowserItem>> playlists(
     JellyfinConnection connection,
   ) async {
-    final response = await _getJson(
+    final items = await _pagedItems(
       connection,
       '/Users/${connection.userId}/Items',
       queryParameters: {
@@ -256,10 +251,9 @@ class JellyfinService {
         'SortBy': 'SortName',
         'SortOrder': 'Ascending',
         'Fields': _itemFields,
-        'Limit': '300',
       },
     );
-    return _items(response).map(_playlistItemFromJson).toList(growable: false);
+    return items.map(_playlistItemFromJson).toList(growable: false);
   }
 
   Future<List<MusicMetadata>> playlistSongs(
@@ -280,7 +274,7 @@ class JellyfinService {
   Future<List<JellyfinBrowserItem>> favorites(
     JellyfinConnection connection,
   ) async {
-    final response = await _getJson(
+    final items = await _pagedItems(
       connection,
       '/Users/${connection.userId}/Items',
       queryParameters: {
@@ -290,11 +284,9 @@ class JellyfinService {
         'SortBy': 'SortName',
         'SortOrder': 'Ascending',
         'Fields': _itemFields,
-        'Limit': '300',
       },
     );
     final results = <JellyfinBrowserItem>[];
-    final items = _items(response);
     for (var index = 0; index < items.length; index++) {
       final item = items[index];
       final type = item['Type']?.toString();
@@ -312,7 +304,7 @@ class JellyfinService {
   Future<List<MusicMetadata>> recentlyAdded(
     JellyfinConnection connection,
   ) async {
-    final response = await _getJson(
+    final items = await _pagedItems(
       connection,
       '/Users/${connection.userId}/Items',
       queryParameters: {
@@ -321,10 +313,9 @@ class JellyfinService {
         'SortBy': 'DateCreated',
         'SortOrder': 'Descending',
         'Fields': _itemFields,
-        'Limit': '100',
       },
     );
-    return _songsFromItems(connection, _items(response));
+    return _songsFromItems(connection, items);
   }
 
   Future<List<MusicMetadata>> randomSongs(
@@ -347,7 +338,7 @@ class JellyfinService {
   Future<List<MusicMetadata>> recentlyPlayed(
     JellyfinConnection connection,
   ) async {
-    final response = await _getJson(
+    final items = await _pagedItems(
       connection,
       '/Users/${connection.userId}/Items',
       queryParameters: {
@@ -356,25 +347,23 @@ class JellyfinService {
         'SortBy': 'DatePlayed',
         'SortOrder': 'Descending',
         'Fields': _itemFields,
-        'Limit': '100',
       },
     );
-    return _songsFromItems(connection, _items(response));
+    return _songsFromItems(connection, items);
   }
 
   Future<List<MusicMetadata>> resumableSongs(
     JellyfinConnection connection,
   ) async {
-    final response = await _getJson(
+    final items = await _pagedItems(
       connection,
       '/Users/${connection.userId}/Items/Resume',
       queryParameters: {
         'IncludeItemTypes': 'Audio',
         'Fields': _itemFields,
-        'Limit': '100',
       },
     );
-    return _songsFromItems(connection, _items(response));
+    return _songsFromItems(connection, items);
   }
 
   Future<void> createPlaylist(
@@ -467,6 +456,26 @@ class JellyfinService {
       '/Sessions/Playing',
       connection: connection,
       body: jsonEncode({'ItemId': id, 'CanSeek': true}),
+    );
+  }
+
+  Future<void> reportPlaybackStopped(
+    JellyfinConnection connection,
+    MusicMetadata song, {
+    Duration position = Duration.zero,
+  }) async {
+    final id = _songIdFromMetadata(song);
+    if (id == null) {
+      return;
+    }
+    await _postJson(
+      connection.serverUrl,
+      '/Sessions/Playing/Stopped',
+      connection: connection,
+      body: jsonEncode({
+        'ItemId': id,
+        'PositionTicks': position.inMicroseconds * 10,
+      }),
     );
   }
 
@@ -625,7 +634,7 @@ class JellyfinService {
       bitrate: _intFromJson(songJson['Bitrate']),
       filePath: itemId == null ? null : streamUri(connection, itemId).toString(),
       thumbnailPath: imageId == null ? null : artworkUri(connection, imageId).toString(),
-      originalSongIndex: -100000 - index,
+      originalSongIndex: _stableRemoteIndex('jellyfin', itemId, index),
       isOnDevice: false,
       rating: _userData(songJson)?['IsFavorite'] == true ? 5 : 0,
       isExplicit: _isExplicitSong(songJson),
@@ -705,6 +714,45 @@ class JellyfinService {
     final id = folderJson['Id']?.toString() ?? '';
     final name = folderJson['Name']?.toString() ?? 'Music Library';
     return JellyfinBrowserItem.folder(id: id, title: name);
+  }
+
+  Future<List<Map<String, dynamic>>> _pagedItems(
+    JellyfinConnection connection,
+    String path, {
+    required Map<String, String> queryParameters,
+    int pageSize = 500,
+    int maxPages = 40,
+  }) async {
+    final results = <Map<String, dynamic>>[];
+    for (var page = 0; page < maxPages; page++) {
+      final startIndex = page * pageSize;
+      final response = await _getJson(
+        connection,
+        path,
+        queryParameters: {
+          ...queryParameters,
+          'StartIndex': startIndex.toString(),
+          'Limit': pageSize.toString(),
+        },
+      );
+      final pageItems = _items(response);
+      results.addAll(pageItems);
+      final totalRecordCount = _intFromJson(response['TotalRecordCount']);
+      if (pageItems.length < pageSize ||
+          (totalRecordCount != null && results.length >= totalRecordCount)) {
+        break;
+      }
+    }
+    return results;
+  }
+
+  int _stableRemoteIndex(String source, String? id, int fallbackIndex) {
+    final seed = id == null || id.isEmpty ? '$source:$fallbackIndex' : '$source:$id';
+    var hash = 0;
+    for (final codeUnit in seed.codeUnits) {
+      hash = (hash * 31 + codeUnit) & 0x3fffffff;
+    }
+    return -1000000 - hash;
   }
 
   List<Map<String, dynamic>> _items(Map<String, dynamic> response) {
