@@ -3,9 +3,13 @@ import Flutter
 import MediaPlayer
 import MusicKit
 import UIKit
+import WidgetKit
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+  private var deepLinkChannel: FlutterMethodChannel?
+  private var pendingDeepLink: String?
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -32,10 +36,176 @@ import UIKit
       NativeEqPlayerChannel.register(with: controller.binaryMessenger)
       NativeColorPickerChannel.register(with: controller.binaryMessenger)
       NowPlayingChannel.register(with: controller.binaryMessenger)
+      WidgetBridgeChannel.register(with: controller.binaryMessenger)
+      deepLinkChannel = DeepLinkChannel.register(
+        with: controller.binaryMessenger,
+        initialLink: pendingDeepLink
+      )
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
+
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey : Any] = [:]
+  ) -> Bool {
+    handleDeepLink(url.absoluteString)
+    return true
+  }
+
+  private func handleDeepLink(_ link: String) {
+    pendingDeepLink = link
+    deepLinkChannel?.invokeMethod("handleLink", arguments: link)
+  }
 }
+
+private enum DeepLinkChannel {
+  static func register(
+    with messenger: FlutterBinaryMessenger,
+    initialLink: String?
+  ) -> FlutterMethodChannel {
+    let channel = FlutterMethodChannel(
+      name: "mo1/deep_link",
+      binaryMessenger: messenger
+    )
+    channel.setMethodCallHandler { call, result in
+      if call.method == "getInitialLink" {
+        result(initialLink)
+      } else {
+        result(FlutterMethodNotImplemented)
+      }
+    }
+    return channel
+  }
+}
+
+private enum WidgetBridgeChannel {
+  private static let appGroupIdentifier = "group.com.nightvibes.dope"
+  private static let snapshotFileName = "widget_now_playing.json"
+
+  static func register(with messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "mo1/widgets",
+      binaryMessenger: messenger
+    )
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "writeSnapshot":
+        guard let snapshot = call.arguments as? [String: Any] else {
+          result(FlutterError(
+            code: "BAD_WIDGET_SNAPSHOT",
+            message: "Widget snapshot payload was invalid.",
+            details: nil
+          ))
+          return
+        }
+        do {
+          try writeSnapshot(snapshot)
+          WidgetCenter.shared.reloadAllTimelines()
+          result(nil)
+        } catch {
+          result(FlutterError(
+            code: "WIDGET_WRITE_FAILED",
+            message: error.localizedDescription,
+            details: nil
+          ))
+        }
+      case "clearSnapshot":
+        do {
+          try clearSnapshot()
+          WidgetCenter.shared.reloadAllTimelines()
+          result(nil)
+        } catch {
+          result(FlutterError(
+            code: "WIDGET_CLEAR_FAILED",
+            message: error.localizedDescription,
+            details: nil
+          ))
+        }
+      case "reloadWidgets":
+        WidgetCenter.shared.reloadAllTimelines()
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func writeSnapshot(_ rawSnapshot: [String: Any]) throws {
+    let directory = try appGroupDirectory()
+    var snapshot = rawSnapshot
+    if let artworkPath = rawSnapshot["artworkPath"] as? String,
+       let copied = copyArtwork(
+        from: artworkPath,
+        to: directory.appendingPathComponent("widget_artwork_current.jpg")
+       ) {
+      snapshot["artworkFileName"] = copied
+    }
+    snapshot.removeValue(forKey: "artworkPath")
+
+    if var queue = snapshot["queuePreview"] as? [[String: Any]] {
+      for index in queue.indices {
+        if let artworkPath = queue[index]["artworkPath"] as? String,
+           let copied = copyArtwork(
+            from: artworkPath,
+            to: directory.appendingPathComponent("widget_artwork_queue_\(index).jpg")
+           ) {
+          queue[index]["artworkFileName"] = copied
+        }
+        queue[index].removeValue(forKey: "artworkPath")
+      }
+      snapshot["queuePreview"] = queue
+    }
+
+    let data = try JSONSerialization.data(
+      withJSONObject: snapshot,
+      options: [.prettyPrinted, .sortedKeys]
+    )
+    try data.write(
+      to: directory.appendingPathComponent(snapshotFileName),
+      options: [.atomic]
+    )
+  }
+
+  private static func clearSnapshot() throws {
+    let directory = try appGroupDirectory()
+    let file = directory.appendingPathComponent(snapshotFileName)
+    if FileManager.default.fileExists(atPath: file.path) {
+      try FileManager.default.removeItem(at: file)
+    }
+  }
+
+  private static func appGroupDirectory() throws -> URL {
+    guard let directory = FileManager.default.containerURL(
+      forSecurityApplicationGroupIdentifier: appGroupIdentifier
+    ) else {
+      throw NSError(
+        domain: "WidgetBridgeChannel",
+        code: 1,
+        userInfo: [NSLocalizedDescriptionKey: "App Group directory unavailable."]
+      )
+    }
+    return directory
+  }
+
+  private static func copyArtwork(from path: String, to destination: URL) -> String? {
+    let source = URL(fileURLWithPath: path)
+    guard FileManager.default.fileExists(atPath: source.path) else {
+      return nil
+    }
+    do {
+      if FileManager.default.fileExists(atPath: destination.path) {
+        try FileManager.default.removeItem(at: destination)
+      }
+      try FileManager.default.copyItem(at: source, to: destination)
+      return destination.lastPathComponent
+    } catch {
+      return nil
+    }
+  }
+}
+
 private enum EqualizerChannel {
   static func register(with messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(

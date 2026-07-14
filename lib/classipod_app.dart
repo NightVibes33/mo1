@@ -1,6 +1,8 @@
 import 'package:dope/core/extensions/build_context_extensions.dart';
 import 'package:dope/core/navigation/routes.dart';
+import 'package:dope/core/services/deep_link_service.dart';
 import 'package:dope/core/services/native_now_playing_sync_service.dart';
+import 'package:dope/core/services/widget_sync_service.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:dope/l10n/generated/app_localizations.dart';
 import 'package:flutter/cupertino.dart';
@@ -12,6 +14,8 @@ class ClassipodApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(nativeNowPlayingSyncProvider);
+    ref.watch(widgetSyncProvider);
+    ref.watch(deepLinkServiceProvider);
     final languageLocaleCode = ref.watch(
       settingsPreferencesControllerProvider.select(
         (value) => value.languageLocaleCode,
