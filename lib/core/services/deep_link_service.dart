@@ -88,7 +88,7 @@ class _DeepLinkController {
         await audio.nextSong();
         break;
       case 'previous':
-        await audio.previousSong();
+        await audio.seekBackwards();
         break;
       default:
         _ref.read(routerProvider).goNamed(Routes.nowPlaying.name);

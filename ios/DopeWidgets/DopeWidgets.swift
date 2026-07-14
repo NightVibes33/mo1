@@ -147,7 +147,7 @@ struct DopeNowPlayingView: View {
   let entry: DopeWidgetEntry
 
   var body: some View {
-    Link(destination: widgetURL("now-playing")) {
+    Link(destination: dopeWidgetURL("now-playing")) {
       ZStack {
         DopeBackground(snapshot: entry.snapshot)
         VStack(alignment: .leading, spacing: family == .systemSmall ? 6 : 10) {
@@ -179,7 +179,7 @@ struct DopeNowPlayingView: View {
         .padding(12)
       }
     }
-    .widgetURL(widgetURL("now-playing"))
+    .widgetURL(dopeWidgetURL("now-playing"))
   }
 }
 
@@ -191,7 +191,7 @@ struct DopeMiniIpodView: View {
     ZStack {
       LinearGradient(colors: [.red.opacity(0.78), .black], startPoint: .topLeading, endPoint: .bottomTrailing)
       VStack(spacing: 10) {
-        Link(destination: widgetURL("now-playing")) {
+        Link(destination: dopeWidgetURL("now-playing")) {
           HStack(spacing: 10) {
             DopeArtwork(snapshot: entry.snapshot, size: family == .systemLarge ? 92 : 70)
             VStack(alignment: .leading, spacing: 4) {
@@ -218,15 +218,15 @@ struct DopeMiniIpodView: View {
             Circle().stroke(.white.opacity(0.10), lineWidth: 2)
             Circle().fill(.red.opacity(0.35)).frame(width: 82, height: 82)
             VStack {
-              Link("⌃", destination: widgetURL("eq"))
+              Link("⌃", destination: dopeWidgetURL("eq"))
                 .font(.title2.weight(.bold))
               Spacer()
               HStack {
-                Link("◀", destination: widgetURL("action/previous"))
+                Link("◀", destination: dopeWidgetURL("action/previous"))
                 Spacer()
-                Link(entry.snapshot.isPlaying ? "Ⅱ" : "▶", destination: widgetURL("action/play-pause"))
+                Link(entry.snapshot.isPlaying ? "Ⅱ" : "▶", destination: dopeWidgetURL("action/play-pause"))
                 Spacer()
-                Link("▶", destination: widgetURL("action/next"))
+                Link("▶", destination: dopeWidgetURL("action/next"))
               }
               .font(.title3.weight(.black))
               Spacer()
@@ -241,7 +241,7 @@ struct DopeMiniIpodView: View {
       .padding(14)
     }
     .foregroundStyle(.white)
-    .widgetURL(widgetURL("now-playing"))
+    .widgetURL(dopeWidgetURL("now-playing"))
   }
 }
 
@@ -249,7 +249,7 @@ struct DopeQueueView: View {
   let entry: DopeWidgetEntry
 
   var body: some View {
-    Link(destination: widgetURL("queue")) {
+    Link(destination: dopeWidgetURL("queue")) {
       ZStack {
         DopeBackground(snapshot: entry.snapshot)
         VStack(alignment: .leading, spacing: 10) {
@@ -312,7 +312,7 @@ struct DopeQueueView: View {
         .padding(14)
       }
     }
-    .widgetURL(widgetURL("queue"))
+    .widgetURL(dopeWidgetURL("queue"))
   }
 }
 
@@ -321,7 +321,7 @@ struct DopeEqView: View {
   let entry: DopeWidgetEntry
 
   var body: some View {
-    Link(destination: widgetURL("eq")) {
+    Link(destination: dopeWidgetURL("eq")) {
       ZStack {
         DopeBackground(snapshot: entry.snapshot)
         VStack(alignment: .leading, spacing: 10) {
@@ -355,7 +355,7 @@ struct DopeEqView: View {
         .padding(14)
       }
     }
-    .widgetURL(widgetURL("eq"))
+    .widgetURL(dopeWidgetURL("eq"))
   }
 }
 
@@ -426,9 +426,9 @@ struct DopeControlRow: View {
 
   var body: some View {
     HStack(spacing: 14) {
-      Link("◀◀", destination: widgetURL("action/previous"))
-      Link(snapshot.isPlaying ? "Ⅱ" : "▶", destination: widgetURL("action/play-pause"))
-      Link("▶▶", destination: widgetURL("action/next"))
+      Link("◀◀", destination: dopeWidgetURL("action/previous"))
+      Link(snapshot.isPlaying ? "Ⅱ" : "▶", destination: dopeWidgetURL("action/play-pause"))
+      Link("▶▶", destination: dopeWidgetURL("action/next"))
       Spacer()
       Text(queueText(snapshot))
         .font(.caption2.weight(.black))
@@ -438,7 +438,7 @@ struct DopeControlRow: View {
   }
 }
 
-private func widgetURL(_ target: String) -> URL {
+private func dopeWidgetURL(_ target: String) -> URL {
   URL(string: "dope://\(target)") ?? URL(string: "dope://now-playing")!
 }
 
