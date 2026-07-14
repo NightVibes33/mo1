@@ -1,12 +1,15 @@
 import 'dart:async';
 
+import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/navigation/routes.dart';
 import 'package:dope/core/services/audio_player_service.dart';
 import 'package:dope/features/device/models/device_action.dart';
 import 'package:dope/features/device/services/device_buttons_service_provider.dart';
+import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:dope/features/settings/models/custom_equalizer_preset.dart';
 import 'package:dope/features/settings/models/equalizer_preset.dart';
+import 'package:dope/features/settings/models/settings_preferences_model.dart';
 import 'package:dope/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,18 +66,45 @@ class EqualizerEditorScreen extends ConsumerStatefulWidget {
 
 class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
   late final TextEditingController _nameController;
+  late final _EqEditorSnapshot _originalSnapshot;
+  late final List<double> _initialEditorBandGainsDb;
+  late final String _initialEditorName;
   late List<double> _bandGainsDb;
   int _selectedBand = 0;
+  bool _didCommit = false;
+  bool _isComparingOriginal = false;
   Timer? _previewDebounce;
   ProviderSubscription<DeviceAction?>? _deviceButtonsSubscription;
 
-  bool get _isEditingExisting => widget.args.presetId != null && !widget.args.duplicateSource;
+  bool get _isEditingExisting =>
+      widget.args.presetId != null && !widget.args.duplicateSource;
+
+  bool get _bandsChanged =>
+      !_listEquals(_bandGainsDb, _initialEditorBandGainsDb);
+
+  bool get _nameChanged =>
+      _nameController.text.trim() != _initialEditorName.trim();
+
+  bool get _hasChanges => _bandsChanged || _nameChanged;
+
+  double get _preampDb => CustomEqualizerPreset.recommendedPreampDb(_bandGainsDb);
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.args.initialName);
-    _bandGainsDb = CustomEqualizerPreset.normalizeBandGains(widget.args.initialBandGainsDb);
+    final settings = ref.read(settingsPreferencesControllerProvider);
+    _originalSnapshot = _EqEditorSnapshot.fromSettings(settings);
+    _initialEditorName = widget.args.initialName;
+    _initialEditorBandGainsDb = CustomEqualizerPreset.normalizeBandGains(
+      widget.args.initialBandGainsDb,
+    );
+    _nameController = TextEditingController(text: _initialEditorName);
+    _nameController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+    _bandGainsDb = _initialEditorBandGainsDb;
     _deviceButtonsSubscription = ref.listenManual(
       deviceButtonsServiceProvider,
       _deviceControlHandler,
@@ -86,6 +116,9 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
     _previewDebounce?.cancel();
     _deviceButtonsSubscription?.close();
     _nameController.dispose();
+    if (!_didCommit) {
+      unawaited(ref.read(audioPlayerServiceProvider.notifier).restoreEqualizerPreview());
+    }
     super.dispose();
   }
 
@@ -95,9 +128,7 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
     }
     switch (action) {
       case DeviceAction.menu:
-        if (mounted) {
-          context.pop();
-        }
+        await _handleExit();
         break;
       case DeviceAction.rotateForward:
         _adjustSelectedBand(1);
@@ -106,31 +137,33 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
         _adjustSelectedBand(-1);
         break;
       case DeviceAction.seekForward:
-        setState(() {
-          _selectedBand = (_selectedBand + 1)
-              .clamp(0, CustomEqualizerPreset.bandCount - 1)
-              .toInt();
-        });
+        _moveSelectedBand(1);
         break;
       case DeviceAction.seekBackward:
-        setState(() {
-          _selectedBand = (_selectedBand - 1)
-              .clamp(0, CustomEqualizerPreset.bandCount - 1)
-              .toInt();
-        });
+        _moveSelectedBand(-1);
         break;
       case DeviceAction.select:
-        await _saveAndApply();
+        await _showActionMenu();
         break;
       case DeviceAction.selectLongPress:
-        _setBandGain(_selectedBand, 0);
+        _resetBand(_selectedBand);
         break;
       case DeviceAction.playPause:
+        await _toggleCompare();
+        break;
       case DeviceAction.seekForwardLongPress:
       case DeviceAction.seekBackwardLongPress:
       case DeviceAction.longPressEnd:
         break;
     }
+  }
+
+  void _moveSelectedBand(int direction) {
+    setState(() {
+      _selectedBand = (_selectedBand + direction)
+          .clamp(0, CustomEqualizerPreset.bandCount - 1)
+          .toInt();
+    });
   }
 
   void _adjustSelectedBand(int direction) {
@@ -145,21 +178,39 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
           .clamp(CustomEqualizerPreset.minGainDb, CustomEqualizerPreset.maxGainDb)
           .toDouble();
       _bandGainsDb = CustomEqualizerPreset.normalizeBandGains(updated);
+      _isComparingOriginal = false;
     });
     _schedulePreview();
   }
 
-  void _resetFlat() {
+  void _resetBand(int index) {
+    _setBandGain(index, 0);
+  }
+
+  void _resetRange(int start, int end) {
+    setState(() {
+      final updated = [..._bandGainsDb];
+      for (var index = start; index < end; index++) {
+        updated[index] = 0;
+      }
+      _bandGainsDb = CustomEqualizerPreset.normalizeBandGains(updated);
+      _isComparingOriginal = false;
+    });
+    _schedulePreview();
+  }
+
+  void _resetAll() {
     setState(() {
       _bandGainsDb = CustomEqualizerPreset.normalizeBandGains(const []);
+      _isComparingOriginal = false;
     });
     _schedulePreview();
   }
 
   void _schedulePreview() {
     _previewDebounce?.cancel();
-    _previewDebounce = Timer(const Duration(milliseconds: 120), () {
-      if (!mounted) {
+    _previewDebounce = Timer(const Duration(milliseconds: 90), () {
+      if (!mounted || _isComparingOriginal) {
         return;
       }
       unawaited(
@@ -170,7 +221,20 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
     });
   }
 
+  Future<void> _toggleCompare() async {
+    _previewDebounce?.cancel();
+    final nextCompareState = !_isComparingOriginal;
+    setState(() => _isComparingOriginal = nextCompareState);
+    final previewBands = nextCompareState
+        ? _originalSnapshot.bandGainsDb
+        : _bandGainsDb;
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .previewEqualizerBandGains(previewBands);
+  }
+
   Future<void> _saveAndApply({bool saveAsNew = false}) async {
+    _previewDebounce?.cancel();
     final notifier = ref.read(settingsPreferencesControllerProvider.notifier);
     if (_isEditingExisting && !saveAsNew) {
       await notifier.updateCustomEqualizerPreset(
@@ -184,8 +248,182 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
         bandGainsDb: _bandGainsDb,
       );
     }
+    _didCommit = true;
     if (mounted) {
       context.pop();
+    }
+  }
+
+  Future<void> _discardAndExit() async {
+    _previewDebounce?.cancel();
+    await ref.read(audioPlayerServiceProvider.notifier).restoreEqualizerPreview();
+    _didCommit = true;
+    if (mounted) {
+      context.pop();
+    }
+  }
+
+  Future<void> _handleExit() async {
+    if (!_hasChanges) {
+      await _discardAndExit();
+      return;
+    }
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Save EQ changes?'),
+        message: Text('Previewing "${_displayName}" has not been saved.'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('save'),
+            child: const Text('Save'),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop('discard'),
+            child: const Text('Discard Changes'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop('keep'),
+          child: const Text('Keep Editing'),
+        ),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (action == 'save') {
+      await _saveAndApply();
+    } else if (action == 'discard') {
+      await _discardAndExit();
+    }
+  }
+
+  Future<void> _showActionMenu() async {
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: Text(_displayName),
+        message: Text(
+          _isComparingOriginal
+              ? 'Compare is playing the original curve.'
+              : 'Live preview is playing the edited curve.',
+        ),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('save'),
+            child: const Text('Save'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('save_new'),
+            child: const Text('Save As New'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('compare'),
+            child: Text(_isComparingOriginal ? 'Preview Edited EQ' : 'Compare Original'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('reset'),
+            child: const Text('Reset Options'),
+          ),
+          if (_isEditingExisting)
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () => Navigator.of(context).pop('delete'),
+              child: const Text('Delete Custom EQ'),
+            ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop('discard'),
+            child: const Text('Discard Changes'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop('cancel'),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    switch (action) {
+      case 'save':
+        await _saveAndApply();
+        break;
+      case 'save_new':
+        await _saveAndApply(saveAsNew: true);
+        break;
+      case 'compare':
+        await _toggleCompare();
+        break;
+      case 'reset':
+        await _showResetMenu();
+        break;
+      case 'delete':
+        await _deletePreset();
+        break;
+      case 'discard':
+        await _discardAndExit();
+        break;
+    }
+  }
+
+  Future<void> _showResetMenu() async {
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Reset EQ'),
+        message: const Text('Choose which part of the curve to flatten.'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('band'),
+            child: Text('Reset ${CustomEqualizerPreset.bandLabels[_selectedBand]}'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('bass'),
+            child: const Text('Reset Bass'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('mid'),
+            child: const Text('Reset Mid'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop('treble'),
+            child: const Text('Reset Treble'),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(context).pop('all'),
+            child: const Text('Reset All'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(context).pop('cancel'),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    switch (action) {
+      case 'band':
+        _resetBand(_selectedBand);
+        break;
+      case 'bass':
+        _resetRange(0, 3);
+        break;
+      case 'mid':
+        _resetRange(3, 7);
+        break;
+      case 'treble':
+        _resetRange(7, 10);
+        break;
+      case 'all':
+        _resetAll();
+        break;
     }
   }
 
@@ -218,73 +456,181 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
     await ref
         .read(settingsPreferencesControllerProvider.notifier)
         .deleteCustomEqualizerPreset(presetId);
+    _didCommit = true;
     if (mounted) {
       context.pop();
     }
   }
 
+  String get _displayName {
+    final trimmed = _nameController.text.trim();
+    return trimmed.isEmpty ? 'Custom EQ' : trimmed;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      child: Column(
-        children: [
-          StatusBar(title: _isEditingExisting ? 'Edit EQ' : 'Create EQ'),
-          Expanded(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF121315), Color(0xFF050506)],
+    final nowPlaying = ref.watch(nowPlayingDetailsProvider);
+    final currentMetadata = nowPlaying.currentMetadata;
+    final previewStatus = _previewStatusFor(currentMetadata);
+    final selectedBandLabel = CustomEqualizerPreset.bandLabels[_selectedBand];
+    final selectedGain = _bandGainsDb[_selectedBand];
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          unawaited(_handleExit());
+        }
+      },
+      child: CupertinoPageScaffold(
+        child: Column(
+          children: [
+            StatusBar(title: _isEditingExisting ? 'Edit EQ' : 'Create EQ'),
+            Expanded(
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0xFF121315), Color(0xFF050506)],
+                  ),
                 ),
-              ),
-              child: SafeArea(
-                top: false,
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
-                  children: [
-                    _HeaderCard(
-                      nameController: _nameController,
-                      summary: _curveSummary(_bandGainsDb),
-                    ),
-                    const SizedBox(height: 10),
-                    _EqCurvePanel(bandGainsDb: _bandGainsDb),
-                    const SizedBox(height: 10),
-                    _EqFaderPanel(
-                      bandGainsDb: _bandGainsDb,
-                      selectedBand: _selectedBand,
-                      onBandSelected: (index) => setState(() => _selectedBand = index),
-                      onBandChanged: _setBandGain,
-                    ),
-                    const SizedBox(height: 12),
-                    _EditorHelpCard(selectedBand: _selectedBand),
-                    const SizedBox(height: 12),
-                    _ActionGrid(
-                      isEditingExisting: _isEditingExisting,
-                      onReset: _resetFlat,
-                      onSave: () => _saveAndApply(),
-                      onSaveAsNew: _isEditingExisting
-                          ? () => _saveAndApply(saveAsNew: true)
-                          : null,
-                      onDelete: _isEditingExisting ? _deletePreset : null,
-                      onCancel: () => context.pop(),
-                    ),
-                  ],
+                child: SafeArea(
+                  top: false,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+                    children: [
+                      _HeaderCard(
+                        nameController: _nameController,
+                        summary: _curveSummary(_bandGainsDb),
+                        status: previewStatus,
+                        hasChanges: _hasChanges,
+                        isComparingOriginal: _isComparingOriginal,
+                      ),
+                      const SizedBox(height: 10),
+                      _FocusedBandCard(
+                        label: selectedBandLabel,
+                        gainDb: selectedGain,
+                        sectionLabel: _sectionLabel(_selectedBand),
+                        sectionColor: _sectionColor(_selectedBand),
+                        preampDb: _preampDb,
+                      ),
+                      const SizedBox(height: 10),
+                      _EqCurvePanel(
+                        bandGainsDb: _bandGainsDb,
+                        originalBandGainsDb: _originalSnapshot.bandGainsDb,
+                        selectedBand: _selectedBand,
+                        isComparingOriginal: _isComparingOriginal,
+                      ),
+                      const SizedBox(height: 10),
+                      _EqFaderPanel(
+                        bandGainsDb: _bandGainsDb,
+                        selectedBand: _selectedBand,
+                        onBandSelected: (index) => setState(() => _selectedBand = index),
+                        onBandChanged: _setBandGain,
+                      ),
+                      const SizedBox(height: 12),
+                      _EditorHelpCard(selectedBand: _selectedBand),
+                      const SizedBox(height: 12),
+                      _ActionGrid(
+                        isEditingExisting: _isEditingExisting,
+                        isComparingOriginal: _isComparingOriginal,
+                        onReset: _showResetMenu,
+                        onSave: () => _saveAndApply(),
+                        onSaveAsNew: () => _saveAndApply(saveAsNew: true),
+                        onCompare: _toggleCompare,
+                        onDelete: _isEditingExisting ? _deletePreset : null,
+                        onCancel: _handleExit,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+}
+
+class _EqEditorSnapshot {
+  final List<double> bandGainsDb;
+
+  const _EqEditorSnapshot({required this.bandGainsDb});
+
+  factory _EqEditorSnapshot.fromSettings(SettingsPreferencesModel settings) {
+    return _EqEditorSnapshot(
+      bandGainsDb: CustomEqualizerPreset.normalizeBandGains(
+        settings.activeEqualizerBandGainsDb,
+      ),
+    );
+  }
+}
+
+class _PreviewStatus {
+  final String label;
+  final Color color;
+
+  const _PreviewStatus({required this.label, required this.color});
+}
+
+_PreviewStatus _previewStatusFor(MusicMetadata? metadata) {
+  if (metadata == null) {
+    return const _PreviewStatus(
+      label: 'PREVIEW READY • PLAY A SONG TO HEAR IT',
+      color: Color(0xFF8D98A8),
+    );
+  }
+  if (metadata.isAppleMusicCatalogTrack) {
+    return const _PreviewStatus(
+      label: 'PREVIEW UNAVAILABLE • APPLE MUSIC',
+      color: Color(0xFFFF6B6B),
+    );
+  }
+  switch (metadata.sourceType) {
+    case MusicSourceType.navidrome:
+      return const _PreviewStatus(
+        label: 'LIVE PREVIEW • NAVIDROME',
+        color: Color(0xFF50F0CB),
+      );
+    case MusicSourceType.jellyfin:
+      return const _PreviewStatus(
+        label: 'LIVE PREVIEW • JELLYFIN',
+        color: Color(0xFFAA83FF),
+      );
+    case MusicSourceType.local:
+      return const _PreviewStatus(
+        label: 'LIVE PREVIEW • MP3',
+        color: Color(0xFF7DBAFF),
+      );
+    case MusicSourceType.remote:
+      return const _PreviewStatus(
+        label: 'LIVE PREVIEW • REMOTE',
+        color: Color(0xFF7DBAFF),
+      );
+    case MusicSourceType.appleMusic:
+      return const _PreviewStatus(
+        label: 'PREVIEW UNAVAILABLE • APPLE MUSIC',
+        color: Color(0xFFFF6B6B),
+      );
   }
 }
 
 class _HeaderCard extends StatelessWidget {
   final TextEditingController nameController;
   final String summary;
+  final _PreviewStatus status;
+  final bool hasChanges;
+  final bool isComparingOriginal;
 
-  const _HeaderCard({required this.nameController, required this.summary});
+  const _HeaderCard({
+    required this.nameController,
+    required this.summary,
+    required this.status,
+    required this.hasChanges,
+    required this.isComparingOriginal,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -306,14 +652,29 @@ class _HeaderCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'CUSTOM 10-BAND EQUALIZER',
-              style: TextStyle(
-                color: Color(0xFF7DBAFF),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-              ),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'CUSTOM 10-BAND EQUALIZER',
+                    style: TextStyle(
+                      color: Color(0xFF7DBAFF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                if (hasChanges)
+                  const Text(
+                    'UNSAVED',
+                    style: TextStyle(
+                      color: Color(0xFFFFB340),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
             CupertinoTextField(
@@ -335,6 +696,11 @@ class _HeaderCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
+            _PreviewStatusPill(
+              label: isComparingOriginal ? 'COMPARING • ORIGINAL EQ' : status.label,
+              color: isComparingOriginal ? const Color(0xFFFFB340) : status.color,
+            ),
+            const SizedBox(height: 8),
             Text(
               summary,
               style: TextStyle(
@@ -350,15 +716,137 @@ class _HeaderCard extends StatelessWidget {
   }
 }
 
+class _PreviewStatusPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _PreviewStatusPill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.46)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FocusedBandCard extends StatelessWidget {
+  final String label;
+  final double gainDb;
+  final String sectionLabel;
+  final Color sectionColor;
+  final double preampDb;
+
+  const _FocusedBandCard({
+    required this.label,
+    required this.gainDb,
+    required this.sectionLabel,
+    required this.sectionColor,
+    required this.preampDb,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final signedGain = gainDb > 0 ? '+${gainDb.round()}' : gainDb.round().toString();
+    final headroom = preampDb == 0 ? '0 dB' : '${preampDb.toStringAsFixed(1)} dB';
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: sectionColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: sectionColor.withValues(alpha: 0.42)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    sectionLabel,
+                    style: TextStyle(
+                      color: sectionColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: CupertinoColors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$signedGain dB',
+                  style: TextStyle(
+                    color: sectionColor,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  'Headroom $headroom',
+                  style: TextStyle(
+                    color: CupertinoColors.white.withValues(alpha: 0.68),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _EqCurvePanel extends StatelessWidget {
   final List<double> bandGainsDb;
+  final List<double> originalBandGainsDb;
+  final int selectedBand;
+  final bool isComparingOriginal;
 
-  const _EqCurvePanel({required this.bandGainsDb});
+  const _EqCurvePanel({
+    required this.bandGainsDb,
+    required this.originalBandGainsDb,
+    required this.selectedBand,
+    required this.isComparingOriginal,
+  });
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 116,
+      height: 126,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: const Color(0xFF0A0D10),
@@ -370,8 +858,11 @@ class _EqCurvePanel extends StatelessWidget {
           child: CustomPaint(
             painter: _EqCurvePainter(
               bandGainsDb: bandGainsDb,
+              originalBandGainsDb: originalBandGainsDb,
+              selectedBand: selectedBand,
               showSections: true,
               showGrid: true,
+              isComparingOriginal: isComparingOriginal,
             ),
             child: const SizedBox.expand(),
           ),
@@ -591,8 +1082,7 @@ class _EditorHelpCard extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         child: Text(
           'Wheel: rotate adjusts ${CustomEqualizerPreset.bandLabels[selectedBand]}; '
-          'left/right changes band; select saves. EQ works on MP3, '
-          'Navidrome, and Jellyfin. Apple Music bypasses EQ.',
+          'left/right changes band; select opens actions; play/pause compares.',
           style: TextStyle(
             color: CupertinoColors.white.withValues(alpha: 0.66),
             fontSize: 12,
@@ -607,18 +1097,22 @@ class _EditorHelpCard extends StatelessWidget {
 
 class _ActionGrid extends StatelessWidget {
   final bool isEditingExisting;
+  final bool isComparingOriginal;
   final VoidCallback onReset;
   final VoidCallback onSave;
-  final VoidCallback? onSaveAsNew;
+  final VoidCallback onSaveAsNew;
+  final VoidCallback onCompare;
   final VoidCallback? onDelete;
   final VoidCallback onCancel;
 
   const _ActionGrid({
     required this.isEditingExisting,
+    required this.isComparingOriginal,
     required this.onReset,
     required this.onSave,
+    required this.onSaveAsNew,
+    required this.onCompare,
     required this.onCancel,
-    this.onSaveAsNew,
     this.onDelete,
   });
 
@@ -628,17 +1122,21 @@ class _ActionGrid extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: [
-        _EqActionButton(label: 'Reset Flat', color: const Color(0xFF5A6472), onTap: onReset),
         _EqActionButton(
-          label: isEditingExisting ? 'Update & Apply' : 'Save & Apply',
+          label: isComparingOriginal ? 'Preview Edited' : 'Compare',
+          color: const Color(0xFFFFB340),
+          onTap: onCompare,
+        ),
+        _EqActionButton(label: 'Reset', color: const Color(0xFF5A6472), onTap: onReset),
+        _EqActionButton(
+          label: isEditingExisting ? 'Save' : 'Save New',
           color: const Color(0xFF2B8CFF),
           onTap: onSave,
         ),
-        if (onSaveAsNew != null)
-          _EqActionButton(label: 'Save As New', color: const Color(0xFF4FAF7A), onTap: onSaveAsNew!),
+        _EqActionButton(label: 'Save As New', color: const Color(0xFF4FAF7A), onTap: onSaveAsNew),
         if (onDelete != null)
           _EqActionButton(label: 'Delete', color: const Color(0xFFB84242), onTap: onDelete!),
-        _EqActionButton(label: 'Cancel', color: const Color(0xFF343941), onTap: onCancel),
+        _EqActionButton(label: 'Exit', color: const Color(0xFF343941), onTap: onCancel),
       ],
     );
   }
@@ -685,13 +1183,19 @@ class _EqActionButton extends StatelessWidget {
 
 class _EqCurvePainter extends CustomPainter {
   final List<double> bandGainsDb;
+  final List<double> originalBandGainsDb;
+  final int selectedBand;
   final bool showSections;
   final bool showGrid;
+  final bool isComparingOriginal;
 
   const _EqCurvePainter({
     required this.bandGainsDb,
+    required this.originalBandGainsDb,
+    required this.selectedBand,
     required this.showSections,
     required this.showGrid,
+    required this.isComparingOriginal,
   });
 
   @override
@@ -703,37 +1207,65 @@ class _EqCurvePainter extends CustomPainter {
       _paintGrid(canvas, size);
     }
 
-    final path = Path();
-    for (var index = 0; index < bandGainsDb.length; index++) {
-      final x = bandGainsDb.length == 1 ? size.width / 2 : size.width * index / (bandGainsDb.length - 1);
-      final normalized = (bandGainsDb[index] - CustomEqualizerPreset.minGainDb) /
-          (CustomEqualizerPreset.maxGainDb - CustomEqualizerPreset.minGainDb);
-      final y = size.height - normalized * size.height;
-      if (index == 0) {
-        path.moveTo(x, y);
-      } else {
-        final previousX = size.width * (index - 1) / (bandGainsDb.length - 1);
-        final previousNormalized = (bandGainsDb[index - 1] - CustomEqualizerPreset.minGainDb) /
-            (CustomEqualizerPreset.maxGainDb - CustomEqualizerPreset.minGainDb);
-        final previousY = size.height - previousNormalized * size.height;
-        final controlX = (previousX + x) / 2;
-        path.cubicTo(controlX, previousY, controlX, y, x, y);
-      }
+    if (!_listEquals(originalBandGainsDb, bandGainsDb)) {
+      _drawCurve(
+        canvas,
+        size,
+        originalBandGainsDb,
+        Paint()
+          ..color = CupertinoColors.white.withValues(alpha: 0.26)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round,
+      );
     }
 
     final glowPaint = Paint()
-      ..color = const Color(0xFF43B8FF).withValues(alpha: 0.28)
+      ..color = (isComparingOriginal ? const Color(0xFFFFB340) : const Color(0xFF43B8FF))
+          .withValues(alpha: 0.28)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 8
       ..strokeCap = StrokeCap.round
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     final curvePaint = Paint()
-      ..color = const Color(0xFF82D8FF)
+      ..color = isComparingOriginal ? const Color(0xFFFFB340) : const Color(0xFF82D8FF)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, glowPaint);
-    canvas.drawPath(path, curvePaint);
+    _drawCurve(canvas, size, bandGainsDb, glowPaint);
+    _drawCurve(canvas, size, bandGainsDb, curvePaint);
+
+    final selectedX = bandGainsDb.length == 1
+        ? size.width / 2
+        : size.width * selectedBand / (bandGainsDb.length - 1);
+    final selectedY = _gainToY(bandGainsDb[selectedBand], size.height);
+    final dotPaint = Paint()..color = _sectionColor(selectedBand);
+    final ringPaint = Paint()
+      ..color = CupertinoColors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawCircle(Offset(selectedX, selectedY), 7, dotPaint);
+    canvas.drawCircle(Offset(selectedX, selectedY), 8, ringPaint);
+  }
+
+  void _drawCurve(Canvas canvas, Size size, List<double> gains, Paint paint) {
+    if (gains.isEmpty) {
+      return;
+    }
+    final path = Path();
+    for (var index = 0; index < gains.length; index++) {
+      final x = gains.length == 1 ? size.width / 2 : size.width * index / (gains.length - 1);
+      final y = _gainToY(gains[index], size.height);
+      if (index == 0) {
+        path.moveTo(x, y);
+      } else {
+        final previousX = size.width * (index - 1) / (gains.length - 1);
+        final previousY = _gainToY(gains[index - 1], size.height);
+        final controlX = (previousX + x) / 2;
+        path.cubicTo(controlX, previousY, controlX, y, x, y);
+      }
+    }
+    canvas.drawPath(path, paint);
   }
 
   void _paintSections(Canvas canvas, Size size) {
@@ -774,6 +1306,17 @@ class _EqCurvePainter extends CustomPainter {
       ..strokeWidth = 1;
     canvas.drawLine(Offset(size.width * 0.3, 0), Offset(size.width * 0.3, size.height), dividerPaint);
     canvas.drawLine(Offset(size.width * 0.7, 0), Offset(size.width * 0.7, size.height), dividerPaint);
+
+    const labelStyle = TextStyle(
+      color: CupertinoColors.white,
+      fontSize: 10,
+      fontWeight: FontWeight.w700,
+    );
+    final painter = TextPainter(
+      text: TextSpan(text: '0 dB', style: labelStyle.copyWith(color: CupertinoColors.white.withValues(alpha: 0.45))),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(canvas, Offset(size.width - painter.width - 4, _gainToY(0, size.height) + 3));
   }
 
   double _gainToY(double gain, double height) {
@@ -785,8 +1328,11 @@ class _EqCurvePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _EqCurvePainter oldDelegate) {
     return oldDelegate.bandGainsDb != bandGainsDb ||
+        oldDelegate.originalBandGainsDb != originalBandGainsDb ||
+        oldDelegate.selectedBand != selectedBand ||
         oldDelegate.showSections != showSections ||
-        oldDelegate.showGrid != showGrid;
+        oldDelegate.showGrid != showGrid ||
+        oldDelegate.isComparingOriginal != isComparingOriginal;
   }
 }
 
@@ -826,6 +1372,16 @@ Color _sectionColor(int index) {
   return const Color(0xFF50F0CB);
 }
 
+String _sectionLabel(int index) {
+  if (index <= 2) {
+    return 'BASS';
+  }
+  if (index <= 6) {
+    return 'MID';
+  }
+  return 'TREBLE';
+}
+
 String _shortBandLabel(String label) {
   return label.replaceAll(' Hz', '').replaceAll(' kHz', 'k');
 }
@@ -842,4 +1398,16 @@ String _curveSummary(List<double> bandGainsDb) {
   }
 
   return 'Bass ${signed(average(0, 3))}  Mid ${signed(average(3, 7))}  Treble ${signed(average(7, 10))}';
+}
+
+bool _listEquals(List<double> a, List<double> b) {
+  if (a.length != b.length) {
+    return false;
+  }
+  for (var index = 0; index < a.length; index++) {
+    if (a[index] != b[index]) {
+      return false;
+    }
+  }
+  return true;
 }

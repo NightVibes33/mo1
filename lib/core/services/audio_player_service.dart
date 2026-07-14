@@ -1367,16 +1367,19 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     required NowPlayingType nowPlayingType,
     required List<MusicMetadata> musicMetadataList,
     required int initialIndex,
+    List<double>? previewBandGainsDb,
+    double? previewPreampDb,
   }) async {
     final settings = ref.read(settingsPreferencesControllerProvider);
-    if (settings.activeEqualizerHasNeutralCurve || musicMetadataList.isEmpty) {
+    final bandGainsDb = previewBandGainsDb ?? settings.activeEqualizerBandGainsDb;
+    final preampDb = previewPreampDb ?? settings.activeEqualizerPreampDb;
+    final hasNeutralCurve = bandGainsDb.every((gain) => gain == 0);
+    if (hasNeutralCurve || musicMetadataList.isEmpty) {
       ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
             'Native EQ bypassed',
             data: _playbackCrashData(
               extra: {
-                'reason': settings.activeEqualizerHasNeutralCurve
-                    ? 'neutral_curve'
-                    : 'empty_queue',
+                'reason': hasNeutralCurve ? 'neutral_curve' : 'empty_queue',
               },
             ),
           );
@@ -1449,8 +1452,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         .read(nativeEqPlayerServiceProvider)
         .loadQueue(
           queue: preparedQueue,
-          bandGainsDb: settings.activeEqualizerBandGainsDb,
-          preampDb: settings.activeEqualizerPreampDb,
+          bandGainsDb: bandGainsDb,
+          preampDb: preampDb,
         );
     if (!didLoad) {
       ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
@@ -1479,7 +1482,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           currentIndex: safeInitialIndex,
           isPlaying: false,
         );
-    await _syncEqualizerPreset();
+    if (previewBandGainsDb == null) {
+      await _syncEqualizerPreset();
+    }
     return true;
   }
 
@@ -1864,12 +1869,44 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           );
       return;
     }
+
+    final details = ref.read(nowPlayingDetailsProvider);
+    final currentMetadata = details.currentMetadata;
+    final canUseNativePreview = currentMetadata != null &&
+        !currentMetadata.isAppleMusicCatalogTrack &&
+        details.metadataList.isNotEmpty &&
+        !normalizedBandGainsDb.every((gain) => gain == 0);
+    if (canUseNativePreview) {
+      final player = ref.read(audioPlayerProvider);
+      final wasPlaying = details.isPlaying || player.playing;
+      final position = player.position;
+      final didLoadNativePreview = await _trySetNativeEqAudioSource(
+        nowPlayingType: details.nowPlayingType,
+        musicMetadataList: details.metadataList,
+        initialIndex: details.currentIndex,
+        previewBandGainsDb: normalizedBandGainsDb,
+        previewPreampDb: preampDb,
+      );
+      if (didLoadNativePreview) {
+        await ref.read(nativeEqPlayerServiceProvider).seekTo(position);
+        if (wasPlaying) {
+          await ref.read(nativeEqPlayerServiceProvider).play();
+          ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
+        }
+        return;
+      }
+    }
+
     await ref.read(audioEqualizerServiceProvider).applyBandGains(
           presetName: 'custom_preview',
           displayName: 'Custom Preview',
           bandGainsDb: normalizedBandGainsDb,
           preampDb: preampDb,
         );
+  }
+
+  Future<void> restoreEqualizerPreview() async {
+    await reconfigureEqualizerPlayback();
   }
 
   Future<void> togglePlayback() async {
