@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:dope/core/navigation/routes.dart';
+import 'package:dope/core/services/audio_player_service.dart';
 import 'package:dope/features/device/models/device_action.dart';
 import 'package:dope/features/device/services/device_buttons_service_provider.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
@@ -62,6 +65,7 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
   late final TextEditingController _nameController;
   late List<double> _bandGainsDb;
   int _selectedBand = 0;
+  Timer? _previewDebounce;
   ProviderSubscription<DeviceAction?>? _deviceButtonsSubscription;
 
   bool get _isEditingExisting => widget.args.presetId != null && !widget.args.duplicateSource;
@@ -79,6 +83,7 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
 
   @override
   void dispose() {
+    _previewDebounce?.cancel();
     _deviceButtonsSubscription?.close();
     _nameController.dispose();
     super.dispose();
@@ -141,11 +146,27 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
           .toDouble();
       _bandGainsDb = CustomEqualizerPreset.normalizeBandGains(updated);
     });
+    _schedulePreview();
   }
 
   void _resetFlat() {
     setState(() {
       _bandGainsDb = CustomEqualizerPreset.normalizeBandGains(const []);
+    });
+    _schedulePreview();
+  }
+
+  void _schedulePreview() {
+    _previewDebounce?.cancel();
+    _previewDebounce = Timer(const Duration(milliseconds: 120), () {
+      if (!mounted) {
+        return;
+      }
+      unawaited(
+        ref
+            .read(audioPlayerServiceProvider.notifier)
+            .previewEqualizerBandGains(_bandGainsDb),
+      );
     });
   }
 
@@ -569,7 +590,9 @@ class _EditorHelpCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Text(
-          'Wheel: left/right changes band, rotate adjusts ${CustomEqualizerPreset.bandLabels[selectedBand]}, select saves, long-press resets selected band. EQ supports MP3, Navidrome, and Jellyfin; Apple Music is not affected.',
+          'Wheel: rotate adjusts ${CustomEqualizerPreset.bandLabels[selectedBand]}; '
+          'left/right changes band; select saves. EQ works on MP3, '
+          'Navidrome, and Jellyfin. Apple Music bypasses EQ.',
           style: TextStyle(
             color: CupertinoColors.white.withValues(alpha: 0.66),
             fontSize: 12,

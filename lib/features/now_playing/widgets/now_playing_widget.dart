@@ -1,9 +1,66 @@
 import 'dart:math' as math;
 
 import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dope/core/models/music_metadata.dart';
+import 'package:dope/core/services/native_eq_player_service.dart';
 import 'package:dope/features/now_playing/models/now_playing_model.dart';
 import 'package:dope/features/now_playing/widgets/album_reflective_art.dart';
+import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+String? _eqStatusText({
+  required MusicMetadata? currentMetadata,
+  required bool eqRequested,
+  required bool nativeEqActive,
+  required String title,
+}) {
+  if (!eqRequested) {
+    return null;
+  }
+  if (currentMetadata == null) {
+    return null;
+  }
+  if (currentMetadata.isAppleMusicCatalogTrack) {
+    return 'EQ unavailable: Apple Music';
+  }
+  if (nativeEqActive) {
+    return 'EQ active: $title';
+  }
+  return 'EQ unavailable for this track';
+}
+
+class _EqStatusPill extends StatelessWidget {
+  final String text;
+
+  const _EqStatusPill({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemBlue.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: CupertinoColors.systemBlue.withValues(alpha: 0.32),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: CupertinoColors.systemBlue,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _ScaledLineText extends StatelessWidget {
   final String text;
@@ -41,14 +98,22 @@ class _ScaledLineText extends StatelessWidget {
   }
 }
 
-class NowPlayingWidget extends StatelessWidget {
+class NowPlayingWidget extends ConsumerWidget {
   final NowPlayingModel nowPlayingDetails;
 
   const NowPlayingWidget({super.key, required this.nowPlayingDetails});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currentMetadata = nowPlayingDetails.currentMetadata;
+    final settings = ref.watch(settingsPreferencesControllerProvider);
+    final nativeEqActive = ref.watch(nativeEqPlaybackActiveProvider);
+    final eqStatus = _eqStatusText(
+      currentMetadata: currentMetadata,
+      eqRequested: !settings.activeEqualizerHasNeutralCurve,
+      nativeEqActive: nativeEqActive,
+      title: settings.equalizerDisplayTitle,
+    );
     final heroTag =
         '${currentMetadata?.albumName}-${currentMetadata?.albumArtistName}';
 
@@ -130,6 +195,10 @@ class NowPlayingWidget extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                         color: context.appSecondaryTextColor,
                       ),
+                      if (eqStatus != null) ...[
+                        const SizedBox(height: 8),
+                        _EqStatusPill(text: eqStatus),
+                      ],
                       const Spacer(),
                       Text(
                         '${nowPlayingDetails.currentIndex + 1} / '

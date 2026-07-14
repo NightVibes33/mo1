@@ -100,6 +100,9 @@ class SettingsPreferencesModel {
       activeCustomEqualizerPreset?.bandGainsDb ??
       equalizerPreset.approximateBandGainsDb;
 
+  double get activeEqualizerPreampDb =>
+      activeCustomEqualizerPreset?.preampDb ?? equalizerPreset.preampDb;
+
   bool get activeEqualizerHasNeutralCurve =>
       activeEqualizerBandGainsDb.every((gain) => gain == 0);
 

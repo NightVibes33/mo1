@@ -18,6 +18,7 @@ import 'package:dope/features/music/playlist/models/playlist_model.dart';
 import 'package:dope/features/now_playing/models/now_playing_model.dart';
 import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dope/features/settings/models/custom_equalizer_preset.dart';
 import 'package:dope/features/settings/models/song_transition_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
@@ -337,6 +338,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       'isOnDevice': metadata?.isOnDevice,
       'isAppleMusic': metadata?.isAppleMusicCatalogTrack,
       'isNativeEqActive': ref.read(nativeEqPlaybackActiveProvider),
+      'equalizerTitle': settings.equalizerDisplayTitle,
+      'equalizerPreampDb': settings.activeEqualizerPreampDb,
+      'equalizerRequested': !settings.activeEqualizerHasNeutralCurve,
       'transitionStyle': settings.songTransitionStyle.name,
       'crossfadeSeconds': settings.crossfadeDurationSeconds,
       'isPreparingTransition': _isPreparingTransition,
@@ -369,6 +373,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
                   settings.equalizerPreset.name,
               displayName: settings.equalizerDisplayTitle,
               bandGainsDb: settings.activeEqualizerBandGainsDb,
+              preampDb: settings.activeEqualizerPreampDb,
             );
         return;
       }
@@ -1365,14 +1370,37 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   }) async {
     final settings = ref.read(settingsPreferencesControllerProvider);
     if (settings.activeEqualizerHasNeutralCurve || musicMetadataList.isEmpty) {
+      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+            'Native EQ bypassed',
+            data: _playbackCrashData(
+              extra: {
+                'reason': settings.activeEqualizerHasNeutralCurve
+                    ? 'neutral_curve'
+                    : 'empty_queue',
+              },
+            ),
+          );
       await _stopNativeEqPlayback();
       return false;
     }
     final safeInitialIndex = initialIndex
         .clamp(0, musicMetadataList.length - 1)
         .toInt();
+    final selectedMetadata = musicMetadataList[safeInitialIndex];
     if (!ref.read(nativeEqPlayerServiceProvider).isSupported ||
-        musicMetadataList[safeInitialIndex].isAppleMusicCatalogTrack) {
+        selectedMetadata.isAppleMusicCatalogTrack) {
+      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+            'Native EQ bypassed',
+            data: _playbackCrashData(
+              extra: {
+                'reason': selectedMetadata.isAppleMusicCatalogTrack
+                    ? 'apple_music_system_playback'
+                    : 'unsupported_platform',
+                'selectedSourceType': selectedMetadata.sourceType.name,
+                'selectedTrack': selectedMetadata.trackName,
+              },
+            ),
+          );
       await _stopNativeEqPlayback();
       return false;
     }
@@ -1403,7 +1431,13 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           .read(crashLogServiceProvider)
           .recordPlaybackBreadcrumb(
             'Native EQ preparation failed; using default player',
-            data: _playbackCrashData(),
+            data: _playbackCrashData(
+              extra: {
+                'reason': 'prepare_queue_failed',
+                'selectedSourceType': selectedMetadata.sourceType.name,
+                'selectedTrack': selectedMetadata.trackName,
+              },
+            ),
           );
       await _stopNativeEqPlayback();
       return false;
@@ -1416,8 +1450,19 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         .loadQueue(
           queue: preparedQueue,
           bandGainsDb: settings.activeEqualizerBandGainsDb,
+          preampDb: settings.activeEqualizerPreampDb,
         );
     if (!didLoad) {
+      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+            'Native EQ load failed; using default player',
+            data: _playbackCrashData(
+              extra: {
+                'reason': 'native_load_failed',
+                'selectedSourceType': selectedMetadata.sourceType.name,
+                'selectedTrack': selectedMetadata.trackName,
+              },
+            ),
+          );
       await _stopNativeEqPlayback();
       return false;
     }
@@ -1791,6 +1836,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
             presetName: presetName,
             displayName: displayName,
             bandGainsDb: bandGainsDb,
+            preampDb: settings.activeEqualizerPreampDb,
           );
       return;
     }
@@ -1798,6 +1844,31 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           presetName: presetName,
           displayName: displayName,
           bandGainsDb: bandGainsDb,
+          preampDb: settings.activeEqualizerPreampDb,
+        );
+  }
+
+  Future<void> previewEqualizerBandGains(List<double> bandGainsDb) async {
+    final normalizedBandGainsDb = CustomEqualizerPreset.normalizeBandGains(
+      bandGainsDb,
+    );
+    final preampDb = CustomEqualizerPreset.recommendedPreampDb(
+      normalizedBandGainsDb,
+    );
+    if (ref.read(nativeEqPlaybackActiveProvider)) {
+      await ref.read(nativeEqPlayerServiceProvider).setBandGains(
+            presetName: 'custom_preview',
+            displayName: 'Custom Preview',
+            bandGainsDb: normalizedBandGainsDb,
+            preampDb: preampDb,
+          );
+      return;
+    }
+    await ref.read(audioEqualizerServiceProvider).applyBandGains(
+          presetName: 'custom_preview',
+          displayName: 'Custom Preview',
+          bandGainsDb: normalizedBandGainsDb,
+          preampDb: preampDb,
         );
   }
 

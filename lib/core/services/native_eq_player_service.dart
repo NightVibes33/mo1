@@ -141,6 +141,7 @@ class NativeEqPlayerService {
   Future<bool> loadQueue({
     required PreparedNativeEqQueue queue,
     required List<double> bandGainsDb,
+    required double preampDb,
   }) async {
     if (!isSupported) {
       return false;
@@ -150,6 +151,7 @@ class NativeEqPlayerService {
         'items': queue.items,
         'startIndex': queue.startIndex,
         'bandGainsDb': bandGainsDb,
+        'preampDb': preampDb,
       });
       return didLoad ?? false;
     } on PlatformException catch (error, stackTrace) {
@@ -192,6 +194,7 @@ class NativeEqPlayerService {
     required String presetName,
     required String displayName,
     required List<double> bandGainsDb,
+    double preampDb = 0,
   }) async {
     if (!isSupported) {
       return AudioEqualizerApplyResult.unsupported(
@@ -199,12 +202,13 @@ class NativeEqPlayerService {
         displayName: displayName,
         backend: defaultTargetPlatform.name,
         message: 'Native EQ player is not supported on this platform.',
+        preampDb: preampDb,
       );
     }
     try {
       final result = await _channel.invokeMapMethod<String, dynamic>(
         'setPreset',
-        {'bandGainsDb': bandGainsDb},
+        {'bandGainsDb': bandGainsDb, 'preampDb': preampDb},
       );
       return AudioEqualizerApplyResult.fromMap(
         presetName: presetName,
@@ -269,19 +273,23 @@ class NativeEqPlayerService {
       final cacheDir = await _eqCacheDirectory();
       await _trimCache(cacheDir);
       final extension = _extensionFromUri(uri);
-      final cacheKey = sha1.convert(utf8.encode(urlText)).toString();
+      final cacheKey = sha1.convert(utf8.encode(metadata.sourceIdentityKey)).toString();
       final file = File('${cacheDir.path}/$cacheKey.$extension');
       if (await file.exists() && await file.length() > 0) {
+        await file.setLastModified(DateTime.now());
         return file.path;
       }
       await _downloadToFile(uri, file);
+      await _trimCache(cacheDir);
       return await file.exists() && await file.length() > 0 ? file.path : null;
     } catch (error, stackTrace) {
       _debugLogService.warning(
         'equalizer',
-        'Navidrome EQ cache failed.',
+        'Remote EQ cache failed.',
         data: {
           'trackName': metadata.trackName,
+          'sourceIdentity': metadata.sourceIdentityKey,
+          'sourceType': metadata.sourceType.name,
           'error': error,
           'stackTrace': stackTrace,
         },
@@ -381,6 +389,7 @@ class NativeEqPlaybackSnapshot {
   final int completionSerial;
   final int completedIndex;
   final String? error;
+  final double preampDb;
 
   const NativeEqPlaybackSnapshot({
     required this.isSupported,
@@ -392,6 +401,7 @@ class NativeEqPlaybackSnapshot {
     required this.completionSerial,
     required this.completedIndex,
     this.error,
+    this.preampDb = 0,
   });
 
   factory NativeEqPlaybackSnapshot.unsupported() {
@@ -404,6 +414,7 @@ class NativeEqPlaybackSnapshot {
       duration: Duration.zero,
       completionSerial: 0,
       completedIndex: -1,
+      preampDb: 0,
     );
   }
 
@@ -421,6 +432,7 @@ class NativeEqPlaybackSnapshot {
       completionSerial: _intValue(map['completionSerial']),
       completedIndex: _intValue(map['completedIndex'], fallback: -1),
       error: map['error'] as String?,
+      preampDb: _doubleValue(map['preampDb']),
     );
   }
 }
@@ -443,4 +455,17 @@ int _intValue(Object? value, {int fallback = 0}) {
     return value.toInt();
   }
   return fallback;
+}
+
+double _doubleValue(Object? value) {
+  if (value is double && value.isFinite) {
+    return value;
+  }
+  if (value is int) {
+    return value.toDouble();
+  }
+  if (value is num && value.isFinite) {
+    return value.toDouble();
+  }
+  return 0;
 }

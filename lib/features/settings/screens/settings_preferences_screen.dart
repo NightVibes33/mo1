@@ -362,7 +362,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   String? _getSubtitle(_SettingsDisplayItems settingsItem) {
     switch (settingsItem) {
       case _SettingsDisplayItems.equalizer:
-        return 'Supports MP3, Navidrome, and Jellyfin. Apple Music is not affected.';
+        return 'MP3, Navidrome, Jellyfin only. Apple Music bypasses EQ.';
       default:
         return null;
     }

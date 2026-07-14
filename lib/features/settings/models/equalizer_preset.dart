@@ -1,3 +1,5 @@
+import 'package:dope/features/settings/models/custom_equalizer_preset.dart';
+
 enum EqualizerPreset {
   off,
   acoustic,
@@ -123,6 +125,9 @@ enum EqualizerPreset {
         return const [-3, -2, -1, 1, 4, 6, 5, 3, 0, -1];
     }
   }
+
+  double get preampDb =>
+      CustomEqualizerPreset.recommendedPreampDb(approximateBandGainsDb);
 
   bool get hasNeutralCurve {
     return approximateBandGainsDb.every((gain) => gain == 0);

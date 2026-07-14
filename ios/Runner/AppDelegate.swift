@@ -50,12 +50,14 @@ private enum EqualizerChannel {
 
       let arguments = call.arguments as? [String: Any] ?? [:]
       let presetName = arguments["presetName"] as? String ?? "off"
+      let preampDb = arguments["preampDb"] as? Double ?? 0
 
       if presetName == "off" || presetName == "flat" {
         result([
           "isApplied": true,
           "backend": "neutral",
-          "message": "Neutral equalizer curve selected."
+          "message": "Neutral equalizer curve selected.",
+          "preampDb": preampDb
         ])
         return
       }
@@ -64,7 +66,8 @@ private enum EqualizerChannel {
         "isApplied": false,
         "backend": "just_audio_avplayer",
         "message": "The current iOS playback backend uses just_audio/AVPlayer; " +
-          "audible EQ requires an AVAudioEngine-backed player."
+          "audible EQ requires an AVAudioEngine-backed player.",
+        "preampDb": preampDb
       ])
     }
   }
@@ -1602,7 +1605,13 @@ private enum NativeEqPlayerChannel {
           let items = arguments["items"] as? [[String: Any]] ?? []
           let startIndex = arguments["startIndex"] as? Int ?? 0
           let bandGains = doubleArray(arguments["bandGainsDb"])
-          try player.loadQueue(items: items, startIndex: startIndex, bandGains: bandGains)
+          let preampDb = arguments["preampDb"] as? Double ?? 0
+          try player.loadQueue(
+            items: items,
+            startIndex: startIndex,
+            bandGains: bandGains,
+            preampDb: preampDb
+          )
           result(true)
         case "play":
           player.play()
@@ -1628,8 +1637,14 @@ private enum NativeEqPlayerChannel {
           result(player.previous())
         case "setPreset":
           let bandGains = doubleArray(arguments["bandGainsDb"])
-          player.setBandGains(bandGains)
-          result(["isApplied": true, "backend": "av_audio_engine", "message": "Native EQ preset applied."])
+          let preampDb = arguments["preampDb"] as? Double ?? 0
+          player.setBandGains(bandGains, preampDb: preampDb)
+          result([
+            "isApplied": true,
+            "backend": "av_audio_engine",
+            "message": "Native EQ preset applied.",
+            "preampDb": preampDb
+          ])
         case "setVolume":
           let value = arguments["value"] as? Double ?? 1
           player.setVolume(Float(max(0, min(1, value))))
@@ -1703,6 +1718,7 @@ private final class NativeEqPlayer: NSObject {
   private var isPlaying = false
   private var lastError = ""
   private var currentBandGains: [Float] = Array(repeating: 0, count: 10)
+  private var currentPreampDb: Float = 0
   private var eqRampTimer: Timer?
   private var completionSerial = 0
   private var completedIndex = -1
@@ -1713,7 +1729,7 @@ private final class NativeEqPlayer: NSObject {
     engine.attach(eq)
     engine.connect(playerNode, to: eq, format: nil)
     engine.connect(eq, to: engine.mainMixerNode, format: nil)
-    configureEqBands([])
+    configureEqBands([], preampDb: 0)
     NotificationCenter.default.addObserver(
       self,
       selector: #selector(handleAudioSessionInterruption(_:)),
@@ -1754,7 +1770,13 @@ private final class NativeEqPlayer: NSObject {
     }
   }
 
-  func loadQueue(items rawItems: [[String: Any]], startIndex: Int, bandGains: [Double]) throws {
+  func loadQueue(
+    items rawItems: [[String: Any]],
+    startIndex: Int,
+    bandGains: [Double],
+    preampDb: Double
+  ) throws {
+    try activateAudioSession()
     stop()
     queue = rawItems.compactMap { item in
       guard let filePath = item["filePath"] as? String, !filePath.isEmpty else {
@@ -1772,12 +1794,13 @@ private final class NativeEqPlayer: NSObject {
     guard !queue.isEmpty else { throw PlayerError.emptyQueue }
     guard startIndex >= 0 && startIndex < queue.count else { throw PlayerError.badIndex }
     currentIndex = startIndex
-    configureEqBands(bandGains)
+    configureEqBands(bandGains, preampDb: preampDb)
     try loadCurrentFile(startFrame: 0, autoPlay: false)
   }
 
   func play() {
     do {
+      try activateAudioSession()
       if !isLoaded, !queue.isEmpty {
         try loadCurrentFile(startFrame: pausedFrame, autoPlay: false)
       }
@@ -1866,8 +1889,8 @@ private final class NativeEqPlayer: NSObject {
     }
   }
 
-  func setBandGains(_ gains: [Double]) {
-    rampEqBands(to: gains)
+  func setBandGains(_ gains: [Double], preampDb: Double) {
+    rampEqBands(to: gains, preampDb: preampDb)
   }
 
   func setVolume(_ value: Float) {
@@ -1884,11 +1907,16 @@ private final class NativeEqPlayer: NSObject {
       "durationSeconds": durationSeconds(),
       "completionSerial": completionSerial,
       "completedIndex": completedIndex,
-      "error": lastError
+      "error": lastError,
+      "preampDb": Double(currentPreampDb)
     ]
   }
 
-  private func loadCurrentFile(startFrame requestedStartFrame: AVAudioFramePosition, autoPlay: Bool) throws {
+  private func loadCurrentFile(
+    startFrame requestedStartFrame: AVAudioFramePosition,
+    autoPlay: Bool
+  ) throws {
+    try activateAudioSession()
     guard currentIndex >= 0 && currentIndex < queue.count else { throw PlayerError.badIndex }
     let item = queue[currentIndex]
     let url = URL(fileURLWithPath: item.filePath)
@@ -1934,20 +1962,35 @@ private final class NativeEqPlayer: NSObject {
     }
   }
 
-  private func configureEqBands(_ gains: [Double]) {
-    eqRampTimer?.invalidate()
-    eqRampTimer = nil
-    applyEqBandGains(normalizedBandGains(gains))
+  private func activateAudioSession() throws {
+    let session = AVAudioSession.sharedInstance()
+    try session.setCategory(
+      .playback,
+      mode: .default,
+      options: [.allowAirPlay, .allowBluetoothA2DP]
+    )
+    try session.setActive(true)
   }
 
-  private func rampEqBands(to gains: [Double]) {
+  private func configureEqBands(_ gains: [Double], preampDb: Double) {
+    eqRampTimer?.invalidate()
+    eqRampTimer = nil
+    applyEqBandGains(normalizedBandGains(gains), preampDb: normalizedPreamp(preampDb))
+  }
+
+  private func rampEqBands(to gains: [Double], preampDb: Double) {
     let targetGains = normalizedBandGains(gains)
+    let targetPreamp = normalizedPreamp(preampDb)
     let startGains = currentBandGains
+    let startPreamp = currentPreampDb
     eqRampTimer?.invalidate()
 
-    let steps = 8
+    let steps = 20
     var step = 0
-    eqRampTimer = Timer.scheduledTimer(withTimeInterval: 0.015, repeats: true) { [weak self] timer in
+    eqRampTimer = Timer.scheduledTimer(
+      withTimeInterval: 0.012,
+      repeats: true
+    ) { [weak self] timer in
       guard let self else {
         timer.invalidate()
         return
@@ -1957,11 +2000,12 @@ private final class NativeEqPlayer: NSObject {
       let interpolated = zip(startGains, targetGains).map { start, target in
         start + (target - start) * progress
       }
-      self.applyEqBandGains(interpolated)
+      let interpolatedPreamp = startPreamp + (targetPreamp - startPreamp) * progress
+      self.applyEqBandGains(interpolated, preampDb: interpolatedPreamp)
       if step >= steps {
         timer.invalidate()
         self.eqRampTimer = nil
-        self.applyEqBandGains(targetGains)
+        self.applyEqBandGains(targetGains, preampDb: targetPreamp)
       }
     }
   }
@@ -1972,10 +2016,16 @@ private final class NativeEqPlayer: NSObject {
     }
   }
 
-  private func applyEqBandGains(_ gains: [Float]) {
+  private func normalizedPreamp(_ value: Double) -> Float {
+    return Float(max(-12, min(0, value)))
+  }
+
+  private func applyEqBandGains(_ gains: [Float], preampDb: Float) {
     let frequencies: [Float] = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
     currentBandGains = gains
-    let isNeutral = gains.allSatisfy { abs($0) < 0.001 }
+    currentPreampDb = preampDb
+    eq.globalGain = preampDb
+    let isNeutral = gains.allSatisfy { abs($0) < 0.001 } && abs(preampDb) < 0.001
     for (index, band) in eq.bands.enumerated() {
       band.filterType = .parametric
       band.frequency = frequencies[min(index, frequencies.count - 1)]

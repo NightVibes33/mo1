@@ -4,6 +4,7 @@ class CustomEqualizerPreset {
   static const int bandCount = 10;
   static const double minGainDb = -12;
   static const double maxGainDb = 12;
+  static const double minPreampDb = -9;
   static const List<String> bandLabels = [
     '32 Hz',
     '64 Hz',
@@ -35,13 +36,15 @@ class CustomEqualizerPreset {
     required String name,
     required List<double> bandGainsDb,
   }) {
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final now = DateTime.now();
+    final nowMs = now.millisecondsSinceEpoch;
+    final normalizedName = _normalizedName(name);
     return CustomEqualizerPreset(
-      id: now.toString(),
-      name: _normalizedName(name),
+      id: '${now.microsecondsSinceEpoch}_${normalizedName.hashCode.abs()}',
+      name: normalizedName,
       bandGainsDb: normalizeBandGains(bandGainsDb),
-      createdAtEpochMs: now,
-      updatedAtEpochMs: now,
+      createdAtEpochMs: nowMs,
+      updatedAtEpochMs: nowMs,
     );
   }
 
@@ -80,6 +83,8 @@ class CustomEqualizerPreset {
 
   bool get hasNeutralCurve => bandGainsDb.every((gain) => gain == 0);
 
+  double get preampDb => recommendedPreampDb(bandGainsDb);
+
   String get curveSummary {
     final bass = _average(0, 3);
     final mids = _average(3, 7);
@@ -99,6 +104,17 @@ class CustomEqualizerPreset {
       normalized.add(value.clamp(minGainDb, maxGainDb).toDouble());
     }
     return List.unmodifiable(normalized);
+  }
+
+  static double recommendedPreampDb(List<double> gains) {
+    final normalized = normalizeBandGains(gains);
+    final maxBoost = normalized.fold<double>(0, (max, gain) {
+      return gain > max ? gain : max;
+    });
+    if (maxBoost <= 0) {
+      return 0;
+    }
+    return (-maxBoost * 0.65).clamp(minPreampDb, 0).toDouble();
   }
 
   static String _normalizedName(String value) {
