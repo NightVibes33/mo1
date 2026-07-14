@@ -133,6 +133,14 @@ List<String>? _artistNamesFromValue(dynamic value) {
   return artists.isEmpty ? null : artists;
 }
 
+enum MusicSourceType {
+  local,
+  appleMusic,
+  navidrome,
+  jellyfin,
+  remote,
+}
+
 bool parseExplicitFlag(dynamic value) {
   if (value == null) {
     return false;
@@ -590,6 +598,52 @@ class MusicMetadata extends HiveObject {
     return filePath?.startsWith(appleMusicCatalogPathPrefix) ?? false;
   }
 
+  bool get isNavidromeTrack => navidromeSongId != null;
+
+  bool get isJellyfinTrack => jellyfinItemId != null;
+
+  bool get isRemoteStream => !isOnDevice && !isAppleMusicCatalogTrack;
+
+  MusicSourceType get sourceType {
+    if (isAppleMusicCatalogTrack) {
+      return MusicSourceType.appleMusic;
+    }
+    if (isNavidromeTrack) {
+      return MusicSourceType.navidrome;
+    }
+    if (isJellyfinTrack) {
+      return MusicSourceType.jellyfin;
+    }
+    if (!isOnDevice) {
+      return MusicSourceType.remote;
+    }
+    return MusicSourceType.local;
+  }
+
+  String get sourceIdentityKey {
+    final appleId = appleMusicCatalogId;
+    if (appleId != null) {
+      return '${MusicSourceType.appleMusic.name}:$appleId';
+    }
+    final navidromeId = navidromeSongId;
+    if (navidromeId != null) {
+      return '${MusicSourceType.navidrome.name}:$navidromeId';
+    }
+    final jellyfinId = jellyfinItemId;
+    if (jellyfinId != null) {
+      return '${MusicSourceType.jellyfin.name}:$jellyfinId';
+    }
+    final path = filePath;
+    if (path != null && path.isNotEmpty) {
+      return '${sourceType.name}:$path';
+    }
+    return '${sourceType.name}:$originalSongIndex';
+  }
+
+  bool hasSameSourceIdentity(MusicMetadata other) {
+    return sourceIdentityKey == other.sourceIdentityKey;
+  }
+
   String? get appleMusicCatalogId {
     final path = filePath;
     if (path == null || !path.startsWith(appleMusicCatalogPathPrefix)) {
@@ -599,9 +653,55 @@ class MusicMetadata extends HiveObject {
     return catalogId.isEmpty ? null : catalogId;
   }
 
+  String? get navidromeSongId {
+    final uri = _parsedFileUri;
+    if (uri == null) {
+      return null;
+    }
+    final path = uri.path.toLowerCase();
+    if (!path.contains('/rest/stream.view') && !path.endsWith('/stream.view')) {
+      return null;
+    }
+    final id = uri.queryParameters['id']?.trim();
+    return id == null || id.isEmpty ? null : id;
+  }
+
+  String? get jellyfinItemId {
+    final uri = _parsedFileUri;
+    if (uri == null) {
+      return null;
+    }
+    final segments = uri.pathSegments;
+    if (segments.length < 3) {
+      return null;
+    }
+    final audioIndex = segments.indexWhere(
+      (segment) => segment.toLowerCase() == 'audio',
+    );
+    if (audioIndex == -1 || audioIndex + 2 >= segments.length) {
+      return null;
+    }
+    if (segments[audioIndex + 2].toLowerCase() != 'stream') {
+      return null;
+    }
+    final id = segments[audioIndex + 1].trim();
+    return id.isEmpty ? null : id;
+  }
+
+  Uri? get _parsedFileUri {
+    final path = filePath;
+    if (path == null || path.isEmpty) {
+      return null;
+    }
+    return Uri.tryParse(path);
+  }
+
   MusicMetadata withFilenameFallbacks() {
     final path = filePath;
     if (path == null || path.isEmpty) {
+      return this;
+    }
+    if (!isOnDevice || isAppleMusicCatalogTrack) {
       return this;
     }
 
@@ -628,7 +728,7 @@ class MusicMetadata extends HiveObject {
       trackNumber: trackNumber,
       albumLength: albumLength,
       year: year,
-      genres: genres ? const [] : this.genres,
+      genres: genres,
       discNumber: discNumber,
       mimeType: mimeType,
       trackDuration: trackDuration,
@@ -651,7 +751,7 @@ class MusicMetadata extends HiveObject {
       return AudioSource.file(
         filePath ?? '',
         tag: MediaItem(
-          id: filePath ?? '',
+          id: sourceIdentityKey,
           title: trackName ?? "Unknown Song",
           album: albumName ?? "Unknown Album",
           artist: getTrackArtistNames,
@@ -668,7 +768,7 @@ class MusicMetadata extends HiveObject {
       return AudioSource.uri(
         Uri.parse(filePath ?? ''),
         tag: MediaItem(
-          id: filePath ?? '',
+          id: sourceIdentityKey,
           title: trackName ?? "Unknown Song",
           album: albumName ?? "Unknown Album",
           artist: getTrackArtistNames,
@@ -744,6 +844,7 @@ class MusicMetadata extends HiveObject {
 
   String? get parentDirectoryPath {
     if (filePath == null) return null;
+    if (!isOnDevice || isAppleMusicCatalogTrack) return null;
 
     // Normalize separators to forward slash for processing
     String normalizedPath = filePath!.replaceAll('\\', '/');

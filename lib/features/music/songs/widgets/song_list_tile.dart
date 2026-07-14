@@ -5,6 +5,42 @@ import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/utils/metadata_artwork.dart';
 import 'package:flutter/cupertino.dart';
 
+
+String? _sourceLabel(MusicMetadata metadata) {
+  switch (metadata.sourceType) {
+    case MusicSourceType.appleMusic:
+      return 'AM';
+    case MusicSourceType.navidrome:
+      return 'ND';
+    case MusicSourceType.jellyfin:
+      return 'JF';
+    case MusicSourceType.remote:
+      return 'WEB';
+    case MusicSourceType.local:
+      return null;
+  }
+}
+
+class _SourceBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _SourceBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: TextStyle(
+        color: color,
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        height: 1,
+      ),
+    );
+  }
+}
+
 class _ExplicitBadge extends StatelessWidget {
   final Color color;
 
@@ -103,6 +139,7 @@ class SongListTile extends StatelessWidget {
     final secondaryColor = isSelected
         ? context.appInverseTextColor
         : context.appSecondaryTextColor;
+    final sourceLabel = _sourceLabel(songMetadata);
 
     return GestureDetector(
       onTap: onTap,
@@ -166,6 +203,13 @@ class SongListTile extends StatelessWidget {
                                 color: primaryColor,
                               ),
                             ),
+                            if (sourceLabel != null) ...[
+                              const SizedBox(width: 6),
+                              _SourceBadge(
+                                label: sourceLabel,
+                                color: secondaryColor,
+                              ),
+                            ],
                             if (songMetadata.isExplicit) ...[
                               const SizedBox(width: 6),
                               _ExplicitBadge(color: secondaryColor),

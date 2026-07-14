@@ -65,8 +65,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> with CustomScreen {
     final currentMetadata = ref.read(nowPlayingDetailsProvider).currentMetadata;
     final isCurrentSong =
         currentMetadata != null &&
-        (currentMetadata.originalSongIndex == songMetadata.originalSongIndex ||
-            currentMetadata.filePath == songMetadata.filePath);
+        (currentMetadata.hasSameSourceIdentity(songMetadata));
     final message =
         songMetadata.isOnDevice && !songMetadata.isAppleMusicCatalogTrack
         ? 'This will remove the song from døPe and delete the local file from your device.'
@@ -133,9 +132,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen> with CustomScreen {
   @override
   Widget build(BuildContext context) {
     final displayItems = ref.watch(songsProvider);
-    final int? currentlyPlayingOriginalIndex = ref
-        .watch(nowPlayingDetailsProvider.select((e) => e.currentMetadata))
-        ?.originalSongIndex;
+    final currentMetadata = ref.watch(
+      nowPlayingDetailsProvider.select((e) => e.currentMetadata),
+    );
     if (displayItems.isEmpty) {
       return CupertinoPageScaffold(
         child: Column(
@@ -171,9 +170,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> with CustomScreen {
                 ),
                 itemBuilder: (context, index) {
                   final songMetadata = displayItems[index];
-                  final dismissKey = ValueKey(
-                    '${songMetadata.filePath ?? songMetadata.originalSongIndex}',
-                  );
+                  final dismissKey = ValueKey(songMetadata.sourceIdentityKey);
                   return Dismissible(
                     key: dismissKey,
                     direction: DismissDirection.endToStart,
@@ -198,8 +195,7 @@ class _SongsScreenState extends ConsumerState<SongsScreen> with CustomScreen {
                       songMetadata: songMetadata,
                       isSelected: selectedDisplayItem == index,
                       isCurrentlyPlaying:
-                          currentlyPlayingOriginalIndex ==
-                          songMetadata.originalSongIndex,
+                          currentMetadata?.hasSameSourceIdentity(songMetadata) ?? false,
                       onTap: () async => _playSong(index),
                       onLongPress: () => _navigateToSongMoreOptionsModal(index),
                     ),

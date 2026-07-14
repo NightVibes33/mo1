@@ -47,9 +47,9 @@ class _CoverFlowAlbumSelectionScreenState
 
   @override
   Widget build(BuildContext context) {
-    final int? currentlyPlayingOriginalIndex = ref
-        .watch(nowPlayingDetailsProvider.select((e) => e.currentMetadata))
-        ?.originalSongIndex;
+    final currentMetadata = ref.watch(
+      nowPlayingDetailsProvider.select((e) => e.currentMetadata),
+    );
     return Hero(
       tag:
           "${widget.albumDetail.albumName}-${widget.albumDetail.albumArtistName}",
@@ -128,8 +128,7 @@ class _CoverFlowAlbumSelectionScreenState
                             ),
                             isSelected: selectedDisplayItem == index,
                             isCurrentlyPlaying:
-                                currentlyPlayingOriginalIndex ==
-                                displayItems[index].originalSongIndex,
+                                currentMetadata?.hasSameSourceIdentity(displayItems[index]) ?? false,
                             onTap: () async => _playSongFromAlbum(index),
                           ),
                     ),

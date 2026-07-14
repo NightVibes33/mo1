@@ -33,11 +33,11 @@ class _AlbumSongsScreenState extends ConsumerState<AlbumSongsScreen>
   );
 
   List<MusicMetadata> _currentAlbumSongs(Iterable<MusicMetadata> source) {
-    final originalIndexes = widget.albumDetail.albumSongs
-        .map((song) => song.originalSongIndex)
+    final sourceKeys = widget.albumDetail.albumSongs
+        .map((song) => song.sourceIdentityKey)
         .toSet();
     final songs = source
-        .where((song) => originalIndexes.contains(song.originalSongIndex))
+        .where((song) => sourceKeys.contains(song.sourceIdentityKey))
         .toList(growable: false);
     if (songs.isEmpty) {
       return widget.albumDetail.albumSongs;
@@ -112,9 +112,9 @@ class _AlbumSongsScreenState extends ConsumerState<AlbumSongsScreen>
     final displayItems = _currentAlbumSongs(
       ref.watch(filteredAudioFilesProvider).requireValue,
     );
-    final int? currentlyPlayingOriginalIndex = ref
-        .watch(nowPlayingDetailsProvider.select((e) => e.currentMetadata))
-        ?.originalSongIndex;
+    final currentMetadata = ref.watch(
+      nowPlayingDetailsProvider.select((e) => e.currentMetadata),
+    );
     return CupertinoPageScaffold(
       child: Column(
         children: [
@@ -135,8 +135,7 @@ class _AlbumSongsScreenState extends ConsumerState<AlbumSongsScreen>
                   songName: displayItems[index].getTrackName,
                   isSelected: selectedDisplayItem == index,
                   isCurrentlyPlaying:
-                      currentlyPlayingOriginalIndex ==
-                      displayItems[index].originalSongIndex,
+                      currentMetadata?.hasSameSourceIdentity(displayItems[index]) ?? false,
                   onTap: () async => _playSongFromAlbum(index),
                   onLongPress: () async {
                     setState(() => selectedDisplayItem = index);

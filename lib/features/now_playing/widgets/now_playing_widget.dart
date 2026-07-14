@@ -66,7 +66,7 @@ class NowPlayingWidget extends StatelessWidget {
         );
       },
       child: LayoutBuilder(
-        key: ValueKey('Now Playing-${currentMetadata?.originalSongIndex}'),
+        key: ValueKey('Now Playing-${currentMetadata?.sourceIdentityKey}'),
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final height = constraints.maxHeight;

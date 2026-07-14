@@ -50,8 +50,7 @@ class NowPlayingBottomBar extends ConsumerWidget {
             ? ref.read(nativeEqPlayerServiceProvider).playbackPositions()
             : ref.read(audioPlayerProvider).positionStream,
         builder: (context, snapshot) {
-          final isMixedQueue = metadataList.any((metadata) => metadata.isAppleMusicCatalogTrack) &&
-              metadataList.any((metadata) => !metadata.isAppleMusicCatalogTrack);
+          final isMixedQueue = metadataList.map((metadata) => metadata.sourceType).toSet().length > 1;
           final playerIndex = isNativeEq || isMixedQueue
               ? nowPlayingDetails.currentIndex
               : ref.read(audioPlayerProvider).currentIndex ?? 0;

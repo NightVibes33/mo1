@@ -32,7 +32,7 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
 
     _subscriptions.add(ref.read(audioPlayerProvider).currentIndexStream.listen((newIndex) {
       if ((state.currentMetadata?.isAppleMusicCatalogTrack ?? false) ||
-          _isMixedAppleMusicQueue) {
+          _isMixedSourceQueue) {
         return;
       }
       if (newIndex != null &&
@@ -78,17 +78,11 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
     );
   }
 
-  bool get _isMixedAppleMusicQueue {
+  bool get _isMixedSourceQueue {
     if (state.metadataList.length < 2) {
       return false;
     }
-    final hasAppleMusic = state.metadataList.any(
-      (metadata) => metadata.isAppleMusicCatalogTrack,
-    );
-    final hasNonAppleMusic = state.metadataList.any(
-      (metadata) => !metadata.isAppleMusicCatalogTrack,
-    );
-    return hasAppleMusic && hasNonAppleMusic;
+    return state.metadataList.map((metadata) => metadata.sourceType).toSet().length > 1;
   }
 
   void setNewMetadataList({
@@ -162,7 +156,7 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
       var changed = false;
       final updatedSongs = <MusicMetadata>[];
       for (final song in playlist.songs) {
-        if (song.originalSongIndex == updatedMetadata.originalSongIndex) {
+        if (song.hasSameSourceIdentity(updatedMetadata)) {
           updatedSongs.add(updatedMetadata);
           changed = true;
         } else {
@@ -190,6 +184,23 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
           updatedMetadata.originalSongIndex,
     );
 
+    if (storageIndex == -1 && updatedMetadata.isRemoteStream) {
+      state = state.copyWith(
+        currentMetadata:
+            (state.currentMetadata?.hasSameSourceIdentity(storedMetadata) ?? false)
+            ? storedMetadata
+            : state.currentMetadata,
+        metadataList: [
+          for (final metadata in state.metadataList)
+            if (metadata.hasSameSourceIdentity(storedMetadata))
+              storedMetadata
+            else
+              metadata,
+        ],
+      );
+      return;
+    }
+
     if (storageIndex == -1) {
       await metadataBox.add(storedMetadata);
     } else {
@@ -198,13 +209,12 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
 
     state = state.copyWith(
       currentMetadata:
-          state.currentMetadata?.originalSongIndex ==
-              storedMetadata.originalSongIndex
+          (state.currentMetadata?.hasSameSourceIdentity(storedMetadata) ?? false)
           ? storedMetadata
           : state.currentMetadata,
       metadataList: [
         for (final metadata in state.metadataList)
-          if (metadata.originalSongIndex == storedMetadata.originalSongIndex)
+          if (metadata.hasSameSourceIdentity(storedMetadata))
             storedMetadata
           else
             metadata,
@@ -221,8 +231,7 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
   Future<void> removeSongFromLibrary(MusicMetadata removedMetadata) async {
     final removedIndex = state.metadataList.indexWhere(
       (metadata) =>
-          metadata.originalSongIndex == removedMetadata.originalSongIndex ||
-          metadata.filePath == removedMetadata.filePath,
+          metadata.hasSameSourceIdentity(removedMetadata),
     );
     if (removedIndex == -1) {
       return;
@@ -231,9 +240,7 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
     final updatedMetadataList = [...state.metadataList]..removeAt(removedIndex);
     final removedCurrentSong =
         state.currentMetadata != null &&
-        (state.currentMetadata!.originalSongIndex ==
-                removedMetadata.originalSongIndex ||
-            state.currentMetadata!.filePath == removedMetadata.filePath);
+        (state.currentMetadata!.hasSameSourceIdentity(removedMetadata));
 
     if (updatedMetadataList.isEmpty || removedCurrentSong) {
       await ref
@@ -271,7 +278,7 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
       if (metadata == null) {
         continue;
       }
-      if (metadata.originalSongIndex == updatedMetadata.originalSongIndex) {
+      if (metadata.hasSameSourceIdentity(updatedMetadata)) {
         return index;
       }
     }
@@ -286,9 +293,13 @@ class NowPlayingDetailsNotifier extends Notifier<NowPlayingModel> {
       }
     }
 
-    if (updatedMetadata.originalSongIndex >= 0 &&
-        updatedMetadata.originalSongIndex < metadataBox.length) {
-      return updatedMetadata.originalSongIndex;
+    if (updatedMetadata.originalSongIndex >= 0) {
+      for (var index = 0; index < metadataBox.length; index++) {
+        final metadata = metadataBox.getAt(index);
+        if (metadata?.originalSongIndex == updatedMetadata.originalSongIndex) {
+          return index;
+        }
+      }
     }
 
     return -1;

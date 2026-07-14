@@ -49,7 +49,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
         final metadata = searchResult.result as MusicMetadata;
         final songs = ref.read(songsProvider);
         final songIndex = songs.indexWhere(
-          (song) => song.filePath == metadata.filePath,
+          (song) => song.hasSameSourceIdentity(metadata),
         );
         final didStart = await ref
             .read(audioPlayerServiceProvider.notifier)

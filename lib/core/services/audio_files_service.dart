@@ -567,6 +567,13 @@ class AudioFilesServiceNotifier
       return -1;
     }
 
+    final sourceIdentityIndex = values.indexWhere(
+      (existing) => existing.hasSameSourceIdentity(metadata),
+    );
+    if (sourceIdentityIndex != -1) {
+      return sourceIdentityIndex;
+    }
+
     if (metadata.isAppleMusicCatalogTrack) {
       final signature = _appleMusicSignature(metadata);
       if (signature != null) {

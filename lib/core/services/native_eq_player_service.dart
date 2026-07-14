@@ -71,11 +71,19 @@ class NativeEqPlayerService {
       return null;
     }
 
+    final hasRemoteTracks = metadataList.any((metadata) => !metadata.isOnDevice);
+    final firstPreparedIndex = hasRemoteTracks
+        ? (safeStartIndex - 10).clamp(0, metadataList.length - 1).toInt()
+        : 0;
+    final lastPreparedIndex = hasRemoteTracks
+        ? (safeStartIndex + 50).clamp(0, metadataList.length - 1).toInt()
+        : metadataList.length - 1;
+
     final preparedItems = <Map<String, Object?>>[];
     final preparedMetadata = <MusicMetadata>[];
     final sourceIndexes = <int>[];
 
-    for (var index = 0; index < metadataList.length; index++) {
+    for (var index = firstPreparedIndex; index <= lastPreparedIndex; index++) {
       final metadata = metadataList[index];
       if (metadata.isAppleMusicCatalogTrack) {
         continue;
@@ -99,7 +107,7 @@ class NativeEqPlayerService {
       }
 
       preparedItems.add({
-        'id': metadata.filePath ?? metadata.originalSongIndex.toString(),
+        'id': metadata.sourceIdentityKey,
         'filePath': playablePath,
         'title': metadata.getTrackName,
         'artist': metadata.getTrackArtistNames ?? metadata.getAlbumArtistName,
@@ -114,9 +122,9 @@ class NativeEqPlayerService {
       return null;
     }
 
-    final selectedPath = metadataList[safeStartIndex].filePath;
+    final selectedMetadata = metadataList[safeStartIndex];
     final preparedStartIndex = preparedMetadata.indexWhere(
-      (metadata) => metadata.filePath == selectedPath,
+      (metadata) => metadata.hasSameSourceIdentity(selectedMetadata),
     );
     if (preparedStartIndex == -1) {
       return null;

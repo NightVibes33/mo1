@@ -121,7 +121,7 @@ class _NativeNowPlayingSyncController {
         ? rawPositionSeconds.clamp(0, durationSeconds).toInt()
         : rawPositionSeconds;
     final payload = <String, Object?>{
-      'id': metadata.filePath ?? metadata.originalSongIndex.toString(),
+      'id': metadata.sourceIdentityKey,
       'title': metadata.getTrackName,
       'artist': metadata.getTrackArtistNames ?? metadata.getAlbumArtistName,
       'album': metadata.albumName,

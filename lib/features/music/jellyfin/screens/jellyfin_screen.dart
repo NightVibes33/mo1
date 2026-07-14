@@ -698,7 +698,7 @@ class _JellyfinScreenState extends ConsumerState<JellyfinScreen>
         .whereType<MusicMetadata>()
         .toList(growable: false);
     final songIndex = songs.indexWhere(
-      (song) => song.filePath == selectedSong.filePath,
+      (song) => song.hasSameSourceIdentity(selectedSong),
     );
     final didStart = await ref
         .read(audioPlayerServiceProvider.notifier)

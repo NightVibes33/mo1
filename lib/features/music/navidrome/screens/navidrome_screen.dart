@@ -791,7 +791,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
         .whereType<MusicMetadata>()
         .toList(growable: false);
     final songIndex = songs.indexWhere(
-      (song) => song.filePath == selectedSong.filePath,
+      (song) => song.hasSameSourceIdentity(selectedSong),
     );
     final didStart = await ref
         .read(audioPlayerServiceProvider.notifier)
@@ -1127,7 +1127,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
         .whereType<MusicMetadata>()
         .toList(growable: false);
     final index = songs.indexWhere(
-      (song) => song.filePath == selectedSong.filePath,
+      (song) => song.hasSameSourceIdentity(selectedSong),
     );
     await ref
         .read(navidromeServiceProvider)

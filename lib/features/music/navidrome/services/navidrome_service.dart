@@ -1077,12 +1077,7 @@ class NavidromeService {
   }
 
   String? _songIdFromMetadata(MusicMetadata song) {
-    final filePath = song.filePath;
-    if (filePath == null) {
-      return null;
-    }
-    final uri = Uri.tryParse(filePath);
-    return uri?.queryParameters['id'];
+    return song.navidromeSongId;
   }
 
   Uri _buildUri(

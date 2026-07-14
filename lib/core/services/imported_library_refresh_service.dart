@@ -48,7 +48,7 @@ int _currentMetadataIndex(
 
   final currentPath = currentMetadata.filePath;
   return metadataList.indexWhere((metadata) {
-    if (metadata.originalSongIndex == currentMetadata.originalSongIndex) {
+    if (metadata.hasSameSourceIdentity(currentMetadata)) {
       return true;
     }
     return currentPath != null && metadata.filePath == currentPath;

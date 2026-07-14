@@ -49,7 +49,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
   Timer _lastVolumeChangeTimer = Timer(Duration.zero, () {});
   bool _isShuffleEnabled = false;
   _NowPlayingBottomBarPage _bottomBarPage = _NowPlayingBottomBarPage.seekBar;
-  int? _lastLyricsSongIndex;
+  String? _lastLyricsSongKey;
   Duration _lyricsTimingOffset = Duration.zero;
 
   String get routeName => Routes.nowPlaying.name;
@@ -354,7 +354,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
     }
     final String? lyrics = currentMetadata?.lyrics;
     final bool hasLyrics = lyrics != null && lyrics.trim().isNotEmpty;
-    final int? currentLyricsSongIndex = currentMetadata?.originalSongIndex;
+    final String? currentLyricsSongKey = currentMetadata?.sourceIdentityKey;
     final isNativeEq = ref.watch(nativeEqPlaybackActiveProvider);
     final lyricsPositionStream = isAppleMusic
         ? ref.read(appleMusicPlaybackServiceProvider).playbackPositions()
@@ -362,8 +362,8 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
         ? ref.read(nativeEqPlayerServiceProvider).playbackPositions()
         : ref.read(audioPlayerProvider).positionStream;
 
-    if (_lastLyricsSongIndex != currentLyricsSongIndex) {
-      _lastLyricsSongIndex = currentLyricsSongIndex;
+    if (_lastLyricsSongKey != currentLyricsSongKey) {
+      _lastLyricsSongKey = currentLyricsSongKey;
       _lyricsTimingOffset = Duration.zero;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
@@ -463,7 +463,7 @@ class _NowPlayingScreenState extends ConsumerState<NowPlayingScreen> {
                           hasLyrics)
                       ? LyricsView(
                           key: ValueKey(
-                            'lyrics-view-${nowPlayingDetails.currentMetadata?.originalSongIndex ?? 0}',
+                            'lyrics-view-${nowPlayingDetails.currentMetadata?.sourceIdentityKey ?? 'none'}',
                           ),
                           lyrics: lyrics,
                           positionStream: lyricsPositionStream,

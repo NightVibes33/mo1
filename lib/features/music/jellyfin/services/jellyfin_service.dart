@@ -769,12 +769,7 @@ class JellyfinService {
   }
 
   String? _songIdFromMetadata(MusicMetadata song) {
-    final path = song.filePath;
-    if (path == null) {
-      return null;
-    }
-    final match = RegExp(r'/Audio/([^/]+)/stream').firstMatch(path);
-    return match == null ? null : Uri.decodeComponent(match.group(1)!);
+    return song.jellyfinItemId;
   }
 
   Uri _buildUri(

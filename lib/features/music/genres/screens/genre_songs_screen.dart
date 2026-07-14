@@ -67,9 +67,9 @@ class _GenreSongsScreenState extends ConsumerState<GenreSongsScreen>
     final displayItems = ref.watch(
       genreSongsMetadataListProvider(widget.genreName),
     );
-    final int? currentlyPlayingOriginalIndex = ref
-        .watch(nowPlayingDetailsProvider.select((e) => e.currentMetadata))
-        ?.originalSongIndex;
+    final currentMetadata = ref.watch(
+      nowPlayingDetailsProvider.select((e) => e.currentMetadata),
+    );
     return CupertinoPageScaffold(
       child: Column(
         children: [
@@ -92,8 +92,7 @@ class _GenreSongsScreenState extends ConsumerState<GenreSongsScreen>
                   songMetadata: displayItems[index],
                   isSelected: selectedDisplayItem == index,
                   isCurrentlyPlaying:
-                      currentlyPlayingOriginalIndex ==
-                      displayItems[index].originalSongIndex,
+                      currentMetadata?.hasSameSourceIdentity(displayItems[index]) ?? false,
                   onTap: () async => _playSong(index),
                   onLongPress: () => _navigateToGenreMoreOptionsModal(index),
                 ),

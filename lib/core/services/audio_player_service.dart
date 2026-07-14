@@ -52,6 +52,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   List<int> _nativeEqSourceIndexes = const [];
   int? _lastNativeEqCompletionSerial;
   String? _lastRemotePlaybackReportKey;
+  final Map<String, DateTime> _remotePlaybackStartedAt = {};
 
   @override
   Future<void> build() async {
@@ -71,7 +72,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     ref.listen<NowPlayingModel>(nowPlayingDetailsProvider, (previous, next) {
       final previousMetadata = previous?.currentMetadata;
       final nextMetadata = next.currentMetadata;
-      final changedTrack = previousMetadata?.filePath != nextMetadata?.filePath;
+      final changedTrack = previousMetadata?.sourceIdentityKey != nextMetadata?.sourceIdentityKey;
       if (previous?.isPlaying == true && (!next.isPlaying || changedTrack)) {
         unawaited(_reportRemotePlaybackStopped(previousMetadata));
       }
@@ -83,7 +84,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       if (metadata == null) {
         return;
       }
-      final reportKey = '${metadata.filePath}:${next.currentIndex}:${next.nowPlayingType.name}';
+      final reportKey = '${metadata.sourceIdentityKey}:${next.currentIndex}:${next.nowPlayingType.name}';
       if (reportKey == _lastRemotePlaybackReportKey) {
         return;
       }
@@ -236,19 +237,13 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         metadata.isAppleMusicCatalogTrack) {
       return;
     }
-    final uri = Uri.tryParse(path);
-    if (uri == null) {
-      return;
-    }
     try {
-      if (uri.path.contains('/rest/stream.view') ||
-          uri.path.endsWith('/stream.view')) {
+      if (metadata.isNavidromeTrack) {
         final connection = ref.read(navidromeConnectionProvider);
-        if (connection != null) {
+        if (connection != null && _shouldSubmitRemoteScrobble(metadata)) {
           await ref.read(navidromeServiceProvider).scrobble(connection, metadata);
         }
-      } else if (uri.path.contains('/Audio/') &&
-          uri.path.contains('/stream')) {
+      } else if (metadata.isJellyfinTrack) {
         final connection = ref.read(jellyfinConnectionProvider);
         if (connection != null) {
           await ref
@@ -256,7 +251,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
               .reportPlaybackStopped(
                 connection,
                 metadata,
-                position: ref.read(audioPlayerProvider).position,
+                position: await _currentPlaybackPosition(),
               );
         }
       }
@@ -275,18 +270,18 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       return;
     }
     try {
-      if (uri.path.contains('/rest/stream.view') ||
-          uri.path.endsWith('/stream.view')) {
+      if (metadata.isNavidromeTrack) {
         final connection = ref.read(navidromeConnectionProvider);
         if (connection != null) {
+          _remotePlaybackStartedAt[metadata.sourceIdentityKey] = DateTime.now();
           await ref
               .read(navidromeServiceProvider)
               .reportNowPlaying(connection, metadata);
         }
-      } else if (uri.path.contains('/Audio/') &&
-          uri.path.contains('/stream')) {
+      } else if (metadata.isJellyfinTrack) {
         final connection = ref.read(jellyfinConnectionProvider);
         if (connection != null) {
+          _remotePlaybackStartedAt[metadata.sourceIdentityKey] = DateTime.now();
           await ref
               .read(jellyfinServiceProvider)
               .reportPlaybackStart(connection, metadata);
@@ -295,6 +290,28 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     } catch (_) {
       // Remote listening history must never interrupt playback.
     }
+  }
+
+  bool _shouldSubmitRemoteScrobble(MusicMetadata metadata) {
+    final startedAt = _remotePlaybackStartedAt.remove(metadata.sourceIdentityKey);
+    if (startedAt == null) {
+      return false;
+    }
+    final listened = DateTime.now().difference(startedAt);
+    final durationMs = metadata.trackDuration;
+    final requiredListen = durationMs == null || durationMs <= 0
+        ? const Duration(seconds: 30)
+        : Duration(
+            milliseconds: (durationMs / 2).clamp(30000, 240000).toInt(),
+          );
+    return listened >= requiredListen;
+  }
+
+  Future<Duration> _currentPlaybackPosition() async {
+    if (ref.read(nativeEqPlaybackActiveProvider)) {
+      return (await ref.read(nativeEqPlayerServiceProvider).snapshot()).position;
+    }
+    return ref.read(audioPlayerProvider).position;
   }
 
   Map<String, Object?> _playbackCrashData({
@@ -383,7 +400,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     final player = ref.read(audioPlayerProvider);
     final wasPlaying = player.playing || nowPlayingDetails.isPlaying;
     final position = player.position;
-    final index = _isMixedAppleMusicQueue(nowPlayingDetails)
+    final index = _isMixedSourceQueue(nowPlayingDetails)
         ? nowPlayingDetails.currentIndex
         : player.currentIndex ?? nowPlayingDetails.currentIndex;
     await setAudioSource(
@@ -450,7 +467,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           data: _playbackCrashData(),
         );
     if (player.currentIndex == null && metadata != null) {
-      await playSongFromOriginalList(metadata.originalSongIndex);
+      await playSongFromMetadata(metadata);
       return;
     }
     await _syncEqualizerPreset();
@@ -592,11 +609,30 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
                 .where((metadata) => !metadata.isAppleMusicCatalogTrack)
                 .toList(growable: false);
       final List<AudioSource> songSourcePlaylist = [];
-      try {
-        for (final musicMetadata in localMetadataList) {
+      final playableLocalMetadataList = <MusicMetadata>[];
+      for (final musicMetadata in localMetadataList) {
+        try {
           songSourcePlaylist.add(musicMetadata.toAudioSource());
+          playableLocalMetadataList.add(musicMetadata);
+        } catch (error, stackTrace) {
+          ref
+              .read(crashLogServiceProvider)
+              .recordPlaybackError(
+                'Audio source build failed',
+                error: error,
+                stackTrace: stackTrace,
+                data: {
+                  'trackName': musicMetadata.trackName,
+                  'sourceIdentity': musicMetadata.sourceIdentityKey,
+                  'sourceType': musicMetadata.sourceType.name,
+                  'filePath': musicMetadata.filePath,
+                },
+              );
+          if (musicMetadata.hasSameSourceIdentity(requestedMetadata ?? musicMetadata)) {
+            rethrow;
+          }
         }
-      } catch (_) {}
+      }
 
       if (songSourcePlaylist.isEmpty) {
         ref
@@ -605,7 +641,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
               'Local audio source was empty',
               data: {
                 'requestedCount': musicMetadataList.length,
-                'localCount': localMetadataList.length,
+                'localCount': playableLocalMetadataList.length,
                 'containsAppleMusic': containsAppleMusic,
               },
             );
@@ -619,11 +655,11 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         return;
       }
 
-      final matchingInitialIndex = localMetadataList.indexWhere((metadata) {
-        final requestedPath = requestedMetadata?.filePath;
-        return (requestedPath != null && metadata.filePath == requestedPath) ||
-            metadata.originalSongIndex == requestedMetadata?.originalSongIndex;
-      });
+      final matchingInitialIndex = requestedMetadata == null
+          ? -1
+          : playableLocalMetadataList.indexWhere(
+              (metadata) => metadata.hasSameSourceIdentity(requestedMetadata),
+            );
       final safeInitialIndex = matchingInitialIndex == -1
           ? 0
           : matchingInitialIndex
@@ -644,7 +680,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           .recordPlaybackBreadcrumb(
             'Local audio source loaded',
             data: {
-              'localCount': localMetadataList.length,
+              'localCount': playableLocalMetadataList.length,
               'safeInitialIndex': safeInitialIndex,
               'containsAppleMusic': containsAppleMusic,
               'requestedTrack': requestedMetadata?.trackName,
@@ -660,7 +696,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
             nowPlayingType: nowPlayingType,
             newMetadataList: containsAppleMusic
                 ? musicMetadataList
-                : localMetadataList,
+                : playableLocalMetadataList,
             currentIndex: containsAppleMusic
                 ? initialIndex.clamp(0, musicMetadataList.length - 1).toInt()
                 : safeInitialIndex,
@@ -934,59 +970,44 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   }
 
   Future<void> playSongFromOriginalList(int originalIndex) async {
+    final originalList = ref.read(filteredAudioFilesProvider).requireValue;
+    final metadata = originalList.cast<MusicMetadata?>().firstWhere(
+          (element) => element?.originalSongIndex == originalIndex,
+          orElse: () => null,
+        );
+    if (metadata != null) {
+      await playSongFromMetadata(metadata);
+    }
+  }
+
+  Future<void> playSongFromMetadata(MusicMetadata selectedMetadata) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final player = ref.read(audioPlayerProvider);
       var nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
       final externalIndex = nowPlayingDetails.metadataList.indexWhere(
-        (element) => element.originalSongIndex == originalIndex,
+        (element) => element.hasSameSourceIdentity(selectedMetadata),
       );
-      if (externalIndex != -1 &&
-          nowPlayingDetails
-              .metadataList[externalIndex]
-              .isAppleMusicCatalogTrack) {
-        await _playAppleMusicCatalogTrack(
-          nowPlayingDetails.metadataList[externalIndex],
-          metadataList: nowPlayingDetails.metadataList,
-          currentIndex: externalIndex,
-          nowPlayingType: nowPlayingDetails.nowPlayingType,
-        );
+      if (externalIndex != -1) {
+        await _playUnifiedQueueIndex(externalIndex);
         return;
       }
+
       final hasLoadedSources = player.currentIndex != null;
       final shouldUseOriginalList =
           !hasLoadedSources ||
           nowPlayingDetails.nowPlayingType != NowPlayingType.songs ||
           nowPlayingDetails.metadataList.isEmpty ||
           !nowPlayingDetails.metadataList.any(
-            (element) => element.originalSongIndex == originalIndex,
+            (element) => element.hasSameSourceIdentity(selectedMetadata),
           );
 
       if (shouldUseOriginalList) {
         final originalList = ref.read(filteredAudioFilesProvider).requireValue;
         final initialIndex = originalList.indexWhere(
-          (element) => element.originalSongIndex == originalIndex,
+          (element) => element.hasSameSourceIdentity(selectedMetadata),
         );
         if (initialIndex == -1) {
-          return;
-        }
-        final selectedOriginalMetadata = originalList[initialIndex];
-        if (selectedOriginalMetadata.isAppleMusicCatalogTrack) {
-          final appleMusicList = originalList
-              .where((metadata) => metadata.isAppleMusicCatalogTrack)
-              .toList(growable: false);
-          final appleMusicIndex = appleMusicList.indexWhere(
-            (metadata) =>
-                metadata.filePath == selectedOriginalMetadata.filePath,
-          );
-          if (appleMusicIndex == -1) {
-            return;
-          }
-          await _playAppleMusicCatalogTrack(
-            appleMusicList[appleMusicIndex],
-            metadataList: appleMusicList,
-            currentIndex: appleMusicIndex,
-          );
           return;
         }
         await setAudioSource(
@@ -996,63 +1017,39 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
       }
 
-      if (originalIndex ==
-          nowPlayingDetails.currentMetadata?.originalSongIndex) {
+      if (nowPlayingDetails.currentMetadata?.hasSameSourceIdentity(selectedMetadata) ?? false) {
         await _syncEqualizerPreset();
         await player.play();
         return;
       }
 
       final int index = nowPlayingDetails.metadataList.indexWhere(
-        (element) => element.originalSongIndex == originalIndex,
+        (element) => element.hasSameSourceIdentity(selectedMetadata),
       );
       if (index == -1) {
         return;
       }
 
-      if (ref.read(nativeEqPlaybackActiveProvider)) {
-        final preparedIndex = _nativeEqPreparedIndexForVisibleIndex(index);
-        if (preparedIndex == -1) {
-          await _playUnifiedQueueIndex(index);
-          return;
-        }
-        await ref
-            .read(nativeEqPlayerServiceProvider)
-            .seekToIndex(preparedIndex, position: Duration.zero);
-        await ref.read(nativeEqPlayerServiceProvider).play();
-        ref.read(nowPlayingDetailsProvider.notifier).setCurrentIndex(index);
-        ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
-        return;
-      }
-
-      await _cancelSongTransition();
-      await player.seek(Duration.zero, index: index);
-      Future.delayed(const Duration(milliseconds: 200), play);
+      await _playUnifiedQueueIndex(index);
     });
   }
 
-  bool _isMixedAppleMusicQueue(NowPlayingModel details) {
+  bool _isMixedSourceQueue(NowPlayingModel details) {
     if (details.metadataList.length < 2) {
       return false;
     }
-    final hasAppleMusic = details.metadataList.any(
-      (metadata) => metadata.isAppleMusicCatalogTrack,
-    );
-    final hasNonAppleMusic = details.metadataList.any(
-      (metadata) => !metadata.isAppleMusicCatalogTrack,
-    );
-    return hasAppleMusic && hasNonAppleMusic;
+    return details.metadataList.map((metadata) => metadata.sourceType).toSet().length > 1;
   }
 
   bool _shouldUseUnifiedQueueStep(NowPlayingModel details, int targetIndex) {
     return targetIndex >= 0 &&
         targetIndex < details.metadataList.length &&
-        _isMixedAppleMusicQueue(details);
+        _isMixedSourceQueue(details);
   }
 
   Future<void> _advanceUnifiedQueueAfterCompletion() async {
     final details = ref.read(nowPlayingDetailsProvider);
-    if (!_isMixedAppleMusicQueue(details)) {
+    if (!_isMixedSourceQueue(details)) {
       return;
     }
     final nextIndex = _nextCompletionIndex(details);
@@ -1445,7 +1442,13 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     NowPlayingModel details,
     int visibleIndex,
   ) {
-    return _isMixedAppleMusicQueue(details) ? 0 : visibleIndex;
+    if (!_isMixedSourceQueue(details)) {
+      return visibleIndex;
+    }
+    final containsAppleMusic = details.metadataList.any(
+      (metadata) => metadata.isAppleMusicCatalogTrack,
+    );
+    return containsAppleMusic ? 0 : visibleIndex;
   }
 
   int _nativeEqVisibleIndexForPreparedIndex(int preparedIndex) {
@@ -1477,7 +1480,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   ) async {
     await Future<void>.delayed(const Duration(milliseconds: 160));
     final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
-    if (nowPlayingDetails.currentMetadata?.filePath != metadata.filePath) {
+    if (!(nowPlayingDetails.currentMetadata?.hasSameSourceIdentity(metadata) ?? false)) {
       return;
     }
 
@@ -1546,6 +1549,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     final currentMetadata = nowPlayingDetails.currentMetadata;
     if (currentMetadata == null ||
         currentMetadata.isAppleMusicCatalogTrack ||
+        _isMixedSourceQueue(nowPlayingDetails) ||
         !nowPlayingDetails.isPlaying ||
         nowPlayingDetails.metadataList.isEmpty) {
       return;
@@ -1559,7 +1563,9 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
 
     final player = ref.read(audioPlayerProvider);
     final duration = player.duration;
-    final currentIndex = player.currentIndex ?? nowPlayingDetails.currentIndex;
+    final currentIndex = _isMixedSourceQueue(nowPlayingDetails)
+        ? nowPlayingDetails.currentIndex
+        : player.currentIndex ?? nowPlayingDetails.currentIndex;
     if (!player.playing ||
         player.shuffleModeEnabled ||
         nowPlayingDetails.loopMode == LoopMode.one ||

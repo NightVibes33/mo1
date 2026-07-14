@@ -54,7 +54,7 @@ class NowPlayingPreviewWidget extends ConsumerWidget {
                             thumbnailPath: currentMetadata.thumbnailPath,
                             isOnDevice: currentMetadata.isOnDevice,
                             heroTag:
-                                'now-playing-preview-${currentMetadata.originalSongIndex}',
+                                'now-playing-preview-${currentMetadata.sourceIdentityKey}',
                           ),
                         ),
                         const SizedBox(height: 8),

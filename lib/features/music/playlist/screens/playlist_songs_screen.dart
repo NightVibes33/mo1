@@ -145,9 +145,9 @@ class _PlaylistsSongsScreenState extends ConsumerState<PlaylistSongsScreen>
       );
     }
 
-    final int? currentlyPlayingOriginalIndex = ref
-        .watch(nowPlayingDetailsProvider.select((e) => e.currentMetadata))
-        ?.originalSongIndex;
+    final currentMetadata = ref.watch(
+      nowPlayingDetailsProvider.select((e) => e.currentMetadata),
+    );
 
     return CupertinoPageScaffold(
       child: Column(
@@ -186,8 +186,7 @@ class _PlaylistsSongsScreenState extends ConsumerState<PlaylistSongsScreen>
                     songMetadata: displayItems[index - 2],
                     isSelected: selectedDisplayItem == index,
                     isCurrentlyPlaying:
-                        currentlyPlayingOriginalIndex ==
-                        displayItems[index - 2].originalSongIndex,
+                        currentMetadata?.hasSameSourceIdentity(displayItems[index - 2]) ?? false,
                     onTap: () async => _performAction(index),
                     onLongPress: () async => _performLongPressAction(index),
                   );
