@@ -1158,7 +1158,6 @@ class AudioFilesServiceNotifier
         .toSet();
     final startIndex = metadataBox.length;
     final List<MusicMetadata> importedMetadata = [];
-    final shouldAutoEnhanceImport = rawResult.length <= 25;
     for (final metadata in rawResult) {
       if (metadata.filePath == null ||
           existingPaths.contains(metadata.filePath) ||
@@ -1173,9 +1172,9 @@ class AudioFilesServiceNotifier
         sourceModifiedAtEpochMs: importedAt,
         importedAtEpochMs: importedAt,
       );
-      final enhancedMetadata = shouldAutoEnhanceImport
-          ? await _autoEnhanceImportedMetadata(repairedMetadata)
-          : repairedMetadata;
+      final enhancedMetadata = await _autoEnhanceImportedMetadata(
+        repairedMetadata,
+      );
       importedMetadata.add(enhancedMetadata);
       ref.read(debugLogServiceProvider).info(
         'import',
@@ -1187,7 +1186,6 @@ class AudioFilesServiceNotifier
           'path': enhancedMetadata.filePath,
           'originalSongIndex': enhancedMetadata.originalSongIndex,
           'autoMetadataApplied': enhancedMetadata != repairedMetadata,
-          'autoMetadataSkippedForBulkImport': !shouldAutoEnhanceImport,
         },
       );
     }
