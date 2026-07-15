@@ -1,3 +1,4 @@
+import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/providers/filtered_audio_files_provider.dart';
 import 'package:dope/core/services/apple_music_playback_service.dart';
 import 'package:dope/core/services/music_metadata_lookup_service.dart';
@@ -10,7 +11,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final sourceHealthProvider = FutureProvider<SourceHealthSnapshot>((ref) async {
   final songsAsync = ref.watch(filteredAudioFilesProvider);
-  final songs = songsAsync.valueOrNull ?? const [];
+  final songs = songsAsync.when(
+    data: (value) => value,
+    loading: () => const <MusicMetadata>[],
+    error: (_, __) => const <MusicMetadata>[],
+  );
   final appleMusicLookup = ref.read(musicMetadataLookupServiceProvider);
   final appleMusicPlayback = ref.read(appleMusicPlaybackServiceProvider);
   final appleStatus = await appleMusicLookup.appleMusicAuthorizationStatus();
