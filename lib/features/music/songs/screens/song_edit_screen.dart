@@ -195,12 +195,15 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
   }
 
   Future<void> _showLyricsSearch() async {
-    final lyrics = await showLyricsSearchSheet(context, _draftMetadata());
-    if (lyrics == null || !mounted) {
+    final selection = await showLyricsSearchSheet(context, _draftMetadata());
+    if (selection == null || !mounted) {
       return;
     }
     setState(() {
-      _lyricsController.text = lyrics;
+      _lyricsController.text = selection.lyrics;
+      if (selection.isExplicit) {
+        _isExplicit = true;
+      }
     });
   }
 

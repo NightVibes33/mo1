@@ -55,12 +55,15 @@ Future<MusicMetadata?> findLyricsForSong(
   WidgetRef ref,
   MusicMetadata metadata,
 ) async {
-  final lyrics = await showLyricsSearchSheet(context, metadata);
-  if (lyrics == null || !context.mounted) {
+  final selection = await showLyricsSearchSheet(context, metadata);
+  if (selection == null || !context.mounted) {
     return null;
   }
 
-  final updatedMetadata = metadata.copyWith(lyrics: lyrics);
+  final updatedMetadata = metadata.copyWith(
+    lyrics: selection.lyrics,
+    isExplicit: selection.isExplicit ? true : metadata.isExplicit,
+  );
   await ref
       .read(nowPlayingDetailsProvider.notifier)
       .updateMetadata(updatedMetadata);

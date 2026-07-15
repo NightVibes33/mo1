@@ -6,14 +6,25 @@ import 'package:dope/core/services/lyrics_lookup_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-Future<String?> showLyricsSearchSheet(
+Future<LyricsSelection?> showLyricsSearchSheet(
   BuildContext context,
   MusicMetadata metadata,
 ) {
-  return showCupertinoModalPopup<String>(
+  return showCupertinoModalPopup<LyricsSelection>(
     context: context,
     builder: (_) => LyricsSearchSheet(metadata: metadata),
   );
+}
+
+
+class LyricsSelection {
+  final String lyrics;
+  final bool isExplicit;
+
+  const LyricsSelection({
+    required this.lyrics,
+    required this.isExplicit,
+  });
 }
 
 class LyricsSearchSheet extends ConsumerStatefulWidget {
@@ -112,7 +123,9 @@ class _LyricsSearchSheetState extends ConsumerState<LyricsSearchSheet> {
         });
         return;
       }
-      Navigator.of(context).pop(lyrics);
+      Navigator.of(context).pop(
+        LyricsSelection(lyrics: lyrics, isExplicit: false),
+      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -237,7 +250,18 @@ class _LyricsSearchSheetState extends ConsumerState<LyricsSearchSheet> {
         final result = _results[index];
         return _LyricsResultTile(
           result: result,
-          onTap: () => Navigator.of(context).pop(result.bestLyrics),
+          onTap: () {
+            final lyrics = result.bestLyrics;
+            if (lyrics == null || lyrics.trim().isEmpty) {
+              return;
+            }
+            Navigator.of(context).pop(
+              LyricsSelection(
+                lyrics: lyrics,
+                isExplicit: result.isExplicit,
+              ),
+            );
+          },
         );
       },
     );
@@ -302,15 +326,41 @@ class _LyricsResultTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      hasSyncedLyrics ? 'Synced lyrics' : 'Plain lyrics',
-                      style: TextStyle(
-                        color: context.appSecondaryTextColor.withValues(
-                          alpha: 0.72,
+                    Row(
+                      children: [
+                        Text(
+                          hasSyncedLyrics ? 'Synced lyrics' : 'Plain lyrics',
+                          style: TextStyle(
+                            color: context.appSecondaryTextColor.withValues(
+                              alpha: 0.72,
+                            ),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                        if (result.isExplicit) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            height: 16,
+                            width: 16,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.systemRed.resolveFrom(
+                                context,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'E',
+                              style: TextStyle(
+                                color: CupertinoColors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),

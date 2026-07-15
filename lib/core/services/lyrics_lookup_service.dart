@@ -97,6 +97,7 @@ class LyricsSearchResult {
   final int? durationSeconds;
   final String? plainLyrics;
   final String? syncedLyrics;
+  final bool isExplicit;
 
   const LyricsSearchResult({
     required this.id,
@@ -106,6 +107,7 @@ class LyricsSearchResult {
     this.durationSeconds,
     this.plainLyrics,
     this.syncedLyrics,
+    this.isExplicit = false,
   });
 
   factory LyricsSearchResult.fromJson(Map<String, dynamic> json) {
@@ -117,6 +119,14 @@ class LyricsSearchResult {
       durationSeconds: _integer(json['duration']),
       plainLyrics: _stringOrNull(json['plainLyrics']),
       syncedLyrics: _stringOrNull(json['syncedLyrics']),
+      isExplicit: _explicitFromJson(json, const [
+        'isExplicit',
+        'explicit',
+        'explicitLyrics',
+        'explicit_lyrics',
+        'contentRating',
+        'contentAdvisoryRating',
+      ]),
     );
   }
 
@@ -135,6 +145,16 @@ class LyricsSearchResult {
         .toList(growable: false);
     return values.join(' - ');
   }
+}
+
+
+bool _explicitFromJson(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    if (parseExplicitFlag(json[key])) {
+      return true;
+    }
+  }
+  return false;
 }
 
 Future<dynamic> _readJson(Uri uri) async {

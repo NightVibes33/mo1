@@ -490,6 +490,14 @@ MusicMetadataMatch _itunesMatchFromJson(
       'trackExplicitness',
       'collectionExplicitness',
       'contentAdvisoryRating',
+      'contentRating',
+      'trackContentRating',
+      'advisoryRating',
+      'parentalAdvisory',
+      'explicitLyrics',
+      'explicit_lyrics',
+      'hasExplicitLyrics',
+      'isExplicit',
     ]),
   );
 }
@@ -515,8 +523,13 @@ MusicMetadataMatch _deezerMatchFromJson(Map<String, dynamic> json) {
     previewUrl: _stringOrNull(json['preview']),
     isExplicit: _explicitFromJson(json, const [
       'explicit_lyrics',
+      'explicitLyrics',
+      'hasExplicitLyrics',
       'explicit_content_lyrics',
       'explicit_content_cover',
+      'contentRating',
+      'contentAdvisoryRating',
+      'isExplicit',
     ]),
   );
 }
@@ -543,6 +556,12 @@ MusicMetadataMatch _appleMusicMatchFromJson(Map<String, dynamic> json) {
       'isExplicit',
       'contentRating',
       'contentAdvisoryRating',
+      'trackContentRating',
+      'advisoryRating',
+      'parentalAdvisory',
+      'explicitLyrics',
+      'explicit_lyrics',
+      'hasExplicitLyrics',
     ]),
   );
 }
