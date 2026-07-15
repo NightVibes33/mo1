@@ -1,6 +1,6 @@
 import 'package:dope/core/models/music_metadata.dart';
 
-enum MusicMetadataSource { itunes, deezer, appleMusic, youtube }
+enum MusicMetadataSource { itunes, deezer, appleMusic }
 
 extension MusicMetadataSourceLabel on MusicMetadataSource {
   String get label {
@@ -11,8 +11,6 @@ extension MusicMetadataSourceLabel on MusicMetadataSource {
         return 'Deezer';
       case MusicMetadataSource.appleMusic:
         return 'Apple Music';
-      case MusicMetadataSource.youtube:
-        return 'YouTube';
     }
   }
 }
