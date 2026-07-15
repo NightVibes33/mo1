@@ -39,27 +39,36 @@ YouTube support was intentionally removed. døPe does not download audio from Yo
 
 - [x] Classic Now Playing screen.
 - [x] Background playback support.
+- [x] Lock-screen/media notification controls through the audio service stack.
 - [x] Next, previous, seek, play, and pause controls.
+- [x] Long-press seek behavior for supported local playback controls.
 - [x] Shuffle and repeat modes.
+- [x] In-app volume control path.
 - [x] Mixed-source queue coordination.
 - [x] Apple Music manual-selection start-offset correction.
 - [x] Apple Music queue next/previous bridge support.
 - [x] Playback crash/debug breadcrumbs.
 - [x] Song transition settings for supported local playback paths.
+- [x] Local audio format support through the app audio stack, including MP3, M4A/AAC, WAV, FLAC, OGG, and OPUS where platform codecs allow.
 - [ ] Apple Music Music Haptics API support. Not implemented because Apple does not expose a public third-party API to reuse Apple Music's built-in haptic tracks inside this app.
 
 ### Library Management
 
 - [x] Songs, Albums, Artists, Genres, Playlists, Cover Flow, and Search sections.
+- [x] Browse by artist, album, genre, playlist, and all songs.
+- [x] Search songs, artists, albums, and playlists.
 - [x] Swipe-to-delete individual songs from the Songs section.
 - [x] Playlist creation and storage.
+- [x] Song rating support.
 - [x] Imported artwork caching for offline artwork.
+- [x] Cached metadata for faster startup.
 - [x] Apple Music artwork persistence across app updates.
 - [x] Import progress/loading UI for large local imports.
 - [x] Duplicate detection for local imports.
 - [x] Date-added sorting across mixed sources.
 - [ ] Advanced duplicate merge tools. Planned.
 - [ ] Bulk library cleanup tools. Planned.
+- [ ] Custom folder scanning outside app imports. Not implemented in the current iOS-focused døPe flow; imports are app-managed.
 
 ### Metadata, Artwork, and Lyrics
 
@@ -90,16 +99,21 @@ YouTube support was intentionally removed. døPe does not download audio from Yo
 ### UI and Navigation
 
 - [x] Classic click-wheel interface.
+- [x] Scrollable wheel rotation.
 - [x] Touchscreen support.
-- [x] Cover Flow.
+- [x] Cover Flow with reflective artwork.
 - [x] Split-screen iPod-style browsing.
 - [x] Settings toggle for split-screen behavior.
 - [x] Tutorial/onboarding flow.
-- [x] Status bar with battery indicators.
+- [x] Status bar with battery indicators and charging state.
 - [x] Haptics and click-wheel sounds.
+- [x] Responsive layout work for different iPhone/iPad screen sizes.
+- [x] About/settings screens.
+- [x] Multi-language/localization infrastructure.
 - [x] Multiple visual refresh passes for the døPe-branded UI.
-- [ ] Built-in games. Planned, not implemented.
-- [ ] Photo/video viewer. Not implemented.
+- [ ] Built-in iPod-style games. Planned, not implemented.
+- [ ] Photo viewer. Planned, not implemented.
+- [ ] Video viewer. Planned, not implemented.
 - [ ] Xbox 360/Neon-style music visualizer. Planned as an original inspired visualizer only, not a copy of proprietary Xbox software.
 
 ### Widgets and System Integration
@@ -136,10 +150,14 @@ YouTube support was intentionally removed. døPe does not download audio from Yo
 ### Planned
 
 - [ ] Original music visualizer inspired by classic console/player visualizers.
+- [ ] Built-in iPod-style games.
+- [ ] Photo viewer.
+- [ ] Video viewer for user-owned local videos if added later.
 - [ ] Per-song or per-source EQ profiles.
 - [ ] Better bulk import review and duplicate cleanup tools.
 - [ ] Advanced artwork management for very large libraries.
 - [ ] More tutorial depth for Apple Music, local imports, server connections, EQ, and widgets.
+- [ ] More source-specific library quality indicators for Navidrome and Jellyfin.
 
 ### Not Planned Right Now
 
@@ -148,6 +166,21 @@ YouTube support was intentionally removed. døPe does not download audio from Yo
 - [ ] Spotify full-library playback integration.
 - [ ] Full Apple Music feature parity with Apple's own Music app internals.
 - [ ] Full app UI inside an iOS widget.
+
+## Tech Stack
+
+- [x] Flutter app architecture with Riverpod state management.
+- [x] `just_audio` playback stack for local/remote app-controlled audio.
+- [x] `audio_service` / background audio integration.
+- [x] Native iOS Apple Music bridge for catalog/library playback.
+- [x] Native iOS widget extension and widget sync service.
+- [x] Hive-backed library/cache persistence.
+- [x] `audio_metadata_reader` for embedded local-file metadata.
+- [x] `file_picker` for user-selected imports.
+- [x] `battery_plus` for status bar battery state.
+- [x] `vibration` for click-wheel feedback where supported.
+- [x] `permission_handler` for platform permissions.
+- [x] GitHub Actions release/build automation.
 
 ## Build Notes
 
