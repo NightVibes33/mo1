@@ -3,6 +3,8 @@ import 'package:dope/core/extensions/go_router_extensions.dart';
 import 'package:dope/core/navigation/routes.dart';
 import 'package:dope/core/services/crash_log_service.dart';
 import 'package:dope/core/services/debug_log_service.dart';
+import 'package:dope/core/services/source_health_service.dart';
+import 'package:dope/core/services/storage_diagnostics_service.dart';
 import 'package:dope/features/device/models/device_action.dart';
 import 'package:dope/features/device/services/device_buttons_service_provider.dart';
 import 'package:dope/features/status_bar/widgets/status_bar.dart';
@@ -45,6 +47,30 @@ class _DebugLogsScreenState extends ConsumerState<DebugLogsScreen> {
     setState(() => _logsFuture = _readLogs());
   }
 
+  Future<String> _readExportBundle(String logs) async {
+    final sourceHealth = await ref.read(sourceHealthProvider.future);
+    final storage = await ref.read(storageDiagnosticsServiceProvider).snapshot();
+    final sourceText = sourceHealth.items
+        .map((item) => '- ${item.name}: ${item.status} | healthy=${item.isHealthy} | ${item.detail}')
+        .join('\n');
+    final storageText = storage.entries
+        .map((entry) => '- ${entry.label}: ${entry.displaySize} | ${entry.path}')
+        .join('\n');
+    return [
+      '== døPe Debug Bundle ==',
+      'createdAt=${DateTime.now().toIso8601String()}',
+      '',
+      '== source-health ==',
+      sourceText,
+      '',
+      '== storage ==',
+      'total=${formatBytes(storage.totalBytes)}',
+      storageText,
+      '',
+      logs,
+    ].join('\n');
+  }
+
   Future<void> _copyLogs(String logs) async {
     await Clipboard.setData(ClipboardData(text: logs));
     if (!mounted) {
@@ -63,6 +89,11 @@ class _DebugLogsScreenState extends ConsumerState<DebugLogsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _copyBundle(String logs) async {
+    final bundle = await _readExportBundle(logs);
+    await _copyLogs(bundle);
   }
 
   Future<void> _clearLogs() async {
@@ -101,6 +132,11 @@ class _DebugLogsScreenState extends ConsumerState<DebugLogsScreen> {
                     ),
                     const SizedBox(width: 6),
                     _DebugLogButton(label: 'Refresh', onPressed: _refreshLogs),
+                    const SizedBox(width: 6),
+                    _DebugLogButton(
+                      label: 'Bundle',
+                      onPressed: snapshot.hasData ? () => _copyBundle(logs) : null,
+                    ),
                     const SizedBox(width: 6),
                     _DebugLogButton(label: 'Clear', onPressed: _clearLogs),
                   ],
