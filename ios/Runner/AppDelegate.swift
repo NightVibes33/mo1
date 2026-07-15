@@ -524,7 +524,9 @@ private enum AppleMusicLookupChannel {
             "positionSeconds": 0,
             "durationSeconds": 0,
             "isPlaying": false,
-            "playbackState": "unsupported"
+            "playbackState": "unsupported",
+            "backend": "unsupported",
+            "transitionStyle": "off"
           ])
         } else if call.method == "playCatalogSong" ||
                     call.method == "playCatalogQueue" ||
@@ -1204,7 +1206,9 @@ private enum AppleMusicLookupChannel {
       "durationSeconds": safeDuration,
       "isPlaying": player.playbackState == .playing,
       "playbackState": playbackStateName(player.playbackState),
-      "catalogId": player.nowPlayingItem?.playbackStoreID ?? ""
+      "catalogId": player.nowPlayingItem?.playbackStoreID ?? "",
+      "backend": "mediaPlayer",
+      "transitionStyle": transitionStyle
     ]
   }
 
@@ -1235,7 +1239,9 @@ private enum AppleMusicLookupChannel {
       "durationSeconds": duration,
       "isPlaying": playbackStatus == .playing,
       "playbackState": String(describing: playbackStatus),
-      "catalogId": catalogId
+      "catalogId": catalogId,
+      "backend": "musicKit",
+      "transitionStyle": transitionStyle
     ]
   }
 

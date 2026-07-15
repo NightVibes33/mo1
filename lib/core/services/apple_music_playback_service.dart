@@ -388,6 +388,8 @@ class AppleMusicPlaybackSnapshot {
   final bool isPlaying;
   final bool isSupported;
   final String playbackState;
+  final String backend;
+  final String transitionStyle;
   final String? catalogId;
 
   const AppleMusicPlaybackSnapshot({
@@ -396,6 +398,8 @@ class AppleMusicPlaybackSnapshot {
     required this.isPlaying,
     required this.isSupported,
     required this.playbackState,
+    this.backend = 'unknown',
+    this.transitionStyle = 'off',
     this.catalogId,
   });
 
@@ -406,6 +410,8 @@ class AppleMusicPlaybackSnapshot {
       isPlaying: false,
       isSupported: false,
       playbackState: 'unsupported',
+      backend: 'unsupported',
+      transitionStyle: 'off',
     );
   }
 
@@ -420,6 +426,8 @@ class AppleMusicPlaybackSnapshot {
       isPlaying: map['isPlaying'] == true,
       isSupported: map['isSupported'] != false,
       playbackState: _stringValue(map['playbackState'], 'unknown'),
+      backend: _stringValue(map['backend'], 'unknown'),
+      transitionStyle: _stringValue(map['transitionStyle'], 'off'),
       catalogId: _nullableStringValue(map['catalogId']),
     );
   }
