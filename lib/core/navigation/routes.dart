@@ -41,6 +41,8 @@ import 'package:dope/features/settings/screens/equalizer_selection_screen.dart';
 import 'package:dope/features/settings/screens/exclude_directories_screen.dart';
 import 'package:dope/features/settings/screens/language_selection_screen.dart';
 import 'package:dope/features/settings/screens/settings_preferences_screen.dart';
+import 'package:dope/features/settings/screens/source_health_screen.dart';
+import 'package:dope/features/settings/screens/storage_diagnostics_screen.dart';
 import 'package:dope/features/settings/screens/wheel_style_selection_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,6 +54,8 @@ enum Routes {
   settings,
   about,
   debugLogs,
+  storageDiagnostics,
+  sourceHealth,
   language,
   deviceColor,
   wheelStyle,
@@ -102,6 +106,10 @@ enum Routes {
         return context.localization.aboutScreenTitle;
       case debugLogs:
         return 'Debug Logs';
+      case storageDiagnostics:
+        return 'Storage';
+      case sourceHealth:
+        return 'Source Health';
       case language:
         return context.localization.languageScreenTitle;
       case deviceColor:
@@ -246,6 +254,22 @@ final routerProvider = Provider(
                         parentNavigatorKey: rootNavigatorKey,
                         pageBuilder: (context, state) =>
                             const CupertinoPage(child: DebugLogsScreen()),
+                      ),
+                      GoRoute(
+                        path: Routes.storageDiagnostics.name,
+                        name: Routes.storageDiagnostics.name,
+                        parentNavigatorKey: rootNavigatorKey,
+                        pageBuilder: (context, state) => const CupertinoPage(
+                          child: StorageDiagnosticsScreen(),
+                        ),
+                      ),
+                      GoRoute(
+                        path: Routes.sourceHealth.name,
+                        name: Routes.sourceHealth.name,
+                        parentNavigatorKey: rootNavigatorKey,
+                        pageBuilder: (context, state) => const CupertinoPage(
+                          child: SourceHealthScreen(),
+                        ),
                       ),
                       GoRoute(
                         path: Routes.language.name,

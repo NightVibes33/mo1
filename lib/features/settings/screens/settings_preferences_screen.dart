@@ -45,6 +45,8 @@ enum _SettingsDisplayItems {
   rescanMusicFiles,
   excludeDirectories,
   debugLogs,
+  storageDiagnostics,
+  sourceHealth,
   resetDatabase,
   resetSettings;
 
@@ -102,6 +104,10 @@ enum _SettingsDisplayItems {
         return context.localization.excludeDirectoriesScreenTitle;
       case debugLogs:
         return 'Debug Logs';
+      case storageDiagnostics:
+        return 'Storage';
+      case sourceHealth:
+        return 'Source Health';
       case resetDatabase:
         return 'Reset Database';
       case resetSettings:
@@ -253,6 +259,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         break;
       case _SettingsDisplayItems.debugLogs:
         context.goNamed(Routes.debugLogs.name);
+        break;
+      case _SettingsDisplayItems.storageDiagnostics:
+        context.goNamed(Routes.storageDiagnostics.name);
+        break;
+      case _SettingsDisplayItems.sourceHealth:
+        context.goNamed(Routes.sourceHealth.name);
         break;
       case _SettingsDisplayItems.resetDatabase:
         final shouldReset = await _confirmResetDatabase();

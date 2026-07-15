@@ -8,8 +8,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+bool get widgetSyncAvailable => !kIsWeb && Platform.isIOS;
+
 final widgetSyncProvider = Provider<void>((ref) {
-  if (kIsWeb || !Platform.isIOS) {
+  if (!widgetSyncAvailable) {
     return;
   }
   final controller = _WidgetSyncController(ref);
