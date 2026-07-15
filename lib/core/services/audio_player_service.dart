@@ -66,6 +66,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   int _playbackOperationId = 0;
   bool _nativeEqDisabledForSession = false;
   String? _nativeEqDisabledReason;
+  bool _isReconfiguringEqualizerPlayback = false;
+  DateTime? _suppressCompletionUntil;
   List<String> _activeAppleMusicCatalogIds = const [];
 
   @override
@@ -80,6 +82,13 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       processingState,
     ) {
       if (processingState == ProcessingState.completed) {
+        if (_shouldSuppressCompletionAdvance()) {
+          ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+                'Completion ignored during EQ reconfigure',
+                data: _playbackCrashData(),
+              );
+          return;
+        }
         unawaited(_advanceUnifiedQueueAfterCompletion());
       }
     });
@@ -140,6 +149,14 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
             _lastNativeEqCompletionSerial = completionSerial;
           } else if (completionSerial != lastCompletionSerial &&
               snapshot.completedIndex >= 0) {
+            if (_shouldSuppressCompletionAdvance()) {
+              _lastNativeEqCompletionSerial = completionSerial;
+              ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+                    'Native EQ completion ignored during EQ reconfigure',
+                    data: _playbackCrashData(),
+                  );
+              return;
+            }
             _lastNativeEqCompletionSerial = completionSerial;
             unawaited(_advanceNativeEqQueueAfterCompletion(snapshot));
             return;
@@ -393,18 +410,36 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         backend == _PlaybackBackend.nativeEqPlayer;
   }
 
+  bool _shouldSuppressCompletionAdvance() {
+    final suppressUntil = _suppressCompletionUntil;
+    return _isReconfiguringEqualizerPlayback ||
+        (suppressUntil != null && DateTime.now().isBefore(suppressUntil));
+  }
+
+  void _suppressCompletionAdvanceFor(Duration duration) {
+    _suppressCompletionUntil = DateTime.now().add(duration);
+  }
 
   Future<void> reconfigureEqualizerPlayback() async {
-    _clearNativeEqCircuitBreaker();
-    final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
-    final metadataList = nowPlayingDetails.metadataList;
-    final currentMetadata = nowPlayingDetails.currentMetadata;
-    if (metadataList.isEmpty || currentMetadata?.isAppleMusicCatalogTrack == true) {
-      await _syncEqualizerPreset();
+    if (_isReconfiguringEqualizerPlayback) {
       return;
     }
+    _isReconfiguringEqualizerPlayback = true;
+    _suppressCompletionAdvanceFor(const Duration(seconds: 2));
+    final startingDetails = ref.read(nowPlayingDetailsProvider);
+    final startingIndex = startingDetails.currentIndex;
+    final startingMetadata = startingDetails.currentMetadata;
+    try {
+      _clearNativeEqCircuitBreaker();
+      final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
+      final metadataList = nowPlayingDetails.metadataList;
+      final currentMetadata = nowPlayingDetails.currentMetadata;
+      if (metadataList.isEmpty || currentMetadata?.isAppleMusicCatalogTrack == true) {
+        await _syncEqualizerPreset();
+        return;
+      }
 
-    final settings = ref.read(settingsPreferencesControllerProvider);
+      final settings = ref.read(settingsPreferencesControllerProvider);
     if (ref.read(nativeEqPlaybackActiveProvider)) {
       final snapshot = await ref.read(nativeEqPlayerServiceProvider).snapshot();
       final wasPlaying = snapshot.isPlaying;
@@ -426,6 +461,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         nowPlayingType: nowPlayingDetails.nowPlayingType,
         musicMetadataList: metadataList,
         initialIndex: index,
+        initialPosition: position,
       );
       await ref.read(audioPlayerProvider).seek(
             position,
@@ -455,6 +491,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       nowPlayingType: nowPlayingDetails.nowPlayingType,
       musicMetadataList: metadataList,
       initialIndex: index,
+      initialPosition: position,
     );
     if (ref.read(nativeEqPlaybackActiveProvider)) {
       await ref.read(nativeEqPlayerServiceProvider).seekTo(position);
@@ -469,6 +506,42 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     }
     if (wasPlaying) {
       await play();
+    }
+    } finally {
+      _restoreEqualizerReconfigureIdentity(startingIndex, startingMetadata);
+      _suppressCompletionAdvanceFor(const Duration(seconds: 2));
+      _isReconfiguringEqualizerPlayback = false;
+    }
+  }
+
+  void _restoreEqualizerReconfigureIdentity(
+    int startingIndex,
+    MusicMetadata? startingMetadata,
+  ) {
+    if (startingMetadata == null) {
+      return;
+    }
+    final details = ref.read(nowPlayingDetailsProvider);
+    if (details.metadataList.isEmpty ||
+        (details.currentMetadata?.hasSameSourceIdentity(startingMetadata) ?? false)) {
+      return;
+    }
+    final matchingIndex = details.metadataList.indexWhere(
+      (metadata) => metadata.hasSameSourceIdentity(startingMetadata),
+    );
+    final restoredIndex = matchingIndex == -1 ? startingIndex : matchingIndex;
+    if (restoredIndex >= 0 && restoredIndex < details.metadataList.length) {
+      ref.read(nowPlayingDetailsProvider.notifier).setCurrentIndex(restoredIndex);
+      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
+            'Restored EQ reconfigure track identity',
+            data: _playbackCrashData(
+              extra: {
+                'startingIndex': startingIndex,
+                'restoredIndex': restoredIndex,
+                'startingTrack': startingMetadata.trackName,
+              },
+            ),
+          );
     }
   }
 
@@ -620,6 +693,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     int initialIndex = 0,
     bool allowNativeEq = true,
     String operationReason = 'set_audio_source',
+    Duration initialPosition = Duration.zero,
   }) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
@@ -637,6 +711,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
               'operationReason': operationReason,
               'operationId': operationId,
               'allowNativeEq': allowNativeEq,
+              'initialPositionSeconds': initialPosition.inSeconds,
               'activeBackend': _activeBackend.name,
             },
           );
@@ -733,7 +808,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           .setAudioSources(
             songSourcePlaylist,
             initialIndex: safeInitialIndex,
-            initialPosition: Duration.zero,
+            initialPosition: initialPosition,
             shuffleOrder: DefaultShuffleOrder(),
           );
       ref
@@ -749,6 +824,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
               'operationReason': operationReason,
               'operationId': operationId,
               'allowNativeEq': allowNativeEq,
+              'initialPositionSeconds': initialPosition.inSeconds,
             },
           );
 
