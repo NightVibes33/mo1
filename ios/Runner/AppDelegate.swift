@@ -1627,10 +1627,44 @@ private enum AppleMusicLookupChannel {
     }
     if let ratingText = contentRatingText(for: song) {
       item["contentRating"] = ratingText
-      item["isExplicit"] = ratingText.contains("explicit")
+      item["isExplicit"] = isExplicitRatingText(ratingText)
     }
 
     return item
+  }
+
+  private static func isExplicitRatingText(_ ratingText: String) -> Bool {
+    let normalized = ratingText
+      .lowercased()
+      .replacingOccurrences(
+        of: "[^a-z0-9]+",
+        with: "",
+        options: .regularExpression
+      )
+    if normalized.isEmpty ||
+        normalized == "false" ||
+        normalized == "0" ||
+        normalized == "no" ||
+        normalized == "none" ||
+        normalized == "clean" ||
+        normalized == "notexplicit" ||
+        normalized == "nonexplicit" ||
+        normalized == "noadvisory" {
+      return false
+    }
+    return normalized == "explicit" ||
+      normalized == "explicitcontent" ||
+      normalized == "parentalratingexplicit" ||
+      normalized == "contentadvisoryexplicit" ||
+      normalized == "contentratingexplicit" ||
+      normalized == "explicitlyrics" ||
+      normalized == "parentaladvisory" ||
+      normalized == "parentaladvisoryexplicit" ||
+      normalized == "true" ||
+      normalized == "1" ||
+      normalized == "yes" ||
+      normalized == "e" ||
+      normalized.contains("explicit")
   }
 
   @available(iOS 15.0, *)

@@ -49,6 +49,7 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
   int? _pendingTrackDuration;
   bool _isSaving = false;
   bool _isApplyingLookup = false;
+  late bool _isExplicit;
 
   @override
   void initState() {
@@ -62,6 +63,7 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
     _initialTrackNumber = metadata.trackNumber?.toString() ?? '';
     _initialDiscNumber = metadata.discNumber?.toString() ?? '';
     _initialLyrics = metadata.lyrics ?? '';
+    _isExplicit = metadata.isExplicit;
 
     _titleController = TextEditingController(text: _initialTitle);
     _artistController = TextEditingController(text: _initialArtists);
@@ -123,7 +125,7 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
       originalSongIndex: widget.songMetadata.originalSongIndex,
       isOnDevice: widget.songMetadata.isOnDevice,
       rating: widget.songMetadata.rating,
-      isExplicit: widget.songMetadata.isExplicit,
+      isExplicit: _isExplicit,
       lyrics: _nonEmpty(lyricsInput),
     );
 
@@ -187,6 +189,7 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
       _pendingThumbnailPath = thumbnailPath ?? _pendingThumbnailPath;
       _pendingAlbumLength = match.trackCount ?? _pendingAlbumLength;
       _pendingTrackDuration = match.durationMs ?? _pendingTrackDuration;
+      _isExplicit = match.isExplicit;
       _isApplyingLookup = false;
     });
   }
@@ -245,6 +248,7 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
       year: _parseInteger(_yearController.text.trim()),
       trackNumber: _parseInteger(_trackNumberController.text.trim()),
       discNumber: _parseInteger(_discNumberController.text.trim()),
+      isExplicit: _isExplicit,
       lyrics: _nonEmpty(_lyricsController.text) ?? widget.songMetadata.lyrics,
     );
   }
@@ -347,6 +351,14 @@ class _SongEditScreenState extends ConsumerState<SongEditScreen> {
                     _SongEditField(
                       label: context.localization.editSongGenreLabel,
                       controller: _genreController,
+                    ),
+                    _ExplicitToggle(
+                      isExplicit: _isExplicit,
+                      onChanged: (value) {
+                        setState(() {
+                          _isExplicit = value;
+                        });
+                      },
                     ),
                     _SongEditField(
                       label: context.localization.editSongLyricsLabel,
@@ -508,6 +520,86 @@ class _LookupActions extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+class _ExplicitToggle extends StatelessWidget {
+  final bool isExplicit;
+  final ValueChanged<bool> onChanged;
+
+  const _ExplicitToggle({
+    required this.isExplicit,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: CupertinoColors.systemGrey6.resolveFrom(context),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: CupertinoColors.separator.resolveFrom(context),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                height: 22,
+                width: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isExplicit
+                      ? CupertinoColors.systemRed.resolveFrom(context)
+                      : CupertinoColors.systemGrey3.resolveFrom(context),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  'E',
+                  style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                        color: CupertinoColors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Explicit',
+                      style: CupertinoTheme.of(context).textTheme.textStyle.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Show the E badge for this song.',
+                      style: TextStyle(
+                        color: context.appSecondaryTextColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              CupertinoSwitch(
+                value: isExplicit,
+                onChanged: onChanged,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

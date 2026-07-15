@@ -148,19 +148,40 @@ bool parseExplicitFlag(dynamic value) {
   if (value is bool) {
     return value;
   }
+  if (value is num) {
+    return value > 0;
+  }
   final text = value.toString().trim().toLowerCase();
   if (text.isEmpty) {
     return false;
   }
-  return text == 'explicit' ||
-      text == 'explicitcontent' ||
-      text == 'explicit content' ||
-      text == 'parentalratingexplicit' ||
-      text == 'parental rating explicit' ||
-      text == 'true' ||
-      text == '1' ||
-      text == 'yes' ||
-      text == 'e';
+  final normalized = text.replaceAll(RegExp(r'[^a-z0-9]+'), '');
+  if (normalized.isEmpty ||
+      normalized == 'false' ||
+      normalized == '0' ||
+      normalized == 'no' ||
+      normalized == 'none' ||
+      normalized == 'clean' ||
+      normalized == 'notexplicit' ||
+      normalized == 'nonexplicit' ||
+      normalized == 'noadvisory' ||
+      normalized == 'notexplicitcontent' ||
+      normalized == 'contentratingclean') {
+    return false;
+  }
+  return normalized == 'explicit' ||
+      normalized == 'explicitcontent' ||
+      normalized == 'parentalratingexplicit' ||
+      normalized == 'contentadvisoryexplicit' ||
+      normalized == 'contentratingexplicit' ||
+      normalized == 'explicitlyrics' ||
+      normalized == 'parentaladvisory' ||
+      normalized == 'parentaladvisoryexplicit' ||
+      normalized == 'true' ||
+      normalized == '1' ||
+      normalized == 'yes' ||
+      normalized == 'e' ||
+      normalized.contains('explicit');
 }
 
 String _fileNameWithoutExtension(String path) {
