@@ -18,6 +18,7 @@ import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 
