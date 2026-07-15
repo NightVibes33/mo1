@@ -143,7 +143,6 @@ private enum SiriShortcutChannel {
     activity.suggestedInvocationPhrase = suggestedPhrase
     activity.isEligibleForSearch = true
     activity.isEligibleForPrediction = true
-    activity.webpageURL = url
     activity.userInfo = ["url": url.absoluteString]
     activity.becomeCurrent()
   }
