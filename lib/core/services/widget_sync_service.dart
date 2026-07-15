@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dope/core/models/music_metadata.dart';
+import 'package:dope/core/services/audio_player_service.dart';
+import 'package:dope/core/services/native_eq_player_service.dart';
 import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter/foundation.dart';
@@ -24,11 +26,21 @@ class _WidgetSyncController {
   static const MethodChannel _channel = MethodChannel('mo1/widgets');
 
   _WidgetSyncController(this._ref) {
+    final player = _ref.read(audioPlayerProvider);
+    _positionSubscription = player.positionStream.listen((_) => scheduleSync());
+    _playerStateSubscription = player.playerStateStream.listen((_) => scheduleSync(force: true));
+    _nativeEqSnapshotSubscription = _ref
+        .read(nativeEqPlayerServiceProvider)
+        .playbackSnapshots()
+        .listen((_) => scheduleSync(force: true));
     scheduleSync(force: true);
   }
 
   final Ref _ref;
   Timer? _debounce;
+  StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<dynamic>? _playerStateSubscription;
+  StreamSubscription<NativeEqPlaybackSnapshot>? _nativeEqSnapshotSubscription;
   String? _lastSignature;
   bool _disposed = false;
 
@@ -67,6 +79,20 @@ class _WidgetSyncController {
 
     final sourceType = metadata == null ? 'none' : _sourceTypeName(metadata);
     final eqSupported = metadata != null && !metadata.isAppleMusicCatalogTrack;
+    final nativeEqActive = _ref.read(nativeEqPlaybackActiveProvider);
+    final nativeEqSnapshot = nativeEqActive
+        ? await _ref.read(nativeEqPlayerServiceProvider).snapshot()
+        : null;
+    final player = _ref.read(audioPlayerProvider);
+    final durationSeconds = nativeEqSnapshot != null &&
+            nativeEqSnapshot.duration != Duration.zero
+        ? nativeEqSnapshot.duration.inSeconds
+        : player.duration?.inSeconds ?? ((metadata?.getTrackDuration ?? 0) ~/ 1000);
+    final rawPositionSeconds = nativeEqSnapshot?.position.inSeconds ??
+        player.position.inSeconds;
+    final positionSeconds = durationSeconds > 0
+        ? rawPositionSeconds.clamp(0, durationSeconds).toInt()
+        : rawPositionSeconds;
     final snapshot = <String, Object?>{
       'schemaVersion': 1,
       'trackTitle': metadata?.getTrackName ?? 'Open døPe',
@@ -77,6 +103,8 @@ class _WidgetSyncController {
       'sourceType': sourceType,
       'isExplicit': metadata?.isExplicit ?? false,
       'isPlaying': nowPlaying.isPlaying,
+      'positionSeconds': positionSeconds,
+      'durationSeconds': durationSeconds,
       'queueIndex': metadata == null ? 0 : nowPlaying.currentIndex + 1,
       'queueCount': nowPlaying.metadataList.length,
       'eqName': settings.equalizerDisplayTitle,
@@ -116,5 +144,8 @@ class _WidgetSyncController {
   void dispose() {
     _disposed = true;
     _debounce?.cancel();
+    unawaited(_positionSubscription?.cancel());
+    unawaited(_playerStateSubscription?.cancel());
+    unawaited(_nativeEqSnapshotSubscription?.cancel());
   }
 }

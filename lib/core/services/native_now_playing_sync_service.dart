@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dope/core/services/audio_player_service.dart';
+import 'package:dope/core/services/debug_log_service.dart';
 import 'package:dope/core/services/native_eq_player_service.dart';
 import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:flutter/foundation.dart';
@@ -25,6 +26,8 @@ class _NativeNowPlayingSyncController {
   static const MethodChannel _channel = MethodChannel('mo1/now_playing');
 
   _NativeNowPlayingSyncController(this._ref) {
+    _channel.setMethodCallHandler(_handleNativeCall);
+    unawaited(_channel.invokeMethod<void>('remoteCommandsReady'));
     final player = _ref.read(audioPlayerProvider);
     _positionSubscription = player.positionStream.listen((position) {
       final wholeSecond = position.inSeconds;
@@ -97,6 +100,55 @@ class _NativeNowPlayingSyncController {
     }
   }
 
+  Future<dynamic> _handleNativeCall(MethodCall call) async {
+    if (call.method != 'remoteCommand') {
+      return null;
+    }
+    final arguments = call.arguments is Map
+        ? Map<Object?, Object?>.from(call.arguments as Map)
+        : const <Object?, Object?>{};
+    final action = arguments['action']?.toString() ?? '';
+    final audio = _ref.read(audioPlayerServiceProvider.notifier);
+    _ref.read(debugLogServiceProvider).info(
+      'remote_command',
+      'Received iOS remote command',
+      data: {'action': action},
+    );
+    switch (action) {
+      case 'play':
+        await audio.play();
+        break;
+      case 'pause':
+        await audio.pause();
+        break;
+      case 'play-pause':
+        await audio.togglePlayback();
+        break;
+      case 'next':
+        await audio.nextSong();
+        break;
+      case 'previous':
+        await audio.seekBackwards();
+        break;
+      case 'seek':
+        final rawSeconds = arguments['positionSeconds'];
+        final seconds = rawSeconds is num
+            ? rawSeconds.round()
+            : int.tryParse(rawSeconds?.toString() ?? '');
+        if (seconds != null) {
+          await audio.seekToDuration(seconds);
+        }
+        break;
+      default:
+        _ref.read(debugLogServiceProvider).warning(
+          'remote_command',
+          'Unknown iOS remote command',
+          data: {'action': action},
+        );
+    }
+    return null;
+  }
+
   Future<void> _performSync({required bool force}) async {
     final nowPlaying = _ref.read(nowPlayingDetailsProvider);
     final metadata = nowPlaying.currentMetadata;
@@ -161,6 +213,7 @@ class _NativeNowPlayingSyncController {
 
   void dispose() {
     _disposed = true;
+    _channel.setMethodCallHandler(null);
     unawaited(_positionSubscription?.cancel());
     unawaited(_durationSubscription?.cancel());
     unawaited(_playerStateSubscription?.cancel());

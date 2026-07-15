@@ -69,6 +69,15 @@ class _DeepLinkController {
       case 'eq':
         router.goNamed(Routes.equalizer.name);
         break;
+      case 'settings':
+        router.goNamed(Routes.settings.name);
+        break;
+      case 'storage':
+        router.goNamed(Routes.storageDiagnostics.name);
+        break;
+      case 'source-health':
+        router.goNamed(Routes.sourceHealth.name);
+        break;
       case 'source':
         _openSource(parts.length > 1 ? parts[1] : '');
         break;

@@ -21,6 +21,8 @@ struct DopeWidgetSnapshot: Decodable, Hashable {
   let sourceType: String
   let isExplicit: Bool
   let isPlaying: Bool
+  let positionSeconds: Int?
+  let durationSeconds: Int?
   let queueIndex: Int
   let queueCount: Int
   let eqName: String
@@ -38,6 +40,8 @@ struct DopeWidgetSnapshot: Decodable, Hashable {
     sourceType: "none",
     isExplicit: false,
     isPlaying: false,
+    positionSeconds: nil,
+    durationSeconds: nil,
     queueIndex: 0,
     queueCount: 0,
     eqName: "Off",
@@ -173,6 +177,7 @@ struct DopeNowPlayingView: View {
               .lineLimit(2)
           } else {
             Spacer(minLength: 4)
+            DopeProgressBar(snapshot: entry.snapshot)
             DopeControlRow(snapshot: entry.snapshot)
           }
         }
@@ -500,6 +505,37 @@ struct TriangleShape: Shape {
   }
 }
 
+
+struct DopeProgressBar: View {
+  let snapshot: DopeWidgetSnapshot
+
+  var body: some View {
+    let duration = max(snapshot.durationSeconds ?? 0, 0)
+    let position = min(max(snapshot.positionSeconds ?? 0, 0), max(duration, 1))
+    let progress = duration > 0 ? CGFloat(position) / CGFloat(duration) : 0
+    VStack(alignment: .leading, spacing: 3) {
+      GeometryReader { geometry in
+        ZStack(alignment: .leading) {
+          Capsule().fill(.white.opacity(0.16))
+          Capsule()
+            .fill(.white.opacity(snapshot.isPlaying ? 0.9 : 0.45))
+            .frame(width: max(geometry.size.width * progress, duration > 0 ? 4 : 0))
+        }
+      }
+      .frame(height: 5)
+      if duration > 0 {
+        HStack {
+          Text(timeText(position))
+          Spacer()
+          Text(timeText(duration))
+        }
+        .font(.caption2.weight(.bold))
+        .foregroundStyle(.secondary)
+      }
+    }
+  }
+}
+
 struct DopeControlRow: View {
   let snapshot: DopeWidgetSnapshot
 
@@ -565,6 +601,12 @@ private func sourceColor(_ source: String) -> Color {
   case "mp3": return .green
   default: return .white
   }
+}
+
+
+private func timeText(_ seconds: Int) -> String {
+  let safeSeconds = max(seconds, 0)
+  return String(format: "%d:%02d", safeSeconds / 60, safeSeconds % 60)
 }
 
 private func queueText(_ snapshot: DopeWidgetSnapshot) -> String {

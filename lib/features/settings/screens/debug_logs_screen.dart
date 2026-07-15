@@ -48,6 +48,7 @@ class _DebugLogsScreenState extends ConsumerState<DebugLogsScreen> {
   }
 
   Future<String> _readExportBundle(String logs) async {
+    final debugSessionId = ref.read(debugLogServiceProvider).sessionId;
     final sourceHealth = await ref.read(sourceHealthProvider.future);
     final storage = await ref.read(storageDiagnosticsServiceProvider).snapshot();
     final sourceText = sourceHealth.items
@@ -59,6 +60,7 @@ class _DebugLogsScreenState extends ConsumerState<DebugLogsScreen> {
     return [
       '== døPe Debug Bundle ==',
       'createdAt=${DateTime.now().toIso8601String()}',
+      'debugSessionId=$debugSessionId',
       '',
       '== source-health ==',
       sourceText,

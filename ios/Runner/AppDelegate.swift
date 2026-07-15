@@ -37,6 +37,7 @@ import WidgetKit
       NativeColorPickerChannel.register(with: controller.binaryMessenger)
       NowPlayingChannel.register(with: controller.binaryMessenger)
       WidgetBridgeChannel.register(with: controller.binaryMessenger)
+      SiriShortcutChannel.register(with: controller.binaryMessenger)
       deepLinkChannel = DeepLinkChannel.register(
         with: controller.binaryMessenger,
         initialLink: pendingDeepLink
@@ -52,6 +53,22 @@ import WidgetKit
   ) -> Bool {
     handleDeepLink(url.absoluteString)
     return true
+  }
+
+  override func application(
+    _ application: UIApplication,
+    continue userActivity: NSUserActivity,
+    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
+  ) -> Bool {
+    if let link = userActivity.userInfo?["url"] as? String {
+      handleDeepLink(link)
+      return true
+    }
+    if let link = userActivity.webpageURL?.absoluteString {
+      handleDeepLink(link)
+      return true
+    }
+    return false
   }
 
   private func handleDeepLink(_ link: String) {
@@ -77,6 +94,58 @@ private enum DeepLinkChannel {
       }
     }
     return channel
+  }
+}
+
+
+private enum SiriShortcutChannel {
+  static func register(with messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "mo1/siri_shortcuts",
+      binaryMessenger: messenger
+    )
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "donateShortcut":
+        guard let arguments = call.arguments as? [String: Any],
+              let identifier = arguments["identifier"] as? String,
+              let title = arguments["title"] as? String,
+              let urlString = arguments["url"] as? String,
+              let url = URL(string: urlString) else {
+          result(FlutterError(
+            code: "BAD_SHORTCUT",
+            message: "Shortcut donation payload was invalid.",
+            details: nil
+          ))
+          return
+        }
+        donateShortcut(
+          identifier: identifier,
+          title: title,
+          suggestedPhrase: arguments["suggestedPhrase"] as? String,
+          url: url
+        )
+        result(true)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func donateShortcut(
+    identifier: String,
+    title: String,
+    suggestedPhrase: String?,
+    url: URL
+  ) {
+    let activity = NSUserActivity(activityType: "app.mo1.player.dope.shortcut.\(identifier)")
+    activity.title = title
+    activity.suggestedInvocationPhrase = suggestedPhrase
+    activity.isEligibleForSearch = true
+    activity.isEligibleForPrediction = true
+    activity.webpageURL = url
+    activity.userInfo = ["url": url.absoluteString]
+    activity.becomeCurrent()
   }
 }
 
@@ -357,11 +426,16 @@ private final class NativeColorPickerSession: NSObject,
 }
 
 private enum NowPlayingChannel {
+  private static var channel: FlutterMethodChannel?
+  private static var remoteCommandsConfigured = false
+
   static func register(with messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
       name: "mo1/now_playing",
       binaryMessenger: messenger
     )
+    self.channel = channel
+    configureRemoteCommands()
     channel.setMethodCallHandler { call, result in
       switch call.method {
       case "updateNowPlaying":
@@ -371,10 +445,61 @@ private enum NowPlayingChannel {
       case "clearNowPlaying":
         clearNowPlaying()
         result(nil)
+      case "remoteCommandsReady":
+        configureRemoteCommands()
+        result(nil)
       default:
         result(FlutterMethodNotImplemented)
       }
     }
+  }
+
+  private static func configureRemoteCommands() {
+    guard !remoteCommandsConfigured else {
+      return
+    }
+    remoteCommandsConfigured = true
+
+    let commandCenter = MPRemoteCommandCenter.shared()
+    commandCenter.playCommand.isEnabled = true
+    commandCenter.pauseCommand.isEnabled = true
+    commandCenter.togglePlayPauseCommand.isEnabled = true
+    commandCenter.nextTrackCommand.isEnabled = true
+    commandCenter.previousTrackCommand.isEnabled = true
+    commandCenter.changePlaybackPositionCommand.isEnabled = true
+
+    commandCenter.playCommand.addTarget { _ in
+      sendRemoteCommand("play")
+    }
+    commandCenter.pauseCommand.addTarget { _ in
+      sendRemoteCommand("pause")
+    }
+    commandCenter.togglePlayPauseCommand.addTarget { _ in
+      sendRemoteCommand("play-pause")
+    }
+    commandCenter.nextTrackCommand.addTarget { _ in
+      sendRemoteCommand("next")
+    }
+    commandCenter.previousTrackCommand.addTarget { _ in
+      sendRemoteCommand("previous")
+    }
+    commandCenter.changePlaybackPositionCommand.addTarget { event in
+      guard let positionEvent = event as? MPChangePlaybackPositionCommandEvent else {
+        return .commandFailed
+      }
+      sendRemoteCommand("seek", arguments: ["positionSeconds": positionEvent.positionTime])
+      return .success
+    }
+  }
+
+  private static func sendRemoteCommand(
+    _ action: String,
+    arguments: [String: Any] = [:]
+  ) -> MPRemoteCommandHandlerStatus {
+    var payload = arguments
+    payload["action"] = action
+    channel?.invokeMethod("remoteCommand", arguments: payload)
+    return .success
   }
 
   private static func updateNowPlaying(using arguments: [String: Any]) {

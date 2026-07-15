@@ -56,6 +56,17 @@
 	<string>døPe uses local network access to connect to self-hosted Navidrome music servers you choose.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>døPe lets you choose local album artwork for imported songs.</string>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>app.mo1.player.dope.shortcut.now-playing</string>
+		<string>app.mo1.player.dope.shortcut.play-pause</string>
+		<string>app.mo1.player.dope.shortcut.next</string>
+		<string>app.mo1.player.dope.shortcut.previous</string>
+		<string>app.mo1.player.dope.shortcut.eq</string>
+		<string>app.mo1.player.dope.shortcut.apple-music</string>
+		<string>app.mo1.player.dope.shortcut.navidrome</string>
+		<string>app.mo1.player.dope.shortcut.jellyfin</string>
+	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

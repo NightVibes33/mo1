@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:dope/core/services/app_documents_service.dart';
 import 'package:flutter/foundation.dart';
@@ -14,8 +15,10 @@ class DebugLogService {
   static const int _trimmedLogBytes = 1024 * 1024;
 
   final String logFilePath;
+  final String sessionId;
 
-  const DebugLogService(this.logFilePath);
+  DebugLogService(this.logFilePath)
+      : sessionId = _createSessionId();
 
   void info(
     String category,
@@ -91,8 +94,15 @@ class DebugLogService {
         .map((entry) => '${entry.key}=${_redactValue(entry.value)}')
         .join(' | ');
     return dataText.isEmpty
-        ? '[$timestamp][$level][$category] $message'
-        : '[$timestamp][$level][$category] $message | $dataText';
+        ? '[$timestamp][$level][$category][$sessionId] $message'
+        : '[$timestamp][$level][$category][$sessionId] $message | $dataText';
+  }
+
+
+  static String _createSessionId() {
+    final millis = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
+    final random = Random().nextInt(0xFFFFF).toRadixString(36).padLeft(4, '0');
+    return '$millis-$random';
   }
 
   Object? _redactValue(Object? value) {
