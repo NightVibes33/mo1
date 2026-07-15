@@ -21,6 +21,37 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 
+final localAudioImportProgressProvider =
+    StateProvider<LocalAudioImportProgress?>((ref) => null);
+
+class LocalAudioImportProgress {
+  final String title;
+  final String detail;
+  final int completedCount;
+  final int totalCount;
+
+  const LocalAudioImportProgress({
+    required this.title,
+    required this.detail,
+    this.completedCount = 0,
+    this.totalCount = 0,
+  });
+
+  double? get progressValue {
+    if (totalCount <= 0) {
+      return null;
+    }
+    return completedCount.clamp(0, totalCount) / totalCount;
+  }
+
+  String? get countText {
+    if (totalCount <= 0) {
+      return null;
+    }
+    return '${completedCount.clamp(0, totalCount)} / $totalCount';
+  }
+}
+
 final audioFilesServiceProvider =
     AsyncNotifierProvider<
       AudioFilesServiceNotifier,
@@ -927,6 +958,25 @@ class AudioFilesServiceNotifier
     }
   }
 
+  void _setLocalImportProgress(
+    String title,
+    String detail, {
+    int completedCount = 0,
+    int totalCount = 0,
+  }) {
+    ref.read(localAudioImportProgressProvider.notifier).state =
+        LocalAudioImportProgress(
+          title: title,
+          detail: detail,
+          completedCount: completedCount,
+          totalCount: totalCount,
+        );
+  }
+
+  void _clearLocalImportProgress() {
+    ref.read(localAudioImportProgressProvider.notifier).state = null;
+  }
+
   Future<ImportLocalAudioResult> importLocalAudioFiles({
     bool updateState = true,
   }) async {
@@ -956,6 +1006,8 @@ class AudioFilesServiceNotifier
         duplicateCount: 0,
         skippedCount: 1,
       );
+    } finally {
+      _clearLocalImportProgress();
     }
   }
 
@@ -983,6 +1035,11 @@ class AudioFilesServiceNotifier
       'Files selected',
       data: {'count': pickedFiles.files.length},
     );
+    _setLocalImportProgress(
+      'Importing MP3s',
+      'Preparing ${pickedFiles.files.length} selected files...',
+      totalCount: pickedFiles.files.length,
+    );
 
     final importsDirectory = Directory(
       ref.read(appDocumentsServiceProvider).importsDirectoryPath,
@@ -999,7 +1056,15 @@ class AudioFilesServiceNotifier
     }
 
     final selectedSidecarsByStem = <String, List<String>>{};
+    var scannedFileCount = 0;
     for (final file in pickedFiles.files) {
+      scannedFileCount++;
+      _setLocalImportProgress(
+        'Importing MP3s',
+        'Checking selected files...',
+        completedCount: scannedFileCount,
+        totalCount: pickedFiles.files.length,
+      );
       final sourcePath = file.path;
       if (sourcePath == null || sourcePath.isEmpty) {
         continue;
@@ -1017,6 +1082,7 @@ class AudioFilesServiceNotifier
     var duplicateCount = 0;
     var skippedCount = 0;
 
+    var copiedFileCount = 0;
     for (final file in pickedFiles.files) {
       final sourcePath = file.path;
       if (sourcePath == null || sourcePath.isEmpty) {
@@ -1102,6 +1168,13 @@ class AudioFilesServiceNotifier
         importedAudioPaths.add(copied.path);
         importedDisplayNamesByPath[copied.path] = displayName;
         existingFingerprints.add(fingerprint);
+        copiedFileCount++;
+        _setLocalImportProgress(
+          'Importing MP3s',
+          'Copying songs into døPe...',
+          completedCount: copiedFileCount,
+          totalCount: pickedFiles.files.length,
+        );
         ref.read(debugLogServiceProvider).info(
           'import',
           'Copied import file',
@@ -1146,6 +1219,11 @@ class AudioFilesServiceNotifier
       'Extracting imported metadata',
       data: {'count': importedAudioPaths.length},
     );
+    _setLocalImportProgress(
+      'Reading Song Info',
+      'Extracting metadata and artwork...',
+      totalCount: importedAudioPaths.length,
+    );
     final rawResult = await compute(
       metadataReaderRepository.extractMetadataFromFilesWithDisplayNames,
       importedDisplayNamesByPath,
@@ -1158,7 +1236,15 @@ class AudioFilesServiceNotifier
         .toSet();
     final startIndex = metadataBox.length;
     final List<MusicMetadata> importedMetadata = [];
+    var metadataCount = 0;
     for (final metadata in rawResult) {
+      metadataCount++;
+      _setLocalImportProgress(
+        'Matching Metadata',
+        'Preparing songs for your library...',
+        completedCount: metadataCount,
+        totalCount: rawResult.length,
+      );
       if (metadata.filePath == null ||
           existingPaths.contains(metadata.filePath) ||
           !_isPlayableMetadata(metadata)) {
@@ -1190,6 +1276,12 @@ class AudioFilesServiceNotifier
       );
     }
 
+    _setLocalImportProgress(
+      'Saving Library',
+      'Finishing import...',
+      completedCount: importedMetadata.length,
+      totalCount: importedMetadata.length,
+    );
     await metadataBox.addAll(importedMetadata);
     if (updateState) {
       state = AsyncData(_storedMetadata(metadataBox));

@@ -231,9 +231,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             .showAppTutorial();
         break;
       case _SettingsDisplayItems.importSongs:
-        final importResult = await ref
+        final importFuture = ref
             .read(audioFilesServiceProvider.notifier)
             .importLocalAudioFiles();
+        unawaited(_showImportProgressUntil(importFuture));
+        final importResult = await importFuture;
         if (mounted) {
           await _showImportResult(importResult);
         }
@@ -268,6 +270,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             .resetSettings();
         break;
     }
+  }
+
+  Future<void> _showImportProgressUntil(
+    Future<ImportLocalAudioResult> importFuture,
+  ) async {
+    var completed = false;
+    var dialogShown = false;
+    var closed = false;
+    unawaited(
+      importFuture.whenComplete(() {
+        completed = true;
+        if (!mounted || !dialogShown || closed) {
+          return;
+        }
+        final navigator = Navigator.of(context, rootNavigator: true);
+        if (navigator.canPop()) {
+          navigator.pop();
+        }
+      }),
+    );
+    while (mounted &&
+        !completed &&
+        ref.read(localAudioImportProgressProvider) == null) {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    if (!mounted ||
+        completed ||
+        ref.read(localAudioImportProgressProvider) == null) {
+      return;
+    }
+    dialogShown = true;
+    await showCupertinoDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const _ImportProgressDialog(),
+    ).whenComplete(() => closed = true);
   }
 
   Future<void> _showImportResult(ImportLocalAudioResult result) async {
@@ -555,6 +594,78 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ImportProgressDialog extends ConsumerWidget {
+  const _ImportProgressDialog();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(localAudioImportProgressProvider);
+    final value = progress?.progressValue;
+    return CupertinoAlertDialog(
+      title: Text(progress?.title ?? 'Importing MP3s'),
+      content: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CupertinoActivityIndicator(radius: 14),
+            const SizedBox(height: 12),
+            if (value != null) ...[
+              _ImportProgressBar(value: value),
+              const SizedBox(height: 8),
+            ],
+            Text(
+              progress?.detail ?? 'Preparing your songs...',
+              textAlign: TextAlign.center,
+            ),
+            if (progress?.countText != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                progress!.countText!,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+            const SizedBox(height: 6),
+            const Text(
+              'Keep døPe open while artwork and metadata are saved.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImportProgressBar extends StatelessWidget {
+  const _ImportProgressBar({required this.value});
+
+  final double value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 6,
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemGrey4.resolveFrom(context),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      alignment: Alignment.centerLeft,
+      clipBehavior: Clip.antiAlias,
+      child: FractionallySizedBox(
+        widthFactor: value.clamp(0, 1).toDouble(),
+        child: Container(
+          decoration: BoxDecoration(
+            color: CupertinoColors.activeBlue.resolveFrom(context),
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
       ),
     );
   }
