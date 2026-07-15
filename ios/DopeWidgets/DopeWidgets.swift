@@ -412,12 +412,91 @@ struct DopeSourceBadge: View {
   let snapshot: DopeWidgetSnapshot
 
   var body: some View {
-    Text(sourceTitle(snapshot.sourceType))
-      .font(.caption2.weight(.black))
-      .foregroundStyle(sourceColor(snapshot.sourceType))
-      .padding(.horizontal, 7)
-      .padding(.vertical, 4)
-      .background(sourceColor(snapshot.sourceType).opacity(0.16), in: Capsule())
+    HStack(spacing: 5) {
+      SourceLogoMark(sourceType: snapshot.sourceType)
+        .frame(width: 15, height: 15)
+      Text(sourceTitle(snapshot.sourceType))
+        .font(.caption2.weight(.black))
+        .lineLimit(1)
+    }
+    .foregroundStyle(.white)
+    .padding(.horizontal, 7)
+    .padding(.vertical, 4)
+    .background(sourceGradient(snapshot.sourceType), in: Capsule())
+    .overlay(Capsule().stroke(.white.opacity(0.18), lineWidth: 1))
+  }
+}
+
+struct SourceLogoMark: View {
+  let sourceType: String
+
+  var body: some View {
+    ZStack {
+      switch sourceType {
+      case "appleMusic":
+        Image(systemName: "music.note.list")
+          .font(.system(size: 11, weight: .black))
+      case "navidrome":
+        NavidromeWidgetMark()
+      case "jellyfin":
+        JellyfinWidgetMark()
+      case "remote":
+        Image(systemName: "globe")
+          .font(.system(size: 11, weight: .black))
+      case "mp3":
+        Image(systemName: "doc.text.fill")
+          .font(.system(size: 11, weight: .black))
+      default:
+        Text("d")
+          .font(.system(size: 11, weight: .black))
+      }
+    }
+  }
+}
+
+struct NavidromeWidgetMark: View {
+  var body: some View {
+    Canvas { context, size in
+      var path = Path()
+      let centerY = size.height / 2
+      for index in 0..<3 {
+        let x = 1 + CGFloat(index) * size.width / 3.5
+        path.move(to: CGPoint(x: x, y: centerY))
+        path.addQuadCurve(
+          to: CGPoint(x: x + 4, y: centerY),
+          control: CGPoint(x: x + 2, y: 1)
+        )
+        path.addQuadCurve(
+          to: CGPoint(x: x + 8, y: centerY),
+          control: CGPoint(x: x + 6, y: size.height - 1)
+        )
+      }
+      context.stroke(path, with: .color(.white), lineWidth: 1.5)
+    }
+  }
+}
+
+struct JellyfinWidgetMark: View {
+  var body: some View {
+    ZStack {
+      TriangleShape()
+        .fill(.white.opacity(0.96))
+      TriangleShape()
+        .fill(.black.opacity(0.24))
+        .scaleEffect(0.45)
+        .offset(y: 2)
+    }
+  }
+}
+
+struct TriangleShape: Shape {
+  func path(in rect: CGRect) -> Path {
+    var path = Path()
+    path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+    path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+    path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+    path.closeSubpath()
+    return path
   }
 }
 
@@ -457,6 +536,23 @@ private func sourceTitle(_ source: String) -> String {
   case "remote": return "REMOTE"
   case "mp3": return "MP3"
   default: return "døPe"
+  }
+}
+
+private func sourceGradient(_ source: String) -> LinearGradient {
+  switch source {
+  case "appleMusic":
+    return LinearGradient(colors: [.pink, .purple, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
+  case "navidrome":
+    return LinearGradient(colors: [.cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+  case "jellyfin":
+    return LinearGradient(colors: [.purple, .indigo, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
+  case "remote":
+    return LinearGradient(colors: [.green, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+  case "mp3":
+    return LinearGradient(colors: [.gray, .black.opacity(0.75)], startPoint: .topLeading, endPoint: .bottomTrailing)
+  default:
+    return LinearGradient(colors: [.gray, .black], startPoint: .topLeading, endPoint: .bottomTrailing)
   }
 }
 
