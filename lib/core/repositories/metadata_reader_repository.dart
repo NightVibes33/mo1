@@ -85,7 +85,11 @@ class MetadataReaderRepository {
         fallbackFileName: entry.value,
       );
       if (metadata != null) {
-        metadataList.add(metadata);
+        metadataList.add(
+          metadata.filePath == entry.key
+              ? metadata
+              : metadata.copyWith(filePath: entry.key),
+        );
       }
     }
 

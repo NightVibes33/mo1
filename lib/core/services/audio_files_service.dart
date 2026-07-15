@@ -1014,7 +1014,6 @@ class AudioFilesServiceNotifier
     final metadataReaderRepository = ref.read(metadataReaderRepositoryProvider);
     final importedDisplayNamesByPath = <String, String>{};
     final List<String> importedAudioPaths = [];
-    final selectedFingerprints = <String>{};
     var duplicateCount = 0;
     var skippedCount = 0;
 
@@ -1068,14 +1067,22 @@ class AudioFilesServiceNotifier
         continue;
       }
 
-      final fingerprint = _fileFingerprintForFile(sourceFile, displayName, byteLength);
-      if (existingFingerprints.contains(fingerprint) ||
-          !selectedFingerprints.add(fingerprint)) {
+      final fingerprint = _fileFingerprintForFile(
+        sourceFile,
+        sourcePath,
+        byteLength,
+      );
+      if (existingFingerprints.contains(fingerprint)) {
         duplicateCount++;
         ref.read(debugLogServiceProvider).info(
           'import',
           'Skipped duplicate file',
-          data: {'name': displayName, 'bytes': byteLength},
+          data: {
+            'name': displayName,
+            'source': sourcePath,
+            'bytes': byteLength,
+            'fingerprint': fingerprint,
+          },
         );
         continue;
       }
@@ -1151,6 +1158,7 @@ class AudioFilesServiceNotifier
         .toSet();
     final startIndex = metadataBox.length;
     final List<MusicMetadata> importedMetadata = [];
+    final shouldAutoEnhanceImport = rawResult.length <= 25;
     for (final metadata in rawResult) {
       if (metadata.filePath == null ||
           existingPaths.contains(metadata.filePath) ||
@@ -1165,9 +1173,9 @@ class AudioFilesServiceNotifier
         sourceModifiedAtEpochMs: importedAt,
         importedAtEpochMs: importedAt,
       );
-      final enhancedMetadata = await _autoEnhanceImportedMetadata(
-        repairedMetadata,
-      );
+      final enhancedMetadata = shouldAutoEnhanceImport
+          ? await _autoEnhanceImportedMetadata(repairedMetadata)
+          : repairedMetadata;
       importedMetadata.add(enhancedMetadata);
       ref.read(debugLogServiceProvider).info(
         'import',
@@ -1179,6 +1187,7 @@ class AudioFilesServiceNotifier
           'path': enhancedMetadata.filePath,
           'originalSongIndex': enhancedMetadata.originalSongIndex,
           'autoMetadataApplied': enhancedMetadata != repairedMetadata,
+          'autoMetadataSkippedForBulkImport': !shouldAutoEnhanceImport,
         },
       );
     }
