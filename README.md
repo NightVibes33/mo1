@@ -1,199 +1,178 @@
 <div align="center">
 
-# 🎵 døPe
+# døPe
 
 ![døPe App Screenshots](screenshots/combined.jpg)
 
-Introducing "døPe" – Your Timeless Audio Experience
-
-Step back in time with døPe, a local music player app designed to capture the nostalgic essence
-of the iconic iPod Classic. Immerse yourself in the familiar click wheel interface and relive the
-joy of navigating your music library with a touch of retro charm.
+A retro click-wheel music player for iPhone built around personal libraries, Apple Music catalog playback, local audio imports, server libraries, metadata editing, lyrics, equalizer controls, widgets, and a classic iPod-style interface.
 
 </div>
 
-🧭 Intuitive Navigation: Navigate through your music library effortlessly using the virtual click
-wheel. Scroll, click, and feel the tactile response as you rediscover the joy of selecting your
-favorite tracks with the same ease as the original iPod.
+## What døPe Is
 
-🗃️ Local Music Library: døPe is focused on your locally stored music files, ensuring that your
-personal music collection takes center stage. Organize your tracks, albums, and playlists just like
-you did on your trusty iPod Classic.
+døPe is a Flutter music player inspired by classic iPod navigation. The app keeps the click-wheel, Cover Flow, split-screen browsing, and Now Playing flow, while adding modern library sources and editing tools.
 
-🖌️ Customizable Themes: Personalize your døPe experience with the option of silver or grey
-device frame. Choose from the two different color schemes to tailor the app's appearance to your
-unique style.
+The app is focused on user-owned or user-authorized music:
 
-🖼️ Cover Art Display: Immerse yourself in your music by appreciating album artwork on the vibrant
-display. døPe pays homage to the visual appeal of classic iPods by showcasing your favorite
-album covers in a retro-inspired format.
+- Local audio imported into the app.
+- Apple Music catalog/library references for users with Apple Music access.
+- Self-hosted music through Navidrome and Jellyfin.
+- Metadata, artwork, lyrics, explicit badges, playlists, equalizer controls, and widgets around those sources.
 
-🎼 No Frills, Just Music: døPe stays true to the essence of a music player – no distractions, no
-unnecessary features. Focus solely on the joy of listening to your favorite tunes without the
-complexities of a modern streaming service.
+YouTube support was intentionally removed. døPe does not download audio from YouTube and does not ship a YouTube API key.
 
-🎧 Offline Listening: Enjoy your music without relying on an internet connection. døPe is
-perfect for those moments when you want to disconnect and savor the tunes stored locally on your
-device.
+## Current Feature Status
 
-Relive the magic of the iPod Classic with døPe – where timeless design meets the convenience of
-today. Download now and embark on a journey down memory lane with your music in the palm of your
-hand.
+### Music Sources
 
-If you like what you see, please ⭐ the repo.
+- [x] Local audio import for MP3 and other supported audio files.
+- [x] Apple Music search and library-reference import.
+- [x] Apple Music catalog playback through the native iOS music player bridge.
+- [x] Navidrome connection, browsing, search, starred content, and playback.
+- [x] Jellyfin connection, browsing, and playback support.
+- [x] Mixed-source Songs list with MP3, Apple Music, Navidrome, and Jellyfin items.
+- [x] Source badges in song rows.
+- [ ] Spotify support. Not implemented because Spotify does not provide Apple-Music-style full library/playback integration for this use case.
+- [ ] YouTube metadata or playback support. Not implemented to avoid API-key exposure, quota/rate-limit issues, and App Store risk.
 
-## ✨ Features
+### Playback
 
-- 🗃️ Ability to play multiple audio formats:- .mp3, .wav, .ogg, .flac, .m4a and .aac
-- 🔎 Choose a Custom Folder To Scan Music From (By Default it is the Device Music Folder in the root folder
-  of the device)
-- 🎨 Multiple Ipod Classic Device Colors (Silver and Black)
-- 🖼️ Displays the Music Metadata (Album Art, Artist Names)
-- ⏩ Ability to seek forward and backwards on a audio file (By Long Pressing the seek
-  forward/backwards buttons)
-- ⏮️ Ability to go to previous and next track in the playlist
-- 📱 Ipod Classic User Interface
-- 🎞️ Cover Flow View
-- 🎡 Click Wheel with Scrollable Rotation Enabled
-- 💿 Now Playing Screen with current music progress displayed
-- 🎶 Songs Screen with all the possible songs from the selected directory
-- 🧑‍🎤 Ability to Filter and Select From a Particular Artist, Album or Genre
-- 📲 Responsive Design For all Different Types of Screen Sizes
-- 🔋 Displays the current device battery level and charging status on the status bar
-- 🎧 Background Playback with Notification Control
-- 🔀 Shuffle Songs Feature
-- ➰ Loop Songs Feature (Loop one song or an entire playlist)
-- 🔉 Click Wheel Sounds
-- 📳 Vibration when clicking buttons and scrolling through the scroll wheel
-- 🔇 In App Volume Control
-- 🪞 Reflective Cover Art
-- ℹ️ About Screen
-- 🌍 Multi Language Support (Over 197 Languages Supported)
-- 👆 Touch Screen Support
-- 📺 Split Screen View (6th and 7th Gen iPod Classic)
-- 🔍 Ability to search songs, artists, playlists and albums
-- ⬇️ Caching Metadata of the songs for faster boot up times
-- 📃 Ability to Create and Store Custom User Created Playlists
-- 📖 App Usage Tutorial
-- ⭐ Song Rating Feature
+- [x] Classic Now Playing screen.
+- [x] Background playback support.
+- [x] Next, previous, seek, play, and pause controls.
+- [x] Shuffle and repeat modes.
+- [x] Mixed-source queue coordination.
+- [x] Apple Music manual-selection start-offset correction.
+- [x] Apple Music queue next/previous bridge support.
+- [x] Playback crash/debug breadcrumbs.
+- [x] Song transition settings for supported local playback paths.
+- [ ] Apple Music Music Haptics API support. Not implemented because Apple does not expose a public third-party API to reuse Apple Music's built-in haptic tracks inside this app.
 
-### 🔜 Upcoming Features
+### Library Management
 
-- 🎮 Ipod Built-in Games
-- 📸 Ability to View Photos and Videos from the device
-- 📝 Lyrics Support
+- [x] Songs, Albums, Artists, Genres, Playlists, Cover Flow, and Search sections.
+- [x] Swipe-to-delete individual songs from the Songs section.
+- [x] Playlist creation and storage.
+- [x] Imported artwork caching for offline artwork.
+- [x] Apple Music artwork persistence across app updates.
+- [x] Import progress/loading UI for large local imports.
+- [x] Duplicate detection for local imports.
+- [x] Date-added sorting across mixed sources.
+- [ ] Advanced duplicate merge tools. Planned.
+- [ ] Bulk library cleanup tools. Planned.
 
-## 💻 Installation links
+### Metadata, Artwork, and Lyrics
 
-<table>
-  <tr>
-    <th>Platform</th>
-    <th>Installation Links</th>
-  </tr>
-  <tr>
-    <td>Android</td>
-    <td>
-      <a href="https://play.google.com/store/apps/details?id=app.mo1.player">
-        <img height="80" alt="Get it on Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png">
-      </a>
-      <br>
-      <a href="https://f-droid.org/packages/app.mo1.player">
-        <img height="80" alt="Get it on F-Droid" src="https://f-droid.org/badge/get-it-on.png">
-      </a>
-      <br>
-      <a href="https://github.com/adeeteya/Classipod/releases/latest/download/dope-android.apk">
-        <img alt="APK download" src="https://img.shields.io/static/v1?label=Download&message=Android+.apk&color=2ea44f&style=for-the-badge&logo=Android&logoColor=white&logoSize=auto">
-      </a>
-    </td>
-  </tr>
+- [x] Read embedded local-file metadata.
+- [x] Automatic MP3 metadata lookup with confidence checks.
+- [x] Manual metadata matching.
+- [x] Edit song title, artist, album, genre, year, track number, disc number, artwork, lyrics, and explicit status.
+- [x] Explicit `E` badges in song rows and Apple Music search results.
+- [x] Explicit metadata parsing from Apple Music, iTunes, Deezer-style fields, and lyric-result metadata when provided.
+- [x] Manual lyrics search and exact lyrics lookup through LRCLIB.
+- [x] Synced/plain lyric storage when found.
+- [x] Custom artwork picker.
+- [ ] Full embedded tag writing back into the original imported audio file. Not implemented; edits are stored in the app library database.
+- [ ] Multi-result metadata merge review screen. Planned.
 
-  <tr>
-      <td>Linux</td>
-      <td>
-        <a href="https://github.com/adeeteya/Classipod/releases/latest/download/dope-linux-AppImage.AppImage">
-          <img alt="Download .AppImage" src="https://img.shields.io/static/v1?label=Download&message=.AppImage&color=FCC624&style=for-the-badge&logo=linux&logoColor=white&logoSize=auto">
-        </a>
-        <br>
-        <br>
-        <a href="https://github.com/adeeteya/Classipod/releases/latest/download/dope-linux-deb.deb">
-          <img alt="Download .deb" src="https://img.shields.io/static/v1?label=Download&message=%20%20%20%20%20.deb&color=A81D33&style=for-the-badge&logo=debian&logoColor=white&logoSize=auto">
-        </a>
-        <br>
-        <br>
-        <a href="https://github.com/adeeteya/Classipod/releases/latest/download/dope-linux-rpm.rpm">
-          <img alt="Download .rpm" src="https://img.shields.io/static/v1?label=Download&message=.rpm&color=EE0000&style=for-the-badge&logo=redhat&logoColor=white&logoSize=auto">
-        </a>
-      </td>
-  </tr>
+### Equalizer
 
-  <tr>
-      <td>Windows</td>
-      <td>
-        <a href="https://github.com/adeeteya/Classipod/releases/latest/download/dope-windows.exe">
-          <img alt="Download Windows Installer" src="https://img.shields.io/static/v1?label=Download&message=Windows+.exe&color=blue&style=for-the-badge&logo=webtrees&logoColor=white&logoSize=auto">
-        </a>
-      </td>
-  </tr>
+- [x] Preset equalizer menu.
+- [x] Custom equalizer editor.
+- [x] Bass, mid, and treble band grouping in the custom editor.
+- [x] Live custom EQ preview path for supported playback.
+- [x] EQ support messaging in Settings.
+- [x] Native EQ player path for supported local/remote playback attempts.
+- [x] EQ debug logging and native-EQ failure fallback.
+- [ ] Apple Music EQ processing. Not implemented because Apple Music catalog audio is played by the system music player, not by the app's local audio engine.
+- [ ] Per-song EQ presets. Planned.
 
-  <tr>
-      <td>Web App</td>
-      <td>
-        <a href="https://adeeteya.github.io/Classipod/#/">
-          <img alt="Web App" src="https://img.shields.io/static/v1?label=Webapp&message=Visit+Website&color=blueviolet&style=for-the-badge&logo=googlechrome&logoColor=white&logoSize=auto">
-        </a>
-      </td>
-  </tr>
+### UI and Navigation
 
-</table>
+- [x] Classic click-wheel interface.
+- [x] Touchscreen support.
+- [x] Cover Flow.
+- [x] Split-screen iPod-style browsing.
+- [x] Settings toggle for split-screen behavior.
+- [x] Tutorial/onboarding flow.
+- [x] Status bar with battery indicators.
+- [x] Haptics and click-wheel sounds.
+- [x] Multiple visual refresh passes for the døPe-branded UI.
+- [ ] Built-in games. Planned, not implemented.
+- [ ] Photo/video viewer. Not implemented.
+- [ ] Xbox 360/Neon-style music visualizer. Planned as an original inspired visualizer only, not a copy of proprietary Xbox software.
 
-## 🔌 Plugins
+### Widgets and System Integration
 
-| Name                                                                                          | Usage                                                                               |
-|-----------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|
-| [**audio_metadata_reader**](https://pub.dev/packages/audio_metadata_reader)                   | To read the metadata of the local mp3 files                                         |
-| [**audio_service**](https://pub.dev/packages/audio_service)                                   | To support background audio playback                                                |
-| [**battery_plus**](https://pub.dev/packages/battery_plus)                                     | Shows phone battery level and status                                                |
-| [**cupertino_icons**](https://pub.dev/packages/cupertino_icons)                               | For ios style icons                                                                 |
-| [**device_preview_plus**](https://pub.dev/packages/device_preview_plus)                       | For visualizing how the app looks on different devices and screens                  |
-| [**disable_battery_optimization**](https://github.com/adeeteya/Disable-Battery-Optimizations) | To Disable vendor or android specific battery optimizations for background playback |
-| [**file_picker**](https://pub.dev/packages/file_picker)                                       | To select the directory from which the music files are scanned                      |
-| [**flutter_localizations**](https://pub.dev/packages/flutter_localizations)                   | For in-app localization map data                                                    |
-| [**flutter_riverpod**](https://pub.dev/packages/flutter_riverpod)                             | For State Management                                                                |
-| [**go_router**](https://pub.dev/packages/go_router)                                           | To handle routing within the app                                                    |
-| [**hive_ce**](https://pub.dev/packages/hive_ce)                                               | To Cache Auio Metadata and store playlists                                          |
-| [**hive_ce_flutter**](https://pub.dev/packages/hive_ce_flutter)                               | For flutter specific libs of hive                                                   |
-| [**intl**](https://pub.dev/packages/intl)                                                     | For internalization and localization of the app                                     |
-| [**just_audio**](https://pub.dev/packages/just_audio)                                         | To play audio files                                                                 |
-| [**just_audio_background**](https://pub.dev/packages/just_audio_background)                   | To control audio through media notification                                         |
-| [**just_audio_media_kit**](https://pub.dev/packages/just_audio_media_kit)                     | To play audio files on Windows and Linux                                            |
-| [**media_kit_libs_linux**](https://pub.dev/packages/media_kit_libs_linux)                     | Media kit Libraries for Linux                                                       |
-| [**media_kit_libs_windows_audio**](https://pub.dev/packages/media_kit_libs_windows_audio)     | Media kit Libraries for Windows                                                     |
-| [**on_audio_query**](https://github.com/adeeteya/on_audio_query)                              | To fetch all the music files from Android and iOS                                   |
-| [**path_provider**](https://pub.dev/packages/path_provider)                                   | To fetch app data directories                                                       |
-| [**permission_handler**](https://pub.dev/packages/permission_handler)                         | To check and request for file and audio access permissions                          |
-| [**shared_preferences**](https://pub.dev/packages/shared_preferences)                         | To store system settings                                                            |
-| [**tutorial_coach_mark**](https://pub.dev/packages/tutorial_coach_mark)                       | To provide app tutorial to the users                                                |
-| [**universal_html**](https://pub.dev/packages/universal_html)                                 | For Launching the app in full-screen mode on web versions                           |
-| [**url_launcher**](https://pub.dev/packages/url_launcher)                                     | For Launching the Donation Page Link                                                |
-| [**vibration**](https://pub.dev/packages/vibration)                                           | Used for vibration while using device controls                                      |
-| [**vibration_web**](https://pub.dev/packages/vibration_web)                                   | Used for vibration on the webapp version                                            |
-| [**build_runner**](https://pub.dev/packages/build_runner)                                     | For code generation                                                                 |
-| [**custom_lint**](https://pub.dev/packages/custom_lint)                                       | For using custom lint rules                                                         |
-| [**flutter_lints**](https://pub.dev/packages/flutter_lints)                                   | For using recommended flutter lints                                                 |
-| [**flutter_test**](https://pub.dev/packages/flutter_test)                                     | For unit and widget testing the app                                                 |
-| [**hive_ce_generator**](https://pub.dev/packages/hive_ce_generator)                           | For automatically generating Hive TypeAdapters                                      |
-| [**riverpod_lint**](https://pub.dev/packages/riverpod_lint)                                   | For using riverpod specific linting rules                                           |
+- [x] iOS widget extension project.
+- [x] Widget sync service for current playback/library state.
+- [x] Basic widget playback/library display data.
+- [ ] Full app clone inside an iOS widget. Not possible under iOS widget limitations; widgets cannot run the entire app UI or full player engine.
+- [ ] App Intents/Siri controls. Planned.
+- [ ] Lock Screen/Live Activity playback companion. Planned.
 
-## 🤓 Author
+### Diagnostics and Release Pipeline
 
-**[Aditya R](https://github.com/adeeteya)**
+- [x] Debug log export paths.
+- [x] Crash/session breadcrumb logging.
+- [x] GitHub Actions unsigned IPA builds.
+- [x] GitHub Actions Android APK builds.
+- [x] Optional TestFlight upload workflow.
+- [x] App Store metadata automation scripts.
+- [ ] Automated integration tests for every playback backend. Planned.
+- [ ] Device-farm playback validation. Planned.
 
-## 🔖 LICENCE
+## Roadmap
 
-Copyright (c) 2025 Aditya R
-[BSD-4-Clause LICENCE](https://github.com/adeeteya/Classipod/blob/master/LICENSE)
+### In Progress / Next
 
-## 🙏 Attributions
+- [ ] Continue hardening mixed-source playback edge cases.
+- [ ] Improve Navidrome and Jellyfin parity where server APIs expose richer data.
+- [ ] Add more robust metadata review tools after auto-match.
+- [ ] Add App Intents/Siri shortcuts for common playback actions.
+- [ ] Improve widget actions within Apple's widget limits.
+- [ ] Add per-source diagnostics in the in-app debug viewer.
 
-<a href="https://www.flaticon.com/free-icons/ipod" title="ipod icons">Ipod icons created by
-Freepik - Flaticon</a>
+### Planned
+
+- [ ] Original music visualizer inspired by classic console/player visualizers.
+- [ ] Per-song or per-source EQ profiles.
+- [ ] Better bulk import review and duplicate cleanup tools.
+- [ ] Advanced artwork management for very large libraries.
+- [ ] More tutorial depth for Apple Music, local imports, server connections, EQ, and widgets.
+
+### Not Planned Right Now
+
+- [ ] YouTube audio import/download.
+- [ ] YouTube API-key-backed metadata search in the client app.
+- [ ] Spotify full-library playback integration.
+- [ ] Full Apple Music feature parity with Apple's own Music app internals.
+- [ ] Full app UI inside an iOS widget.
+
+## Build Notes
+
+The primary release workflow is `.github/workflows/testflight.yml`.
+
+It can build:
+
+- Unsigned iOS IPA artifacts.
+- Android APK artifacts.
+- Signed TestFlight IPA uploads when the required App Store Connect secrets are configured.
+
+The project is Flutter-based and includes iOS-native bridges for Apple Music playback, widgets, native EQ experiments, and platform-specific integrations.
+
+## Privacy and Source Policy
+
+- døPe is designed for music the user owns, imports, or is authorized to access.
+- Apple Music features require user authorization and Apple Music availability on the device.
+- Navidrome and Jellyfin features connect to servers configured by the user.
+- YouTube support is not included.
+- Metadata edits are stored in the app library database unless a feature explicitly says it writes tags back to files.
+
+## Attribution
+
+This project is based on the upstream open-source Classipod player by Aditya R and is distributed under the BSD-4-Clause license included in this repository.
+
+## License
+
+See [LICENSE](LICENSE).
