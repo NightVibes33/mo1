@@ -27,7 +27,18 @@ String? _eqStatusText({
   if (nativeEqActive) {
     return 'EQ active: $title';
   }
-  return 'EQ unavailable for this track';
+  switch (currentMetadata.sourceType) {
+    case MusicSourceType.local:
+      return 'EQ selected: ' + title;
+    case MusicSourceType.navidrome:
+      return 'EQ ready: ' + title;
+    case MusicSourceType.jellyfin:
+      return 'EQ ready: ' + title;
+    case MusicSourceType.remote:
+      return 'EQ ready: ' + title;
+    case MusicSourceType.appleMusic:
+      return 'EQ unavailable: Apple Music';
+  }
 }
 
 class _EqStatusPill extends StatelessWidget {

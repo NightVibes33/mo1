@@ -71,13 +71,14 @@ class NativeEqPlayerService {
       return null;
     }
 
-    final hasRemoteTracks = metadataList.any((metadata) => !metadata.isOnDevice);
-    final firstPreparedIndex = hasRemoteTracks
-        ? (safeStartIndex - 10).clamp(0, metadataList.length - 1).toInt()
-        : 0;
-    final lastPreparedIndex = hasRemoteTracks
-        ? (safeStartIndex + 50).clamp(0, metadataList.length - 1).toInt()
-        : metadataList.length - 1;
+    const lookBehind = 6;
+    const lookAhead = 24;
+    final firstPreparedIndex = (safeStartIndex - lookBehind)
+        .clamp(0, metadataList.length - 1)
+        .toInt();
+    final lastPreparedIndex = (safeStartIndex + lookAhead)
+        .clamp(0, metadataList.length - 1)
+        .toInt();
 
     final preparedItems = <Map<String, Object?>>[];
     final preparedMetadata = <MusicMetadata>[];
