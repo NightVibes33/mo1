@@ -139,6 +139,10 @@ final musicMetadataLookupServiceProvider = Provider<MusicMetadataLookupService>(
 );
 
 class MusicMetadataLookupService {
+  static const String _youtubeApiKey = String.fromEnvironment(
+    'YOUTUBE_API_KEY',
+  );
+
   final AppleMusicCatalogBridge _appleMusicBridge;
 
   MusicMetadataLookupService({AppleMusicCatalogBridge? appleMusicBridge})
@@ -206,6 +210,8 @@ class MusicMetadataLookupService {
           storefront,
           source: MusicMetadataSource.appleMusic,
         );
+      case MusicMetadataSource.youtube:
+        return _searchYoutube(cleanQuery, limit);
     }
   }
 
@@ -309,6 +315,65 @@ class MusicMetadataLookupService {
     return rawResults
         .whereType<Map<String, dynamic>>()
         .map(_deezerMatchFromJson)
+        .where((match) => match.title.isNotEmpty || match.artist.isNotEmpty)
+        .toList(growable: false);
+  }
+
+
+  Future<List<MusicMetadataMatch>> _searchYoutube(
+    String query,
+    int limit,
+  ) async {
+    final apiKey = _youtubeApiKey.trim();
+    if (apiKey.isEmpty) {
+      return [];
+    }
+
+    final searchResponse = await _readJson(
+      Uri.https('www.googleapis.com', '/youtube/v3/search', {
+        'part': 'snippet',
+        'type': 'video',
+        'videoCategoryId': '10',
+        'maxResults': limit.clamp(1, 25).toString(),
+        'q': query,
+        'key': apiKey,
+      }),
+    );
+    final searchItems = searchResponse is Map<String, dynamic>
+        ? searchResponse['items']
+        : null;
+    if (searchItems is! List) {
+      return [];
+    }
+
+    final ids = searchItems
+        .whereType<Map<String, dynamic>>()
+        .map(_youtubeVideoIdFromSearchItem)
+        .whereType<String>()
+        .where((id) => id.trim().isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (ids.isEmpty) {
+      return [];
+    }
+
+    final videosResponse = await _readJson(
+      Uri.https('www.googleapis.com', '/youtube/v3/videos', {
+        'part': 'snippet,contentDetails,status',
+        'id': ids.join(','),
+        'key': apiKey,
+      }),
+    );
+    final videoItems = videosResponse is Map<String, dynamic>
+        ? videosResponse['items']
+        : null;
+    if (videoItems is! List) {
+      return [];
+    }
+
+    return videoItems
+        .whereType<Map<String, dynamic>>()
+        .map(_youtubeMatchFromJson)
         .where((match) => match.title.isNotEmpty || match.artist.isNotEmpty)
         .toList(growable: false);
   }
@@ -564,6 +629,168 @@ MusicMetadataMatch _appleMusicMatchFromJson(Map<String, dynamic> json) {
       'hasExplicitLyrics',
     ]),
   );
+}
+
+
+String? _youtubeVideoIdFromSearchItem(Map<String, dynamic> json) {
+  final id = json['id'];
+  if (id is Map<String, dynamic>) {
+    return _stringOrNull(id['videoId']);
+  }
+  return null;
+}
+
+MusicMetadataMatch _youtubeMatchFromJson(Map<String, dynamic> json) {
+  final snippet = json['snippet'];
+  final contentDetails = json['contentDetails'];
+  final rawTitle = snippet is Map<String, dynamic>
+      ? _string(snippet['title'])
+      : '';
+  final channelTitle = snippet is Map<String, dynamic>
+      ? _string(snippet['channelTitle'])
+      : '';
+  final normalized = _normalizeYoutubeTitle(rawTitle, channelTitle);
+  final videoId = _string(json['id']);
+  final publishedAt = snippet is Map<String, dynamic>
+      ? _date(snippet['publishedAt'])
+      : null;
+  final thumbnailUrl = snippet is Map<String, dynamic>
+      ? _youtubeThumbnailUrl(snippet['thumbnails'])
+      : null;
+  final durationMs = contentDetails is Map<String, dynamic>
+      ? _parseYoutubeDurationMs(_stringOrNull(contentDetails['duration']))
+      : null;
+
+  return MusicMetadataMatch(
+    source: MusicMetadataSource.youtube,
+    id: videoId,
+    title: normalized.title,
+    artist: normalized.artist,
+    album: '',
+    albumArtist: normalized.artist,
+    artworkUrl: thumbnailUrl,
+    releaseDate: publishedAt,
+    durationMs: durationMs,
+    catalogUrl: videoId.isEmpty ? null : 'https://www.youtube.com/watch?v=$videoId',
+    isExplicit: _looksExplicit(rawTitle),
+  );
+}
+
+_YoutubeTitleParts _normalizeYoutubeTitle(String rawTitle, String channelTitle) {
+  var title = _decodeHtmlEntities(rawTitle).trim();
+  title = title
+      .replaceAll(RegExp(r'\s+', unicode: true), ' ')
+      .replaceAll(RegExp(r'^\s*[-–—|:]+\s*'), '')
+      .replaceAll(RegExp(r'\s*[-–—|:]+\s*$'), '')
+      .trim();
+
+  title = title.replaceAll(
+    RegExp(
+      r'\s*[\[(][^\])]*(official\s+music\s+video|official\s+video|official\s+audio|official|lyrics?|lyric\s+video|visualizer|audio|music\s+video|hd|4k|remaster(?:ed)?|explicit|clean)[^\])]*[\])]\s*',
+      caseSensitive: false,
+    ),
+    ' ',
+  );
+  title = title.replaceAll(
+    RegExp(
+      r'\s+\b(official\s+music\s+video|official\s+video|official\s+audio|official\s+visualizer|official\s+lyric\s+video|lyrics?|audio|visualizer|music\s+video)\b\s*$',
+      caseSensitive: false,
+    ),
+    ' ',
+  );
+  title = title.replaceAll(RegExp(r'\s+', unicode: true), ' ').trim();
+
+  var artist = _cleanYoutubeChannelArtist(channelTitle);
+  final separators = [' - ', ' – ', ' — ', ' | '];
+  for (final separator in separators) {
+    final parts = title.split(separator);
+    if (parts.length >= 2) {
+      final possibleArtist = parts.first.trim();
+      final possibleTitle = parts.sublist(1).join(separator).trim();
+      if (possibleArtist.isNotEmpty && possibleTitle.isNotEmpty) {
+        artist = possibleArtist;
+        title = possibleTitle;
+        break;
+      }
+    }
+  }
+
+  title = title
+      .replaceAll(RegExp(r'\s*"([^"]+)"\s*'), r' $1 ')
+      .replaceAll(RegExp(r"\s*'([^']+)'\s*"), r' $1 ')
+      .replaceAll(RegExp(r'\s+', unicode: true), ' ')
+      .trim();
+
+  return _YoutubeTitleParts(
+    title: title.isEmpty ? rawTitle.trim() : title,
+    artist: artist,
+  );
+}
+
+String _cleanYoutubeChannelArtist(String channelTitle) {
+  return _decodeHtmlEntities(channelTitle)
+      .replaceAll(RegExp(r'\s*-\s*Topic$', caseSensitive: false), '')
+      .replaceAll(RegExp(r'\s*VEVO$', caseSensitive: false), '')
+      .replaceAll(RegExp(r'\s*Official$', caseSensitive: false), '')
+      .replaceAll(RegExp(r'\s+', unicode: true), ' ')
+      .trim();
+}
+
+String? _youtubeThumbnailUrl(dynamic thumbnails) {
+  if (thumbnails is! Map<String, dynamic>) {
+    return null;
+  }
+  for (final key in const ['maxres', 'standard', 'high', 'medium', 'default']) {
+    final value = thumbnails[key];
+    if (value is Map<String, dynamic>) {
+      final url = _stringOrNull(value['url']);
+      if (url != null) {
+        return url;
+      }
+    }
+  }
+  return null;
+}
+
+int? _parseYoutubeDurationMs(String? value) {
+  if (value == null || value.isEmpty) {
+    return null;
+  }
+  final match = RegExp(
+    r'^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$',
+  ).firstMatch(value);
+  if (match == null) {
+    return null;
+  }
+  final days = int.tryParse(match.group(1) ?? '') ?? 0;
+  final hours = int.tryParse(match.group(2) ?? '') ?? 0;
+  final minutes = int.tryParse(match.group(3) ?? '') ?? 0;
+  final seconds = double.tryParse(match.group(4) ?? '') ?? 0;
+  return (((days * 24 + hours) * 60 + minutes) * 60 * 1000 +
+          seconds * 1000)
+      .round();
+}
+
+bool _looksExplicit(String value) {
+  return RegExp(r'(^|[\s\[(])explicit([\s\])]|$)', caseSensitive: false)
+      .hasMatch(value);
+}
+
+String _decodeHtmlEntities(String value) {
+  return value
+      .replaceAll('&amp;', '&')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#39;', "'")
+      .replaceAll('&apos;', "'")
+      .replaceAll('&lt;', '<')
+      .replaceAll('&gt;', '>');
+}
+
+class _YoutubeTitleParts {
+  final String title;
+  final String artist;
+
+  const _YoutubeTitleParts({required this.title, required this.artist});
 }
 
 Future<dynamic> _readJson(Uri uri) async {

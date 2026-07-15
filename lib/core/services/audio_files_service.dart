@@ -726,6 +726,11 @@ class AudioFilesServiceNotifier
           query: query,
           limit: 5,
         ),
+        ...await lookupService.search(
+          source: MusicMetadataSource.youtube,
+          query: query,
+          limit: 5,
+        ),
       ];
       final bestMatch = _bestHighConfidenceMatch(metadata, matches);
       if (bestMatch == null) {
