@@ -325,11 +325,6 @@ class SongListTile extends StatelessWidget {
                                 color: primaryColor,
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            _SourceLogoBadge(
-                              sourceType: songMetadata.sourceType,
-                              isSelected: isSelected,
-                            ),
                             if (songMetadata.isExplicit) ...[
                               const SizedBox(width: 6),
                               _ExplicitBadge(color: secondaryColor),
@@ -339,6 +334,11 @@ class SongListTile extends StatelessWidget {
                       ],
                     ),
                   ),
+                ),
+                const SizedBox(width: 8),
+                _SourceLogoBadge(
+                  sourceType: songMetadata.sourceType,
+                  isSelected: isSelected,
                 ),
                 if (isCurrentlyPlaying) ...[
                   const SizedBox(width: 8),
