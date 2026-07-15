@@ -430,7 +430,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     final startingIndex = startingDetails.currentIndex;
     final startingMetadata = startingDetails.currentMetadata;
     try {
-      _clearNativeEqCircuitBreaker();
       final nowPlayingDetails = ref.read(nowPlayingDetailsProvider);
       final metadataList = nowPlayingDetails.metadataList;
       final currentMetadata = nowPlayingDetails.currentMetadata;
@@ -1556,7 +1555,7 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     if (hasNeutralCurve) {
       _clearNativeEqCircuitBreaker();
     }
-    if (_nativeEqDisabledForSession && previewBandGainsDb == null) {
+    if (_nativeEqDisabledForSession) {
       ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
             'Native EQ bypassed',
             data: _playbackCrashData(
@@ -2090,20 +2089,31 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       final player = ref.read(audioPlayerProvider);
       final wasPlaying = details.isPlaying || player.playing;
       final position = player.position;
-      final didLoadNativePreview = await _trySetNativeEqAudioSource(
-        nowPlayingType: details.nowPlayingType,
-        musicMetadataList: details.metadataList,
-        initialIndex: details.currentIndex,
-        previewBandGainsDb: normalizedBandGainsDb,
-        previewPreampDb: preampDb,
-      );
-      if (didLoadNativePreview) {
-        await ref.read(nativeEqPlayerServiceProvider).seekTo(position);
-        if (wasPlaying) {
-          await ref.read(nativeEqPlayerServiceProvider).play();
-          ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
+      final startingIndex = details.currentIndex;
+      final startingMetadata = currentMetadata;
+      _isReconfiguringEqualizerPlayback = true;
+      _suppressCompletionAdvanceFor(const Duration(seconds: 2));
+      try {
+        final didLoadNativePreview = await _trySetNativeEqAudioSource(
+          nowPlayingType: details.nowPlayingType,
+          musicMetadataList: details.metadataList,
+          initialIndex: startingIndex,
+          previewBandGainsDb: normalizedBandGainsDb,
+          previewPreampDb: preampDb,
+          operationReason: 'eq_custom_preview',
+        );
+        if (didLoadNativePreview) {
+          await ref.read(nativeEqPlayerServiceProvider).seekTo(position);
+          if (wasPlaying) {
+            await ref.read(nativeEqPlayerServiceProvider).play();
+            ref.read(nowPlayingDetailsProvider.notifier).setPlaybackState(true);
+          }
+          return;
         }
-        return;
+      } finally {
+        _restoreEqualizerReconfigureIdentity(startingIndex, startingMetadata);
+        _suppressCompletionAdvanceFor(const Duration(seconds: 2));
+        _isReconfiguringEqualizerPlayback = false;
       }
     }
 
