@@ -12,8 +12,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:path_provider/path_provider.dart';
 
+final nativeEqFailureProvider = StateProvider<String?>((_) => null);
+
 final nativeEqPlayerServiceProvider = Provider<NativeEqPlayerService>((ref) {
-  return NativeEqPlayerService(ref.read(debugLogServiceProvider));
+  return NativeEqPlayerService(
+    ref.read(debugLogServiceProvider),
+    onFailureChanged: (failure) {
+      ref.read(nativeEqFailureProvider.notifier).state = failure;
+    },
+  );
 });
 
 final nativeEqPlaybackActiveProvider = StateProvider<bool>((_) => false);
@@ -42,10 +49,19 @@ class NativeEqPlayerService {
   static const int _maxCacheBytes = 600 * 1024 * 1024;
 
   final DebugLogService _debugLogService;
+  final void Function(String? failure) _onFailureChanged;
   final HttpClient _httpClient = HttpClient();
   String? lastLoadFailure;
 
-  NativeEqPlayerService(this._debugLogService);
+  NativeEqPlayerService(
+    this._debugLogService, {
+    required void Function(String? failure) onFailureChanged,
+  }) : _onFailureChanged = onFailureChanged;
+
+  void _setFailure(String? failure) {
+    lastLoadFailure = failure;
+    _onFailureChanged(failure);
+  }
 
   bool get isSupported => !kIsWeb && Platform.isIOS;
 
@@ -154,16 +170,18 @@ class NativeEqPlayerService {
       });
       final loaded = didLoad ?? false;
       if (loaded) {
-        lastLoadFailure = null;
+        _setFailure(null);
         _debugLogService.info(
           'equalizer',
           'Native EQ queue loaded.',
           data: {'queueSize': queue.items.length, 'startIndex': queue.startIndex},
         );
+      } else {
+        _setFailure('Native EQ rejected the audio queue.');
       }
       return loaded;
     } on PlatformException catch (error, stackTrace) {
-      lastLoadFailure = error.message ?? error.code;
+      _setFailure(error.message ?? error.code);
       _debugLogService.warning(
         'equalizer',
         'Native EQ queue load failed; falling back.',
@@ -171,7 +189,7 @@ class NativeEqPlayerService {
       );
       return false;
     } on MissingPluginException catch (error, stackTrace) {
-      lastLoadFailure = error.message ?? 'missing_plugin';
+      _setFailure(error.message ?? 'missing_plugin');
       _debugLogService.warning(
         'equalizer',
         'Native EQ player bridge is unavailable.',
@@ -220,24 +238,30 @@ class NativeEqPlayerService {
         'setPreset',
         {'bandGainsDb': bandGainsDb, 'preampDb': preampDb},
       );
-      return AudioEqualizerApplyResult.fromMap(
+      final applyResult = AudioEqualizerApplyResult.fromMap(
         presetName: presetName,
         displayName: displayName,
         map: result,
       );
+      _setFailure(applyResult.isApplied ? null : applyResult.message);
+      return applyResult;
     } on PlatformException catch (error) {
+      _setFailure(error.message ?? error.code);
       return AudioEqualizerApplyResult.unsupported(
         presetName: presetName,
         displayName: displayName,
         backend: error.code,
         message: error.message ?? 'Native EQ preset failed.',
+        preampDb: preampDb,
       );
     } on MissingPluginException catch (error) {
+      _setFailure(error.message ?? 'missing_plugin');
       return AudioEqualizerApplyResult.unsupported(
         presetName: presetName,
         displayName: displayName,
         backend: 'missing_plugin',
         message: error.message ?? 'Native EQ player bridge is unavailable.',
+        preampDb: preampDb,
       );
     }
   }

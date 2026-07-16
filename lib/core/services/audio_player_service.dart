@@ -68,6 +68,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   bool _nativeEqDisabledForSession = false;
   String? _nativeEqDisabledReason;
   bool _isReconfiguringEqualizerPlayback = false;
+  int _equalizerPreviewGeneration = 0;
+  Future<void> _equalizerPreviewTail = Future<void>.value();
   DateTime? _suppressCompletionUntil;
   List<String> _activeAppleMusicCatalogIds = const [];
 
@@ -2062,7 +2064,38 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         );
   }
 
-  Future<void> previewEqualizerBandGains(List<double> bandGainsDb) async {
+  Future<void> previewEqualizerBandGains(List<double> bandGainsDb) {
+    final generation = ++_equalizerPreviewGeneration;
+    final requestedGains = List<double>.of(bandGainsDb);
+    final task = _equalizerPreviewTail.then((_) async {
+      if (generation != _equalizerPreviewGeneration) {
+        return;
+      }
+      await _applyEqualizerPreview(requestedGains, generation);
+    });
+    _equalizerPreviewTail = task.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {
+        ref.read(crashLogServiceProvider).recordPlaybackError(
+              'Equalizer preview failed',
+              error: error,
+              stackTrace: stackTrace,
+              data: _playbackCrashData(extra: {
+                'previewGeneration': generation,
+              }),
+            );
+      },
+    );
+    return _equalizerPreviewTail;
+  }
+
+  Future<void> _applyEqualizerPreview(
+    List<double> bandGainsDb,
+    int generation,
+  ) async {
+    if (generation != _equalizerPreviewGeneration) {
+      return;
+    }
     final normalizedBandGainsDb = CustomEqualizerPreset.normalizeBandGains(
       bandGainsDb,
     );
@@ -2102,7 +2135,8 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
           previewPreampDb: preampDb,
           operationReason: 'eq_custom_preview',
         );
-        if (didLoadNativePreview) {
+        if (didLoadNativePreview &&
+            generation == _equalizerPreviewGeneration) {
           await ref.read(nativeEqPlayerServiceProvider).seekTo(position);
           if (wasPlaying) {
             await ref.read(nativeEqPlayerServiceProvider).play();
@@ -2125,7 +2159,13 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
         );
   }
 
+  Future<void> settleEqualizerPreview() async {
+    _equalizerPreviewGeneration++;
+    await _equalizerPreviewTail;
+  }
+
   Future<void> restoreEqualizerPreview() async {
+    await settleEqualizerPreview();
     await reconfigureEqualizerPlayback();
   }
 

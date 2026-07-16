@@ -29,6 +29,23 @@ void main() {
     expect(EqualizerPreset.bassBooster.preampDb, greaterThanOrEqualTo(-9));
   });
 
+  test('Every boosted preset reserves enough preamp headroom', () {
+    for (final preset in EqualizerPreset.values) {
+      final maxBoost = preset.approximateBandGainsDb.reduce(
+        (current, gain) => gain > current ? gain : current,
+      );
+      if (maxBoost > 0) {
+        expect(
+          preset.preampDb,
+          lessThanOrEqualTo(-maxBoost),
+          reason: '${preset.title} can clip without full boost headroom',
+        );
+      } else {
+        expect(preset.preampDb, 0);
+      }
+    }
+  });
+
   test('Custom EQ band gains are normalized and clamped', () {
     final normalized = CustomEqualizerPreset.normalizeBandGains(
       const [99, -99, 1],
@@ -45,11 +62,11 @@ void main() {
     expect(CustomEqualizerPreset.recommendedPreampDb(const [-6, -3]), 0);
     expect(
       CustomEqualizerPreset.recommendedPreampDb(const [6]),
-      closeTo(-3.9, 0.001),
+      closeTo(-6, 0.001),
     );
     expect(
       CustomEqualizerPreset.recommendedPreampDb(const [99]),
-      closeTo(-7.8, 0.001),
+      CustomEqualizerPreset.minPreampDb,
     );
   });
 

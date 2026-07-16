@@ -1334,7 +1334,7 @@ private enum AppleMusicLookupChannel {
     if playbackBackend == .musicKit, #available(iOS 15.0, *) {
       Task { @MainActor in
         do {
-          try await ApplicationMusicPlayer.shared.queue.skipToNextEntry()
+          try await ApplicationMusicPlayer.shared.skipToNextEntry()
           result(true)
         } catch {
           result(FlutterError(
@@ -1375,7 +1375,7 @@ private enum AppleMusicLookupChannel {
     if playbackBackend == .musicKit, #available(iOS 15.0, *) {
       Task { @MainActor in
         do {
-          try await ApplicationMusicPlayer.shared.queue.skipToPreviousEntry()
+          try await ApplicationMusicPlayer.shared.skipToPreviousEntry()
           result(true)
         } catch {
           result(FlutterError(

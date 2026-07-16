@@ -4,7 +4,7 @@ class CustomEqualizerPreset {
   static const int bandCount = 10;
   static const double minGainDb = -12;
   static const double maxGainDb = 12;
-  static const double minPreampDb = -9;
+  static const double minPreampDb = -12;
   static const List<String> bandLabels = [
     '32 Hz',
     '64 Hz',
@@ -114,7 +114,7 @@ class CustomEqualizerPreset {
     if (maxBoost <= 0) {
       return 0;
     }
-    return (-maxBoost * 0.65).clamp(minPreampDb, 0).toDouble();
+    return (-maxBoost).clamp(minPreampDb, 0).toDouble();
   }
 
   static String _normalizedName(String value) {

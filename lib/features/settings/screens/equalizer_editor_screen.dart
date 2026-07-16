@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dope/core/models/music_metadata.dart';
 import 'package:dope/core/navigation/routes.dart';
 import 'package:dope/core/services/audio_player_service.dart';
+import 'package:dope/core/services/native_eq_player_service.dart';
 import 'package:dope/features/device/models/device_action.dart';
 import 'package:dope/features/device/services/device_buttons_service_provider.dart';
 import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
@@ -73,6 +74,7 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
   int _selectedBand = 0;
   bool _didCommit = false;
   bool _isComparingOriginal = false;
+  bool _didPreview = false;
   Timer? _previewDebounce;
   ProviderSubscription<DeviceAction?>? _deviceButtonsSubscription;
 
@@ -116,8 +118,10 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
     _previewDebounce?.cancel();
     _deviceButtonsSubscription?.close();
     _nameController.dispose();
-    if (!_didCommit) {
-      unawaited(ref.read(audioPlayerServiceProvider.notifier).restoreEqualizerPreview());
+    if (!_didCommit && _didPreview) {
+      unawaited(
+        ref.read(audioPlayerServiceProvider.notifier).restoreEqualizerPreview(),
+      );
     }
     super.dispose();
   }
@@ -213,6 +217,7 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
       if (!mounted || _isComparingOriginal) {
         return;
       }
+      setState(() => _didPreview = true);
       unawaited(
         ref
             .read(audioPlayerServiceProvider.notifier)
@@ -228,6 +233,7 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
     final previewBands = nextCompareState
         ? _originalSnapshot.bandGainsDb
         : _bandGainsDb;
+    setState(() => _didPreview = true);
     await ref
         .read(audioPlayerServiceProvider.notifier)
         .previewEqualizerBandGains(previewBands);
@@ -235,6 +241,9 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
 
   Future<void> _saveAndApply({bool saveAsNew = false}) async {
     _previewDebounce?.cancel();
+    await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .settleEqualizerPreview();
     final notifier = ref.read(settingsPreferencesControllerProvider.notifier);
     if (_isEditingExisting && !saveAsNew) {
       await notifier.updateCustomEqualizerPreset(
@@ -256,7 +265,11 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
 
   Future<void> _discardAndExit() async {
     _previewDebounce?.cancel();
-    await ref.read(audioPlayerServiceProvider.notifier).restoreEqualizerPreview();
+    if (_didPreview) {
+      await ref
+          .read(audioPlayerServiceProvider.notifier)
+          .restoreEqualizerPreview();
+    }
     _didCommit = true;
     if (mounted) {
       context.pop();
@@ -315,10 +328,11 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
             onPressed: () => Navigator.of(context).pop('save'),
             child: const Text('Save'),
           ),
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.of(context).pop('save_new'),
-            child: const Text('Save As New'),
-          ),
+          if (_isEditingExisting)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(context).pop('save_new'),
+              child: const Text('Save As New'),
+            ),
           CupertinoActionSheetAction(
             onPressed: () => Navigator.of(context).pop('compare'),
             child: Text(_isComparingOriginal ? 'Preview Edited EQ' : 'Compare Original'),
@@ -454,6 +468,9 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
       return;
     }
     await ref
+        .read(audioPlayerServiceProvider.notifier)
+        .settleEqualizerPreview();
+    await ref
         .read(settingsPreferencesControllerProvider.notifier)
         .deleteCustomEqualizerPreset(presetId);
     _didCommit = true;
@@ -471,7 +488,14 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
   Widget build(BuildContext context) {
     final nowPlaying = ref.watch(nowPlayingDetailsProvider);
     final currentMetadata = nowPlaying.currentMetadata;
-    final previewStatus = _previewStatusFor(currentMetadata);
+    final nativeEqActive = ref.watch(nativeEqPlaybackActiveProvider);
+    final nativeEqFailure = ref.watch(nativeEqFailureProvider);
+    final previewStatus = _previewStatusFor(
+      currentMetadata,
+      didPreview: _didPreview,
+      nativeEqActive: nativeEqActive,
+      nativeEqFailure: nativeEqFailure,
+    );
     final selectedBandLabel = CustomEqualizerPreset.bandLabels[_selectedBand];
     final selectedGain = _bandGainsDb[_selectedBand];
 
@@ -537,7 +561,9 @@ class _EqualizerEditorScreenState extends ConsumerState<EqualizerEditorScreen> {
                         isComparingOriginal: _isComparingOriginal,
                         onReset: _showResetMenu,
                         onSave: () => _saveAndApply(),
-                        onSaveAsNew: () => _saveAndApply(saveAsNew: true),
+                        onSaveAsNew: _isEditingExisting
+                            ? () => _saveAndApply(saveAsNew: true)
+                            : null,
                         onCompare: _toggleCompare,
                         onDelete: _isEditingExisting ? _deletePreset : null,
                         onCancel: _handleExit,
@@ -575,7 +601,12 @@ class _PreviewStatus {
   const _PreviewStatus({required this.label, required this.color});
 }
 
-_PreviewStatus _previewStatusFor(MusicMetadata? metadata) {
+_PreviewStatus _previewStatusFor(
+  MusicMetadata? metadata, {
+  required bool didPreview,
+  required bool nativeEqActive,
+  required String? nativeEqFailure,
+}) {
   if (metadata == null) {
     return const _PreviewStatus(
       label: 'PREVIEW READY • PLAY A SONG TO HEAR IT',
@@ -586,6 +617,18 @@ _PreviewStatus _previewStatusFor(MusicMetadata? metadata) {
     return const _PreviewStatus(
       label: 'PREVIEW UNAVAILABLE • APPLE MUSIC',
       color: Color(0xFFFF6B6B),
+    );
+  }
+  if (didPreview && nativeEqFailure != null) {
+    return const _PreviewStatus(
+      label: 'PREVIEW UNAVAILABLE - NATIVE EQ FAILED',
+      color: Color(0xFFFF6B6B),
+    );
+  }
+  if (!didPreview || !nativeEqActive) {
+    return const _PreviewStatus(
+      label: 'PREVIEW ARMED - MOVE A BAND TO ACTIVATE',
+      color: Color(0xFF8D98A8),
     );
   }
   switch (metadata.sourceType) {
@@ -1100,7 +1143,7 @@ class _ActionGrid extends StatelessWidget {
   final bool isComparingOriginal;
   final VoidCallback onReset;
   final VoidCallback onSave;
-  final VoidCallback onSaveAsNew;
+  final VoidCallback? onSaveAsNew;
   final VoidCallback onCompare;
   final VoidCallback? onDelete;
   final VoidCallback onCancel;
@@ -1133,7 +1176,12 @@ class _ActionGrid extends StatelessWidget {
           color: const Color(0xFF2B8CFF),
           onTap: onSave,
         ),
-        _EqActionButton(label: 'Save As New', color: const Color(0xFF4FAF7A), onTap: onSaveAsNew),
+        if (onSaveAsNew != null)
+          _EqActionButton(
+            label: 'Save As New',
+            color: const Color(0xFF4FAF7A),
+            onTap: onSaveAsNew!,
+          ),
         if (onDelete != null)
           _EqActionButton(label: 'Delete', color: const Color(0xFFB84242), onTap: onDelete!),
         _EqActionButton(label: 'Exit', color: const Color(0xFF343941), onTap: onCancel),
@@ -1220,6 +1268,9 @@ class _EqCurvePainter extends CustomPainter {
       );
     }
 
+    final displayedGains = isComparingOriginal
+        ? originalBandGainsDb
+        : bandGainsDb;
     final glowPaint = Paint()
       ..color = (isComparingOriginal ? const Color(0xFFFFB340) : const Color(0xFF43B8FF))
           .withValues(alpha: 0.28)
@@ -1232,13 +1283,13 @@ class _EqCurvePainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
-    _drawCurve(canvas, size, bandGainsDb, glowPaint);
-    _drawCurve(canvas, size, bandGainsDb, curvePaint);
+    _drawCurve(canvas, size, displayedGains, glowPaint);
+    _drawCurve(canvas, size, displayedGains, curvePaint);
 
-    final selectedX = bandGainsDb.length == 1
+    final selectedX = displayedGains.length == 1
         ? size.width / 2
-        : size.width * selectedBand / (bandGainsDb.length - 1);
-    final selectedY = _gainToY(bandGainsDb[selectedBand], size.height);
+        : size.width * selectedBand / (displayedGains.length - 1);
+    final selectedY = _gainToY(displayedGains[selectedBand], size.height);
     final dotPaint = Paint()..color = _sectionColor(selectedBand);
     final ringPaint = Paint()
       ..color = CupertinoColors.black
