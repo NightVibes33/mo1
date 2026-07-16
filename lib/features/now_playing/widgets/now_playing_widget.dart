@@ -29,13 +29,10 @@ String? _eqStatusText({
   }
   switch (currentMetadata.sourceType) {
     case MusicSourceType.local:
-      return 'EQ selected: ' + title;
     case MusicSourceType.navidrome:
-      return 'EQ ready: ' + title;
     case MusicSourceType.jellyfin:
-      return 'EQ ready: ' + title;
     case MusicSourceType.remote:
-      return 'EQ ready: ' + title;
+      return 'EQ inactive: ' + title;
     case MusicSourceType.appleMusic:
       return 'EQ unavailable: Apple Music';
   }

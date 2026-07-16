@@ -759,9 +759,9 @@ private enum AppleMusicLookupChannel {
         player.play()
         result(true)
       case "skipToNextInCurrentQueue":
-        result(skipToNextInCurrentQueue())
+        skipToNextInCurrentQueue(result: result)
       case "skipToPreviousInCurrentQueue":
-        result(skipToPreviousInCurrentQueue())
+        skipToPreviousInCurrentQueue(result: result)
       case "restartCurrentItem":
         result(restartCurrentItem())
       case "seekToSeconds":
@@ -1132,65 +1132,11 @@ private enum AppleMusicLookupChannel {
     playbackBackend = .mediaPlayer
     player.currentPlaybackTime = 0
     player.play()
-    forceMediaPlayerQueueStartAtZero(
-      player: player,
-      startCatalogId: startCatalogId,
-      backend: backend
-    )
     logAppleMusicDebug(
       "Started Apple Music queue from zero",
       data: ["backend": backend, "startCatalogId": startCatalogId]
     )
     result(true)
-  }
-
-  private static func forceMediaPlayerQueueStartAtZero(
-    player: MPMusicPlayerController,
-    startCatalogId: String,
-    backend: String
-  ) {
-    player.currentPlaybackTime = 0
-    DispatchQueue.main.async {
-      player.currentPlaybackTime = 0
-    }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-      guard player.playbackState == .playing else {
-        return
-      }
-      let position = player.currentPlaybackTime
-      if position.isFinite && position > 0.45 && position < 1.25 {
-        player.currentPlaybackTime = 0
-        logAppleMusicDebug(
-          "Corrected Apple Music manual queue start position",
-          data: [
-            "backend": backend,
-            "startCatalogId": startCatalogId,
-            "positionSeconds": position
-          ]
-        )
-      }
-    }
-  }
-
-  @available(iOS 15.0, *)
-  @MainActor
-  private static func forceMusicKitQueueStartAtZero(startCatalogId: String) {
-    let player = ApplicationMusicPlayer.shared
-    player.playbackTime = 0
-    Task { @MainActor in
-      try? await Task.sleep(nanoseconds: 180_000_000)
-      let position = player.playbackTime
-      if position.isFinite && position > 0.45 && position < 1.25 {
-        player.playbackTime = 0
-        logAppleMusicDebug(
-          "Corrected MusicKit manual queue start position",
-          data: [
-            "startCatalogId": startCatalogId,
-            "positionSeconds": position
-          ]
-        )
-      }
-    }
   }
 
   @available(iOS 15.0, *)
@@ -1224,8 +1170,6 @@ private enum AppleMusicLookupChannel {
     player.playbackTime = 0
     try await player.prepareToPlay()
     try await player.play()
-    player.playbackTime = 0
-    forceMusicKitQueueStartAtZero(startCatalogId: startCatalogId)
     playbackBackend = .musicKit
   }
 
@@ -1386,7 +1330,26 @@ private enum AppleMusicLookupChannel {
     return true
   }
 
-  private static func skipToNextInCurrentQueue() -> Bool {
+  private static func skipToNextInCurrentQueue(result: @escaping FlutterResult) {
+    if playbackBackend == .musicKit, #available(iOS 15.0, *) {
+      Task { @MainActor in
+        do {
+          try await ApplicationMusicPlayer.shared.queue.skipToNextEntry()
+          result(true)
+        } catch {
+          result(FlutterError(
+            code: "APPLE_MUSIC_SKIP_FAILED",
+            message: error.localizedDescription,
+            details: ["backend": "musicKit", "direction": "next"]
+          ))
+        }
+      }
+      return
+    }
+    result(skipToNextMediaPlayerItem())
+  }
+
+  private static func skipToNextMediaPlayerItem() -> Bool {
     let player = MPMusicPlayerController.applicationQueuePlayer
     guard let currentItem = player.nowPlayingItem else {
       logAppleMusicDebug("Skip next ignored because queue is empty")
@@ -1408,7 +1371,26 @@ private enum AppleMusicLookupChannel {
     return true
   }
 
-  private static func skipToPreviousInCurrentQueue() -> Bool {
+  private static func skipToPreviousInCurrentQueue(result: @escaping FlutterResult) {
+    if playbackBackend == .musicKit, #available(iOS 15.0, *) {
+      Task { @MainActor in
+        do {
+          try await ApplicationMusicPlayer.shared.queue.skipToPreviousEntry()
+          result(true)
+        } catch {
+          result(FlutterError(
+            code: "APPLE_MUSIC_SKIP_FAILED",
+            message: error.localizedDescription,
+            details: ["backend": "musicKit", "direction": "previous"]
+          ))
+        }
+      }
+      return
+    }
+    result(skipToPreviousMediaPlayerItem())
+  }
+
+  private static func skipToPreviousMediaPlayerItem() -> Bool {
     let player = MPMusicPlayerController.applicationQueuePlayer
     guard let currentItem = player.nowPlayingItem else {
       logAppleMusicDebug("Skip previous ignored because queue is empty")
@@ -1431,6 +1413,14 @@ private enum AppleMusicLookupChannel {
   }
 
   private static func restartCurrentItem() -> Bool {
+    if playbackBackend == .musicKit, #available(iOS 15.0, *) {
+      let player = ApplicationMusicPlayer.shared
+      guard player.queue.currentEntry != nil else {
+        return false
+      }
+      player.playbackTime = 0
+      return true
+    }
     let player = MPMusicPlayerController.applicationQueuePlayer
     guard player.nowPlayingItem != nil else {
       logAppleMusicDebug("Restart current item ignored because queue is empty")
@@ -1948,7 +1938,7 @@ private enum NativeEqPlayerChannel {
           )
           result(true)
         case "play":
-          player.play()
+          try player.play()
           result(true)
         case "pause":
           player.pause()
@@ -1972,11 +1962,13 @@ private enum NativeEqPlayerChannel {
         case "setPreset":
           let bandGains = doubleArray(arguments["bandGainsDb"])
           let preampDb = arguments["preampDb"] as? Double ?? 0
-          player.setBandGains(bandGains, preampDb: preampDb)
+          let isApplied = player.setBandGains(bandGains, preampDb: preampDb)
           result([
-            "isApplied": true,
+            "isApplied": isApplied,
             "backend": "av_audio_engine",
-            "message": "Native EQ preset applied.",
+            "message": isApplied
+              ? "Native EQ preset applied."
+              : "Native EQ player has no loaded audio.",
             "preampDb": preampDb
           ])
         case "setVolume":
@@ -2051,11 +2043,13 @@ private final class NativeEqPlayer: NSObject {
   private var isLoaded = false
   private var isPlaying = false
   private var lastError = ""
+  private var lastStage = "idle"
   private var currentBandGains: [Float] = Array(repeating: 0, count: 10)
   private var currentPreampDb: Float = 0
   private var eqRampTimer: Timer?
   private var completionSerial = 0
   private var completedIndex = -1
+  private var scheduleGeneration = 0
 
   override init() {
     super.init()
@@ -2088,7 +2082,7 @@ private final class NativeEqPlayer: NSObject {
     case .ended:
       if let rawOptions = info[AVAudioSessionInterruptionOptionKey] as? UInt {
         let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
-        if options.contains(.shouldResume) { play() }
+        if options.contains(.shouldResume) { try? play() }
       }
     @unknown default:
       pause()
@@ -2110,8 +2104,10 @@ private final class NativeEqPlayer: NSObject {
     bandGains: [Double],
     preampDb: Double
   ) throws {
+    lastStage = "activating_audio_session"
     try activateAudioSession()
     stop()
+    lastStage = "parsing_queue"
     queue = rawItems.compactMap { item in
       guard let filePath = item["filePath"] as? String, !filePath.isEmpty else {
         return nil
@@ -2129,16 +2125,19 @@ private final class NativeEqPlayer: NSObject {
     guard startIndex >= 0 && startIndex < queue.count else { throw PlayerError.badIndex }
     currentIndex = startIndex
     configureEqBands(bandGains, preampDb: preampDb)
+    lastStage = "loading_initial_file"
     try loadCurrentFile(startFrame: 0, autoPlay: false)
+    lastStage = "ready"
   }
 
-  func play() {
+  func play() throws {
     do {
       try activateAudioSession()
       if !isLoaded, !queue.isEmpty {
         try loadCurrentFile(startFrame: pausedFrame, autoPlay: false)
       }
       if !engine.isRunning {
+        engine.prepare()
         try engine.start()
       }
       playerNode.play()
@@ -2148,6 +2147,7 @@ private final class NativeEqPlayer: NSObject {
     } catch {
       lastError = error.localizedDescription
       isPlaying = false
+      throw error
     }
   }
 
@@ -2158,6 +2158,7 @@ private final class NativeEqPlayer: NSObject {
   }
 
   func stop() {
+    scheduleGeneration += 1
     eqRampTimer?.invalidate()
     eqRampTimer = nil
     playerNode.stop()
@@ -2223,8 +2224,10 @@ private final class NativeEqPlayer: NSObject {
     }
   }
 
-  func setBandGains(_ gains: [Double], preampDb: Double) {
+  @discardableResult
+  func setBandGains(_ gains: [Double], preampDb: Double) -> Bool {
     rampEqBands(to: gains, preampDb: preampDb)
+    return isLoaded
   }
 
   func setVolume(_ value: Float) {
@@ -2242,6 +2245,7 @@ private final class NativeEqPlayer: NSObject {
       "completionSerial": completionSerial,
       "completedIndex": completedIndex,
       "error": lastError,
+      "stage": lastStage,
       "preampDb": Double(currentPreampDb)
     ]
   }
@@ -2258,20 +2262,31 @@ private final class NativeEqPlayer: NSObject {
       throw PlayerError.unreadableFile(item.filePath)
     }
 
+    scheduleGeneration += 1
+    let generation = scheduleGeneration
+    let scheduledIndex = currentIndex
     playerNode.stop()
     if engine.isRunning {
       engine.stop()
     }
+    lastStage = "opening_audio_file"
     let file = try AVAudioFile(forReading: url)
     guard file.length > 0 else {
       throw PlayerError.unreadableFile(item.filePath)
     }
     currentFile = file
     currentSampleRate = file.processingFormat.sampleRate
+    lastStage = "connecting_audio_engine"
+    engine.disconnectNodeInput(eq)
+    engine.disconnectNodeOutput(playerNode)
+    engine.disconnectNodeOutput(eq)
+    engine.connect(playerNode, to: eq, format: file.processingFormat)
+    engine.connect(eq, to: engine.mainMixerNode, format: nil)
     let startFrame = min(max(0, requestedStartFrame), file.length - 1)
     scheduledFrame = startFrame
     pausedFrame = startFrame
     let frameCount = AVAudioFrameCount(max(1, file.length - startFrame))
+    lastStage = "scheduling_audio_segment"
     playerNode.scheduleSegment(
       file,
       startingFrame: startFrame,
@@ -2280,8 +2295,10 @@ private final class NativeEqPlayer: NSObject {
     ) { [weak self] in
       DispatchQueue.main.async {
         guard let self else { return }
-        if self.isPlaying {
-          self.completedIndex = self.currentIndex
+        if self.isPlaying,
+           self.scheduleGeneration == generation,
+           self.currentIndex == scheduledIndex {
+          self.completedIndex = scheduledIndex
           self.completionSerial += 1
           self.isPlaying = false
           self.isLoaded = false
@@ -2291,8 +2308,9 @@ private final class NativeEqPlayer: NSObject {
     }
     isLoaded = true
     lastError = ""
+    lastStage = "ready"
     if autoPlay {
-      play()
+      try play()
     }
   }
 

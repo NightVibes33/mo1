@@ -43,6 +43,7 @@ class NativeEqPlayerService {
 
   final DebugLogService _debugLogService;
   final HttpClient _httpClient = HttpClient();
+  String? lastLoadFailure;
 
   NativeEqPlayerService(this._debugLogService);
 
@@ -71,14 +72,11 @@ class NativeEqPlayerService {
       return null;
     }
 
-    const lookBehind = 6;
-    const lookAhead = 24;
-    final firstPreparedIndex = (safeStartIndex - lookBehind)
-        .clamp(0, metadataList.length - 1)
-        .toInt();
-    final lastPreparedIndex = (safeStartIndex + lookAhead)
-        .clamp(0, metadataList.length - 1)
-        .toInt();
+    // Load only the selected item. Remote queues otherwise block playback while
+    // downloading dozens of complete tracks, and queue advancement is already
+    // coordinated by the unified source queue.
+    final firstPreparedIndex = safeStartIndex;
+    final lastPreparedIndex = safeStartIndex;
 
     final preparedItems = <Map<String, Object?>>[];
     final preparedMetadata = <MusicMetadata>[];
@@ -154,8 +152,18 @@ class NativeEqPlayerService {
         'bandGainsDb': bandGainsDb,
         'preampDb': preampDb,
       });
-      return didLoad ?? false;
+      final loaded = didLoad ?? false;
+      if (loaded) {
+        lastLoadFailure = null;
+        _debugLogService.info(
+          'equalizer',
+          'Native EQ queue loaded.',
+          data: {'queueSize': queue.items.length, 'startIndex': queue.startIndex},
+        );
+      }
+      return loaded;
     } on PlatformException catch (error, stackTrace) {
+      lastLoadFailure = error.message ?? error.code;
       _debugLogService.warning(
         'equalizer',
         'Native EQ queue load failed; falling back.',
@@ -163,6 +171,7 @@ class NativeEqPlayerService {
       );
       return false;
     } on MissingPluginException catch (error, stackTrace) {
+      lastLoadFailure = error.message ?? 'missing_plugin';
       _debugLogService.warning(
         'equalizer',
         'Native EQ player bridge is unavailable.',

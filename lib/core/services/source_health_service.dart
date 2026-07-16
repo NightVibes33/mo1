@@ -23,6 +23,7 @@ final sourceHealthProvider = FutureProvider<SourceHealthSnapshot>((ref) async {
   final navidrome = ref.watch(navidromeConnectionProvider);
   final jellyfin = ref.watch(jellyfinConnectionProvider);
   final nativeEq = ref.read(nativeEqPlayerServiceProvider);
+  final nativeEqFailure = nativeEq.lastLoadFailure;
 
   int countWhere(bool Function(dynamic metadata) test) {
     var count = 0;
@@ -32,11 +33,15 @@ final sourceHealthProvider = FutureProvider<SourceHealthSnapshot>((ref) async {
     return count;
   }
 
+  final localSongCount = countWhere((m) => m.isOnDevice);
+
   return SourceHealthSnapshot(items: [
     SourceHealthItem(
       name: 'Local Audio',
-      status: songs.isEmpty ? 'No songs imported' : '${countWhere((m) => m.isOnDevice)} local songs',
-      isHealthy: songs.isNotEmpty,
+      status: localSongCount == 0
+          ? 'No local songs imported'
+          : '$localSongCount local songs',
+      isHealthy: localSongCount > 0,
       detail: 'Imports are stored inside the app library.',
     ),
     SourceHealthItem(
@@ -59,9 +64,14 @@ final sourceHealthProvider = FutureProvider<SourceHealthSnapshot>((ref) async {
     ),
     SourceHealthItem(
       name: 'Native EQ',
-      status: nativeEq.isSupported ? 'Available on this device' : 'Unavailable on ${defaultTargetPlatform.name}',
-      isHealthy: nativeEq.isSupported,
-      detail: 'Native EQ supports app-controlled local/remote playback, not Apple Music system playback.',
+      status: !nativeEq.isSupported
+          ? 'Unavailable on ${defaultTargetPlatform.name}'
+          : nativeEqFailure == null
+              ? 'Available on this device'
+              : 'Unavailable after playback test',
+      isHealthy: nativeEq.isSupported && nativeEqFailure == null,
+      detail: nativeEqFailure ??
+          'Native EQ supports app-controlled local/remote playback, not Apple Music system playback.',
     ),
     SourceHealthItem(
       name: 'Widgets',
