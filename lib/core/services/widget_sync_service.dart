@@ -94,7 +94,7 @@ class _WidgetSyncController {
         ? rawPositionSeconds.clamp(0, durationSeconds).toInt()
         : rawPositionSeconds;
     final snapshot = <String, Object?>{
-      'schemaVersion': 1,
+      'schemaVersion': 2,
       'trackTitle': metadata?.getTrackName ?? 'Open døPe',
       'artistName': metadata == null
           ? 'Choose music to start'
@@ -109,6 +109,8 @@ class _WidgetSyncController {
       'queueCount': nowPlaying.metadataList.length,
       'eqName': settings.equalizerDisplayTitle,
       'eqSupported': eqSupported,
+      'eqBandGainsDb': settings.activeEqualizerBandGainsDb,
+      'eqPreampDb': settings.activeEqualizerPreampDb,
       'artworkPath': metadata?.thumbnailPath,
       'lastUpdatedEpochMs': DateTime.now().millisecondsSinceEpoch,
       'deepLink': 'dope://now-playing',

@@ -27,6 +27,8 @@ struct DopeWidgetSnapshot: Decodable, Hashable {
   let queueCount: Int
   let eqName: String
   let eqSupported: Bool
+  let eqBandGainsDb: [Double]?
+  let eqPreampDb: Double?
   let artworkFileName: String?
   let lastUpdatedEpochMs: Int64
   let deepLink: String
@@ -46,6 +48,8 @@ struct DopeWidgetSnapshot: Decodable, Hashable {
     queueCount: 0,
     eqName: "Off",
     eqSupported: false,
+    eqBandGainsDb: nil,
+    eqPreampDb: nil,
     artworkFileName: nil,
     lastUpdatedEpochMs: 0,
     deepLink: "dope://now-playing",
@@ -110,6 +114,7 @@ struct DopeNowPlayingWidget: Widget {
     .configurationDisplayName("døPe Now Playing")
     .description("Show your current døPe song, source, and quick controls.")
     .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    .contentMarginsDisabled()
   }
 }
 
@@ -121,6 +126,7 @@ struct DopeMiniIpodWidget: Widget {
     .configurationDisplayName("døPe Mini iPod")
     .description("A mini iPod-style companion for døPe.")
     .supportedFamilies([.systemMedium, .systemLarge])
+    .contentMarginsDisabled()
   }
 }
 
@@ -132,6 +138,7 @@ struct DopeQueueWidget: Widget {
     .configurationDisplayName("døPe Queue")
     .description("Preview what is playing next in døPe.")
     .supportedFamilies([.systemLarge])
+    .contentMarginsDisabled()
   }
 }
 
@@ -143,6 +150,7 @@ struct DopeEqWidget: Widget {
     .configurationDisplayName("døPe EQ")
     .description("Show EQ and source support for the current døPe song.")
     .supportedFamilies([.systemSmall, .systemMedium])
+    .contentMarginsDisabled()
   }
 }
 
@@ -151,40 +159,80 @@ struct DopeNowPlayingView: View {
   let entry: DopeWidgetEntry
 
   var body: some View {
-    Link(destination: dopeWidgetURL("now-playing")) {
-      ZStack {
-        DopeBackground(snapshot: entry.snapshot)
-        VStack(alignment: .leading, spacing: family == .systemSmall ? 6 : 10) {
-          HStack(alignment: .top) {
-            DopeArtwork(snapshot: entry.snapshot, size: family == .systemSmall ? 54 : 78)
-            if family != .systemSmall {
-              VStack(alignment: .leading, spacing: 4) {
-                DopeSourceBadge(snapshot: entry.snapshot)
-                Text(entry.snapshot.trackTitle)
-                  .font(.headline.weight(.black))
-                  .lineLimit(2)
-                Text(entry.snapshot.artistName ?? "Unknown Artist")
-                  .font(.caption.weight(.semibold))
-                  .foregroundStyle(.secondary)
-                  .lineLimit(1)
-              }
-            }
-          }
-          if family == .systemSmall {
-            DopeSourceBadge(snapshot: entry.snapshot)
-            Text(entry.snapshot.trackTitle)
-              .font(.caption.weight(.black))
-              .lineLimit(2)
-          } else {
-            Spacer(minLength: 4)
-            DopeProgressBar(snapshot: entry.snapshot)
-            DopeControlRow(snapshot: entry.snapshot)
-          }
-        }
-        .padding(12)
+    Group {
+      if family == .systemSmall {
+        smallLayout
+      } else {
+        wideLayout
       }
     }
+    .containerBackground(for: .widget) { Color.black }
     .widgetURL(dopeWidgetURL("now-playing"))
+  }
+
+  private var smallLayout: some View {
+    ZStack(alignment: .bottomLeading) {
+      DopeArtworkFill(snapshot: entry.snapshot)
+      LinearGradient(
+        colors: [.black.opacity(0.05), .black.opacity(0.88)],
+        startPoint: .top,
+        endPoint: .bottom
+      )
+      VStack(alignment: .leading, spacing: 5) {
+        HStack {
+          DopeWordmark(compact: true)
+          Spacer()
+          DopePlayingPulse(isPlaying: entry.snapshot.isPlaying)
+        }
+        Spacer()
+        Text(entry.snapshot.trackTitle)
+          .font(.system(size: 16, weight: .black, design: .rounded))
+          .lineLimit(2)
+        HStack(spacing: 5) {
+          Text(entry.snapshot.artistName ?? "Unknown Artist")
+            .lineLimit(1)
+          if entry.snapshot.isExplicit { DopeExplicitMark() }
+        }
+        .font(.caption2.weight(.bold))
+        .foregroundStyle(.white.opacity(0.72))
+      }
+      .padding(13)
+    }
+  }
+
+  private var wideLayout: some View {
+    ZStack {
+      DopeBackground(snapshot: entry.snapshot)
+      VStack(spacing: family == .systemLarge ? 14 : 10) {
+        HStack(spacing: 13) {
+          DopeArtwork(snapshot: entry.snapshot, size: family == .systemLarge ? 106 : 92)
+          VStack(alignment: .leading, spacing: 5) {
+            HStack {
+              DopeWordmark(compact: false)
+              Spacer()
+              DopePlayingPulse(isPlaying: entry.snapshot.isPlaying)
+            }
+            Spacer(minLength: 0)
+            Text(entry.snapshot.trackTitle)
+              .font(.system(size: family == .systemLarge ? 21 : 18, weight: .black, design: .rounded))
+              .lineLimit(2)
+            HStack(spacing: 6) {
+              Text(entry.snapshot.artistName ?? "Unknown Artist").lineLimit(1)
+              if entry.snapshot.isExplicit { DopeExplicitMark() }
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.white.opacity(0.62))
+            DopeSourceBadge(snapshot: entry.snapshot)
+          }
+        }
+        DopeProgressBar(snapshot: entry.snapshot)
+        DopeControlRow(snapshot: entry.snapshot)
+        if family == .systemLarge {
+          DopeCompactQueue(snapshot: entry.snapshot)
+        }
+      }
+      .padding(15)
+    }
   }
 }
 
@@ -194,59 +242,69 @@ struct DopeMiniIpodView: View {
 
   var body: some View {
     ZStack {
-      LinearGradient(colors: [.red.opacity(0.78), .black], startPoint: .topLeading, endPoint: .bottomTrailing)
-      VStack(spacing: 10) {
-        Link(destination: dopeWidgetURL("now-playing")) {
-          HStack(spacing: 10) {
-            DopeArtwork(snapshot: entry.snapshot, size: family == .systemLarge ? 92 : 70)
+      LinearGradient(
+        colors: [Color(red: 0.88, green: 0.89, blue: 0.91), Color(red: 0.30, green: 0.31, blue: 0.34)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+      )
+      if family == .systemLarge {
+        VStack(spacing: 14) {
+          deviceScreen
+          DopeClickWheel(snapshot: entry.snapshot, diameter: 185)
+        }
+        .padding(16)
+      } else {
+        HStack(spacing: 16) {
+          deviceScreen
+          DopeClickWheel(snapshot: entry.snapshot, diameter: 130)
+        }
+        .padding(15)
+      }
+    }
+    .overlay(
+      RoundedRectangle(cornerRadius: 22)
+        .stroke(.white.opacity(0.36), lineWidth: 1)
+    )
+    .containerBackground(for: .widget) { Color.gray }
+    .widgetURL(dopeWidgetURL("now-playing"))
+  }
+
+  private var deviceScreen: some View {
+    Link(destination: dopeWidgetURL("now-playing")) {
+      ZStack {
+        Color(red: 0.035, green: 0.04, blue: 0.045)
+        VStack(spacing: 0) {
+          HStack {
+            Text("dÃ¸Pe")
+              .font(.caption.weight(.black))
+            Spacer()
+            DopePlayingPulse(isPlaying: entry.snapshot.isPlaying)
+          }
+          .padding(.horizontal, 9)
+          .frame(height: 25)
+          .background(Color(red: 0.58, green: 0.02, blue: 0.02))
+          HStack(spacing: 9) {
+            DopeArtwork(snapshot: entry.snapshot, size: family == .systemLarge ? 94 : 66)
             VStack(alignment: .leading, spacing: 4) {
-              Text("døPe")
-                .font(.caption.weight(.black))
               Text(entry.snapshot.trackTitle)
-                .font(.headline.weight(.black))
+                .font(.system(size: family == .systemLarge ? 18 : 14, weight: .black, design: .rounded))
                 .lineLimit(2)
               Text(entry.snapshot.artistName ?? "Unknown Artist")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-              DopeSourceBadge(snapshot: entry.snapshot)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.58))
+                .lineLimit(2)
+              Spacer(minLength: 0)
+              Text(queueText(entry.snapshot))
+                .font(.caption2.monospacedDigit().weight(.bold))
+                .foregroundStyle(.white.opacity(0.45))
             }
-            Spacer(minLength: 0)
           }
-          .padding(12)
-          .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 18))
-        }
-        if family == .systemLarge {
-          Spacer(minLength: 2)
-          ZStack {
-            Circle().fill(.black.opacity(0.72))
-            Circle().stroke(.white.opacity(0.10), lineWidth: 2)
-            Circle().fill(.red.opacity(0.35)).frame(width: 82, height: 82)
-            VStack {
-              Link("⌃", destination: dopeWidgetURL("eq"))
-                .font(.title2.weight(.bold))
-              Spacer()
-              HStack {
-                Link("◀", destination: dopeWidgetURL("action/previous"))
-                Spacer()
-                Link(entry.snapshot.isPlaying ? "Ⅱ" : "▶", destination: dopeWidgetURL("action/play-pause"))
-                Spacer()
-                Link("▶", destination: dopeWidgetURL("action/next"))
-              }
-              .font(.title3.weight(.black))
-              Spacer()
-            }
-            .padding(22)
-          }
-          .frame(width: 190, height: 190)
-        } else {
-          DopeControlRow(snapshot: entry.snapshot)
+          .padding(9)
         }
       }
-      .padding(14)
+      .clipShape(RoundedRectangle(cornerRadius: 8))
+      .overlay(RoundedRectangle(cornerRadius: 8).stroke(.black.opacity(0.7), lineWidth: 3))
     }
-    .foregroundStyle(.white)
-    .widgetURL(dopeWidgetURL("now-playing"))
   }
 }
 
@@ -254,69 +312,71 @@ struct DopeQueueView: View {
   let entry: DopeWidgetEntry
 
   var body: some View {
-    Link(destination: dopeWidgetURL("queue")) {
-      ZStack {
-        DopeBackground(snapshot: entry.snapshot)
-        VStack(alignment: .leading, spacing: 10) {
-          HStack {
-            Text("Queue")
-              .font(.title3.weight(.black))
-            Spacer()
-            Text(queueText(entry.snapshot))
-              .font(.caption.weight(.bold))
-              .foregroundStyle(.secondary)
-          }
-          HStack(spacing: 10) {
-            DopeArtwork(snapshot: entry.snapshot, size: 64)
+    ZStack {
+      Color(red: 0.025, green: 0.028, blue: 0.032)
+      VStack(spacing: 0) {
+        HStack {
+          Text("MUSIC")
+            .font(.caption.weight(.black))
+            .tracking(1.4)
+          Spacer()
+          Text(queueText(entry.snapshot))
+            .font(.caption2.monospacedDigit().weight(.bold))
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 34)
+        .background(Color(red: 0.55, green: 0.01, blue: 0.01))
+
+        Link(destination: dopeWidgetURL("now-playing")) {
+          HStack(spacing: 11) {
+            DopeArtwork(snapshot: entry.snapshot, size: 62)
             VStack(alignment: .leading, spacing: 3) {
-              Text("Now Playing")
+              Text("NOW PLAYING")
                 .font(.caption2.weight(.black))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.black.opacity(0.55))
               Text(entry.snapshot.trackTitle)
                 .font(.headline.weight(.black))
                 .lineLimit(1)
               Text(entry.snapshot.artistName ?? "Unknown Artist")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
                 .lineLimit(1)
             }
+            Spacer()
+            Image(systemName: "chevron.right")
+              .font(.headline.weight(.black))
           }
-          Divider().overlay(.white.opacity(0.2))
-          ForEach(Array(entry.snapshot.queuePreview.enumerated()), id: \.offset) { index, item in
-            HStack {
-              Text("\(index + 1)")
-                .font(.caption.weight(.black))
-                .foregroundStyle(.secondary)
-              VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                  .font(.caption.weight(.bold))
-                  .lineLimit(1)
-                Text(item.artist ?? sourceTitle(item.sourceType))
-                  .font(.caption2.weight(.semibold))
-                  .foregroundStyle(.secondary)
-                  .lineLimit(1)
-              }
-              Spacer()
-              if item.isExplicit {
-                Text("E")
-                  .font(.caption2.weight(.black))
-                  .padding(.horizontal, 4)
-                  .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 3))
-              }
-              Text(sourceTitle(item.sourceType))
-                .font(.caption2.weight(.black))
-                .foregroundStyle(.secondary)
-            }
-          }
+          .foregroundStyle(.black)
+          .padding(.horizontal, 13)
+          .frame(height: 86)
+          .background(
+            LinearGradient(colors: [Color(red: 0.35, green: 0.82, blue: 0.95), Color(red: 0.74, green: 0.94, blue: 0.98)], startPoint: .leading, endPoint: .trailing)
+          )
+        }
+
+        VStack(spacing: 0) {
           if entry.snapshot.queuePreview.isEmpty {
-            Text("No upcoming songs")
-              .font(.caption.weight(.semibold))
-              .foregroundStyle(.secondary)
+            Spacer()
+            Text("QUEUE EMPTY")
+              .font(.caption.weight(.black))
+              .tracking(1.2)
+              .foregroundStyle(.white.opacity(0.35))
+            Spacer()
+          } else {
+            ForEach(Array(entry.snapshot.queuePreview.prefix(3).enumerated()), id: \.offset) { index, item in
+              DopeQueueRow(index: index + 1, item: item)
+              if index < min(entry.snapshot.queuePreview.count, 3) - 1 {
+                Divider().overlay(.white.opacity(0.08))
+              }
+            }
+            Spacer(minLength: 0)
           }
         }
-        .padding(14)
+        .padding(.horizontal, 13)
+        .padding(.top, 5)
       }
     }
+    .foregroundStyle(.white)
+    .containerBackground(for: .widget) { Color.black }
     .widgetURL(dopeWidgetURL("queue"))
   }
 }
@@ -326,41 +386,207 @@ struct DopeEqView: View {
   let entry: DopeWidgetEntry
 
   var body: some View {
-    Link(destination: dopeWidgetURL("eq")) {
-      ZStack {
-        DopeBackground(snapshot: entry.snapshot)
-        VStack(alignment: .leading, spacing: 10) {
-          HStack {
-            Text("EQ")
-              .font(.title3.weight(.black))
-            Spacer()
-            DopeSourceBadge(snapshot: entry.snapshot)
+    ZStack {
+      Color(red: 0.025, green: 0.028, blue: 0.032)
+      VStack(alignment: .leading, spacing: family == .systemSmall ? 8 : 10) {
+        HStack {
+          VStack(alignment: .leading, spacing: 1) {
+            Text("EQUALIZER")
+              .font(.caption2.weight(.black))
+              .tracking(1.25)
+              .foregroundStyle(.white.opacity(0.42))
+            Text(entry.snapshot.eqName)
+              .font(.system(size: family == .systemSmall ? 17 : 20, weight: .black, design: .rounded))
+              .lineLimit(1)
           }
-          Text(entry.snapshot.eqName)
-            .font(family == .systemSmall ? .headline.weight(.black) : .title2.weight(.black))
+          Spacer()
+          DopeSourceBadge(snapshot: entry.snapshot)
+        }
+        DopeEqGraph(snapshot: entry.snapshot, compact: family == .systemSmall)
+        HStack {
+          Circle()
+            .fill(entry.snapshot.eqSupported ? Color.green : Color.orange)
+            .frame(width: 7, height: 7)
+          Text(eqStatus(entry.snapshot).uppercased())
+            .font(.system(size: 9, weight: .black, design: .rounded))
             .lineLimit(1)
-          Text(eqStatus(entry.snapshot))
-            .font(.caption.weight(.bold))
-            .foregroundStyle(entry.snapshot.eqSupported ? .green : .orange)
-            .lineLimit(2)
+          Spacer()
           if family != .systemSmall {
-            HStack(spacing: 4) {
-              ForEach(0..<10, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 3)
-                  .fill(eqBarColor(index))
-                  .frame(width: 8, height: CGFloat([16, 22, 28, 18, 12, 20, 26, 30, 24, 18][index]))
-              }
-            }
-            Spacer(minLength: 0)
-            Text("Tap to tune custom EQ")
-              .font(.caption2.weight(.bold))
-              .foregroundStyle(.secondary)
+            Text("PREAMP \(gainText(entry.snapshot.eqPreampDb ?? 0))")
+              .font(.system(size: 9, weight: .bold, design: .monospaced))
+              .foregroundStyle(.white.opacity(0.42))
           }
         }
-        .padding(14)
+      }
+      .padding(14)
+    }
+    .containerBackground(for: .widget) { Color.black }
+    .widgetURL(dopeWidgetURL("eq"))
+  }
+}
+
+struct DopeCompactQueue: View {
+  let snapshot: DopeWidgetSnapshot
+
+  var body: some View {
+    VStack(spacing: 0) {
+      ForEach(Array(snapshot.queuePreview.prefix(2).enumerated()), id: \.offset) { index, item in
+        DopeQueueRow(index: index + 1, item: item)
+        if index == 0 { Divider().overlay(.white.opacity(0.08)) }
       }
     }
-    .widgetURL(dopeWidgetURL("eq"))
+    .padding(.horizontal, 10)
+    .background(.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 12))
+  }
+}
+
+struct DopeQueueRow: View {
+  let index: Int
+  let item: DopeWidgetSnapshot.QueueItem
+
+  var body: some View {
+    HStack(spacing: 9) {
+      Text(String(format: "%02d", index))
+        .font(.caption2.monospacedDigit().weight(.black))
+        .foregroundStyle(.white.opacity(0.28))
+      VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 5) {
+          Text(item.title).font(.caption.weight(.bold)).lineLimit(1)
+          if item.isExplicit { DopeExplicitMark() }
+        }
+        Text(item.artist ?? sourceTitle(item.sourceType))
+          .font(.caption2.weight(.medium))
+          .foregroundStyle(.white.opacity(0.42))
+          .lineLimit(1)
+      }
+      Spacer()
+      SourceLogoMark(sourceType: item.sourceType)
+        .frame(width: 15, height: 15)
+        .foregroundStyle(sourceColor(item.sourceType))
+    }
+    .frame(minHeight: 47)
+  }
+}
+
+struct DopeClickWheel: View {
+  let snapshot: DopeWidgetSnapshot
+  let diameter: CGFloat
+
+  var body: some View {
+    ZStack {
+      Circle()
+        .fill(Color(red: 0.055, green: 0.055, blue: 0.06))
+        .shadow(color: .black.opacity(0.55), radius: 6, y: 4)
+      Circle().stroke(.white.opacity(0.09), lineWidth: 1)
+      Link(destination: dopeWidgetURL("queue")) {
+        Text("MENU")
+          .font(.system(size: diameter * 0.075, weight: .black, design: .rounded))
+      }
+      .offset(y: -diameter * 0.34)
+      Link(destination: dopeWidgetURL("action/previous")) {
+        Image(systemName: "backward.end.fill")
+      }
+      .offset(x: -diameter * 0.34)
+      Link(destination: dopeWidgetURL("action/next")) {
+        Image(systemName: "forward.end.fill")
+      }
+      .offset(x: diameter * 0.34)
+      Link(destination: dopeWidgetURL("action/play-pause")) {
+        Image(systemName: snapshot.isPlaying ? "pause.fill" : "play.fill")
+      }
+      .offset(y: diameter * 0.34)
+      Link(destination: dopeWidgetURL("now-playing")) {
+        Circle()
+          .fill(
+            RadialGradient(colors: [Color(red: 0.55, green: 0.02, blue: 0.02), Color(red: 0.18, green: 0.01, blue: 0.01)], center: .topLeading, startRadius: 2, endRadius: diameter * 0.25)
+          )
+          .overlay(Circle().stroke(.white.opacity(0.18), lineWidth: 1))
+          .frame(width: diameter * 0.42, height: diameter * 0.42)
+      }
+    }
+    .font(.system(size: diameter * 0.11, weight: .black))
+    .foregroundStyle(.white)
+    .frame(width: diameter, height: diameter)
+  }
+}
+
+struct DopeEqGraph: View {
+  let snapshot: DopeWidgetSnapshot
+  let compact: Bool
+
+  private var gains: [Double] {
+    let values = snapshot.eqBandGainsDb ?? []
+    return values.count == 10 ? values : Array(repeating: 0, count: 10)
+  }
+
+  var body: some View {
+    GeometryReader { geometry in
+      ZStack {
+        ForEach(0..<5, id: \.self) { row in
+          Rectangle()
+            .fill(.white.opacity(row == 2 ? 0.14 : 0.055))
+            .frame(height: 1)
+            .offset(y: (CGFloat(row) - 2) * geometry.size.height / 4)
+        }
+        HStack(alignment: .center, spacing: compact ? 3 : 5) {
+          ForEach(Array(gains.enumerated()), id: \.offset) { index, gain in
+            VStack(spacing: 2) {
+              Spacer(minLength: 0)
+              RoundedRectangle(cornerRadius: 2)
+                .fill(eqBandGradient(index))
+                .frame(height: max(3, CGFloat(abs(gain)) / 12 * geometry.size.height * 0.43))
+                .offset(y: gain >= 0 ? -CGFloat(abs(gain)) / 12 * geometry.size.height * 0.215 : CGFloat(abs(gain)) / 12 * geometry.size.height * 0.215)
+              Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity)
+          }
+        }
+      }
+    }
+    .frame(height: compact ? 58 : 76)
+    .padding(.horizontal, 8)
+    .background(Color.black.opacity(0.42), in: RoundedRectangle(cornerRadius: 10))
+    .overlay(RoundedRectangle(cornerRadius: 10).stroke(.white.opacity(0.08), lineWidth: 1))
+  }
+}
+
+struct DopeWordmark: View {
+  let compact: Bool
+
+  var body: some View {
+    HStack(spacing: 5) {
+      Circle()
+        .fill(Color(red: 0.72, green: 0.02, blue: 0.02))
+        .frame(width: compact ? 16 : 19, height: compact ? 16 : 19)
+        .overlay(Image(systemName: "music.note").font(.system(size: compact ? 8 : 10, weight: .black)))
+      Text("dÃ¸Pe")
+        .font(.system(size: compact ? 12 : 14, weight: .black, design: .rounded))
+    }
+  }
+}
+
+struct DopePlayingPulse: View {
+  let isPlaying: Bool
+
+  var body: some View {
+    HStack(alignment: .bottom, spacing: 2) {
+      ForEach([7.0, 13.0, 9.0], id: \.self) { height in
+        Capsule()
+          .fill(isPlaying ? Color.white : Color.white.opacity(0.28))
+          .frame(width: 2.5, height: height)
+      }
+    }
+    .frame(width: 14, height: 14)
+  }
+}
+
+struct DopeExplicitMark: View {
+  var body: some View {
+    Text("E")
+      .font(.system(size: 8, weight: .black, design: .rounded))
+      .padding(.horizontal, 3)
+      .padding(.vertical, 1)
+      .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 2))
   }
 }
 
@@ -385,6 +611,32 @@ struct DopeBackground: View {
     .containerBackground(for: .widget) {
       Color.black
     }
+  }
+}
+
+struct DopeArtworkFill: View {
+  let snapshot: DopeWidgetSnapshot
+
+  var body: some View {
+    Group {
+      if let image = artworkImage(snapshot.artworkFileName) {
+        Image(uiImage: image)
+          .resizable()
+          .scaledToFill()
+      } else {
+        ZStack {
+          LinearGradient(
+            colors: [Color(red: 0.44, green: 0.01, blue: 0.01), .black],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+          )
+          Image(systemName: "music.note")
+            .font(.system(size: 52, weight: .black))
+            .foregroundStyle(.white.opacity(0.5))
+        }
+      }
+    }
+    .clipped()
   }
 }
 
@@ -540,16 +792,26 @@ struct DopeControlRow: View {
   let snapshot: DopeWidgetSnapshot
 
   var body: some View {
-    HStack(spacing: 14) {
-      Link("◀◀", destination: dopeWidgetURL("action/previous"))
-      Link(snapshot.isPlaying ? "Ⅱ" : "▶", destination: dopeWidgetURL("action/play-pause"))
-      Link("▶▶", destination: dopeWidgetURL("action/next"))
+    HStack(spacing: 18) {
+      Link(destination: dopeWidgetURL("action/previous")) {
+        Image(systemName: "backward.end.fill")
+      }
+      Link(destination: dopeWidgetURL("action/play-pause")) {
+        Image(systemName: snapshot.isPlaying ? "pause.fill" : "play.fill")
+          .frame(width: 28, height: 28)
+          .background(.white, in: Circle())
+          .foregroundStyle(.black)
+      }
+      Link(destination: dopeWidgetURL("action/next")) {
+        Image(systemName: "forward.end.fill")
+      }
       Spacer()
       Text(queueText(snapshot))
-        .font(.caption2.weight(.black))
-        .foregroundStyle(.secondary)
+        .font(.caption2.monospacedDigit().weight(.black))
+        .foregroundStyle(.white.opacity(0.42))
     }
     .font(.headline.weight(.black))
+    .foregroundStyle(.white)
   }
 }
 
@@ -620,8 +882,22 @@ private func eqStatus(_ snapshot: DopeWidgetSnapshot) -> String {
   return "Open døPe to choose music"
 }
 
-private func eqBarColor(_ index: Int) -> Color {
-  if index <= 2 { return .blue }
-  if index <= 6 { return .orange }
-  return .teal
+private func gainText(_ gain: Double) -> String {
+  String(format: "%+.1f dB", gain)
+}
+
+private func eqBandGradient(_ index: Int) -> LinearGradient {
+  let color: Color
+  if index <= 2 {
+    color = Color(red: 0.18, green: 0.68, blue: 1.0)
+  } else if index <= 6 {
+    color = Color(red: 1.0, green: 0.48, blue: 0.16)
+  } else {
+    color = Color(red: 0.18, green: 0.88, blue: 0.72)
+  }
+  return LinearGradient(
+    colors: [color.opacity(0.45), color],
+    startPoint: .bottom,
+    endPoint: .top
+  )
 }
