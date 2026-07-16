@@ -292,6 +292,11 @@ jobs:
           if [ -z "${TESTFLIGHT_BUILD_NUMBER}" ]; then
             TESTFLIGHT_BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
           fi
+          APP_VERSION="$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' pubspec.yaml | head -n 1)"
+          if [ -z "${APP_VERSION}" ]; then
+            echo "Unable to derive app version from pubspec.yaml" >&2
+            exit 1
+          fi
           xcodebuild \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -300,6 +305,8 @@ jobs:
             -archivePath build/dope.xcarchive \
             DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
             CURRENT_PROJECT_VERSION="${TESTFLIGHT_BUILD_NUMBER}" \
+            MARKETING_VERSION="${APP_VERSION}" \
+            FLUTTER_BUILD_NAME="${APP_VERSION}" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
