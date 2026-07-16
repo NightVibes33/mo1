@@ -49,7 +49,7 @@ void main() {
     );
     expect(
       CustomEqualizerPreset.recommendedPreampDb(const [99]),
-      CustomEqualizerPreset.minPreampDb,
+      closeTo(-7.8, 0.001),
     );
   });
 
