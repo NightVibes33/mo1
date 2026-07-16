@@ -27,15 +27,19 @@ class AlbumModel {
     );
   }
 
+  MusicSourceType? get sourceType =>
+      albumSongs.isEmpty ? null : albumSongs.first.sourceType;
+
   @override
   bool operator ==(Object other) {
     return other is AlbumModel &&
         other.albumName == albumName &&
-        other.albumArtistName == albumArtistName;
+        other.albumArtistName == albumArtistName &&
+        other.sourceType == sourceType;
   }
 
   @override
-  int get hashCode => Object.hash(albumName, albumArtistName);
+  int get hashCode => Object.hash(albumName, albumArtistName, sourceType);
 
   bool isOnDevice() {
     return albumSongs.first.isOnDevice;

@@ -65,8 +65,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
   _PlaybackBackend _activeBackend = _PlaybackBackend.none;
   int _playbackSessionId = 0;
   int _playbackOperationId = 0;
-  bool _nativeEqDisabledForSession = false;
-  String? _nativeEqDisabledReason;
   bool _isReconfiguringEqualizerPlayback = false;
   int _equalizerPreviewGeneration = 0;
   Future<void> _equalizerPreviewTail = Future<void>.value();
@@ -414,8 +412,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       'activeBackend': _activeBackend.name,
       'playbackSessionId': _playbackSessionId,
       'playbackOperationId': _playbackOperationId,
-      'nativeEqDisabledForSession': _nativeEqDisabledForSession,
-      'nativeEqDisabledReason': _nativeEqDisabledReason,
       'activeAppleMusicQueueSize': _activeAppleMusicCatalogIds.length,
       ...extra,
     };
@@ -428,16 +424,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
       _activeBackend = backend;
       _playbackSessionId++;
     }
-  }
-
-  void _disableNativeEqForSession(String reason) {
-    _nativeEqDisabledForSession = true;
-    _nativeEqDisabledReason = reason;
-  }
-
-  void _clearNativeEqCircuitBreaker() {
-    _nativeEqDisabledForSession = false;
-    _nativeEqDisabledReason = null;
   }
 
   bool _isLocalPlaybackBackend(_PlaybackBackend backend) {
@@ -1586,21 +1572,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
     final bandGainsDb = previewBandGainsDb ?? settings.activeEqualizerBandGainsDb;
     final preampDb = previewPreampDb ?? settings.activeEqualizerPreampDb;
     final hasNeutralCurve = bandGainsDb.every((gain) => gain == 0);
-    if (hasNeutralCurve) {
-      _clearNativeEqCircuitBreaker();
-    }
-    if (_nativeEqDisabledForSession) {
-      ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
-            'Native EQ bypassed',
-            data: _playbackCrashData(
-              extra: {
-                'reason': _nativeEqDisabledReason ?? 'disabled_for_session',
-                'operationReason': operationReason,
-              },
-            ),
-          );
-      return false;
-    }
     if (hasNeutralCurve || musicMetadataList.isEmpty) {
       ref.read(crashLogServiceProvider).recordPlaybackBreadcrumb(
             'Native EQ bypassed',
@@ -1649,7 +1620,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
                   settings.equalizerPreset.name,
               'presetTitle': settings.equalizerDisplayTitle,
               'operationReason': operationReason,
-              'nativeEqDisabledForSession': _nativeEqDisabledForSession,
             },
           ),
         );
@@ -1699,7 +1669,6 @@ class AudioPlayerServiceNotifier extends AsyncNotifier<void> {
               },
             ),
           );
-      _disableNativeEqForSession('native_load_failed');
       await _stopNativeEqPlayback();
       return false;
     }

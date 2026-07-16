@@ -13,6 +13,7 @@ String? _eqStatusText({
   required MusicMetadata? currentMetadata,
   required bool eqRequested,
   required bool nativeEqActive,
+  required String? nativeEqFailure,
   required String title,
 }) {
   if (!eqRequested) {
@@ -27,12 +28,15 @@ String? _eqStatusText({
   if (nativeEqActive) {
     return 'EQ active: $title';
   }
+  if (nativeEqFailure != null) {
+    return 'EQ failed: select song to retry';
+  }
   switch (currentMetadata.sourceType) {
     case MusicSourceType.local:
     case MusicSourceType.navidrome:
     case MusicSourceType.jellyfin:
     case MusicSourceType.remote:
-      return 'EQ inactive: ' + title;
+      return 'EQ not applied: $title';
     case MusicSourceType.appleMusic:
       return 'EQ unavailable: Apple Music';
   }
@@ -116,10 +120,12 @@ class NowPlayingWidget extends ConsumerWidget {
     final currentMetadata = nowPlayingDetails.currentMetadata;
     final settings = ref.watch(settingsPreferencesControllerProvider);
     final nativeEqActive = ref.watch(nativeEqPlaybackActiveProvider);
+    final nativeEqFailure = ref.watch(nativeEqFailureProvider);
     final eqStatus = _eqStatusText(
       currentMetadata: currentMetadata,
       eqRequested: !settings.activeEqualizerHasNeutralCurve,
       nativeEqActive: nativeEqActive,
+      nativeEqFailure: nativeEqFailure,
       title: settings.equalizerDisplayTitle,
     );
     final heroTag =
