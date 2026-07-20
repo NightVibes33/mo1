@@ -51,10 +51,9 @@ jobs:
           else
             cp job-logs.bin job.log
           fi
-          echo "LIVE_JOB_LINKER_LINES_BEGIN"
-          grep -E 'Undefined symbols|library not found|symbol\(s\) not found|ld: |linker command failed' job.log | tail -n 50 | cut -c1-1200 || true
-          echo "LIVE_JOB_LINKER_LINES_END"
+          echo "LIVE_JOB_KEYCHAIN_LINES_BEGIN"
+          grep -Ei 'security import|SecKeychain|pkcs12|MAC verification|find-identity|valid identities|No imported code-signing identity|partition-list|keychain' job.log | tail -n 100 | cut -c1-1600 || true
+          echo "LIVE_JOB_KEYCHAIN_LINES_END"
           echo "LIVE_JOB_BUILD_ERRORS_BEGIN"
           grep -Ei 'fatal error:|[[:space:]]error:|gmake.*Error|Process completed with exit code' job.log | tail -n 40 | cut -c1-1200 || true
           echo "LIVE_JOB_BUILD_ERRORS_END"
-          # observer refresh 2026-07-20T01:00:00-05:00
