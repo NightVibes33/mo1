@@ -54,7 +54,8 @@ jobs:
         run: |
           set -euxo pipefail
           brew install make openssl cloudflared
-          python3 -m pip install --disable-pip-version-check --quiet pyjwt cryptography requests
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --disable-pip-version-check --quiet pyjwt cryptography requests
           echo "PATH=$(brew --prefix make)/libexec/gnubin:$PATH" >> "$GITHUB_ENV"
 
       - name: Install Procursus build tools
@@ -122,8 +123,8 @@ jobs:
             -subj "/CN=NightVibes33 Dopamine Installer/O=NightVibes33/C=US" \
             -out signing/distribution.csr
 
-          python3 - <<'PY'
-          import base64, os, time
+          .venv/bin/python - <<'PY'
+          import base64, json, os, time
           from pathlib import Path
           import jwt, requests
 
@@ -193,7 +194,7 @@ jobs:
           export INSTALLER_CHALLENGE="$CHALLENGE"
           export UNSIGNED_IPA="$PWD/dopamine/Application/Dopamine.ipa"
           export OUTPUT_DIR="$PWD/installer-output"
-          nohup python3 tool/dopamine_one_tap_server.py > installer-output/server.log 2>&1 &
+          nohup .venv/bin/python tool/dopamine_one_tap_server.py > installer-output/server.log 2>&1 &
           echo $! > installer-output/server.pid
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8080/health >/dev/null; then break; fi
