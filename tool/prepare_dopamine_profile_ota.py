@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# Rebuild trigger for Dopamine main commit 8169dae47e5d554c11ba9061d0548d78c0d88ac6.
 path = Path("tool/dopamine_one_tap_server.py")
 text = path.read_text(encoding="utf-8")
 
