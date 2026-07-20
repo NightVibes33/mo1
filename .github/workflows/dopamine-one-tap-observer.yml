@@ -53,6 +53,6 @@ jobs:
           else
             cp job-logs.bin job.log
           fi
-          echo "FAST_JOB_IMPORTANT_LINES_BEGIN"
-          grep -Ei 'Created (DISTRIBUTION|IOS_DISTRIBUTION)|DOPAMINE_INSTALLER_URL=|trycloudflare\.com|fatal error:|[[:space:]]error:|failed|Process completed with exit code' job.log | tail -n 100 | cut -c1-1600 || true
-          echo "FAST_JOB_IMPORTANT_LINES_END"
+          echo "FAST_JOB_APPLE_LINES_BEGIN"
+          grep -Ei 'Unable to create Apple distribution certificate|certificateType|/v1/certificates|ENTITY_ERROR|FORBIDDEN_ERROR|409|401|403|maximum|limit|certificate|Created (DISTRIBUTION|IOS_DISTRIBUTION)|DOPAMINE_INSTALLER_URL=|trycloudflare\.com|Process completed with exit code' job.log | tail -n 120 | cut -c1-2000 || true
+          echo "FAST_JOB_APPLE_LINES_END"
