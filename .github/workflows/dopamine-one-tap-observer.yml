@@ -1,0 +1,36 @@
+name: Dopamine One-Tap Run Observer
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/dopamine-one-tap-live.yml"
+      - ".github/workflows/dopamine-one-tap-observer.yml"
+      - "tool/dopamine_one_tap_server.py"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find live installer run for this branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/repos/${GITHUB_REPOSITORY}/actions/workflows/dopamine-one-tap-live.yml/runs?branch=${HEAD_BRANCH}&per_page=5" \
+              --jq '.workflow_runs[] | "LIVE_RUN id=\(.id) status=\(.status) conclusion=\(.conclusion // \"pending\") head_sha=\(.head_sha) url=\(.html_url)"' \
+              | tee live-runs.txt
+            if grep -q '^LIVE_RUN id=' live-runs.txt; then exit 0; fi
+            sleep 2
+          done
+          echo "::error::No live installer run found"
+          exit 1
