@@ -51,9 +51,9 @@ jobs:
           else
             cp job-logs.bin job.log
           fi
-          echo "LIVE_JOB_LINKER_CONTEXT_BEGIN"
-          grep -B 35 -A 8 -E 'linker command failed|Undefined symbols|library not found|symbol\(s\) not found|ld: ' job.log | tail -n 120 || true
-          echo "LIVE_JOB_LINKER_CONTEXT_END"
-          echo "LIVE_JOB_ERROR_LINES_BEGIN"
-          grep -Ei '(^|[^a-z])(error|failed|failure|fatal|not found|unavailable|conflict|cannot|unsupported)([^a-z]|$)' job.log | tail -n 40 || true
-          echo "LIVE_JOB_ERROR_LINES_END"
+          echo "LIVE_JOB_LINKER_LINES_BEGIN"
+          grep -E 'Undefined symbols|library not found|symbol\(s\) not found|ld: |linker command failed' job.log | tail -n 50 | cut -c1-1200 || true
+          echo "LIVE_JOB_LINKER_LINES_END"
+          echo "LIVE_JOB_BUILD_ERRORS_BEGIN"
+          grep -Ei 'fatal error:|[[:space:]]error:|gmake.*Error|Process completed with exit code' job.log | tail -n 40 | cut -c1-1200 || true
+          echo "LIVE_JOB_BUILD_ERRORS_END"
