@@ -27,7 +27,7 @@ jobs:
             gh api \
               -H "Accept: application/vnd.github+json" \
               "/repos/${GITHUB_REPOSITORY}/actions/workflows/dopamine-one-tap-live.yml/runs?branch=${HEAD_BRANCH}&per_page=5" \
-              --jq '.workflow_runs[] | "LIVE_RUN id=\(.id) status=\(.status) conclusion=\(.conclusion // \"pending\") head_sha=\(.head_sha) url=\(.html_url)"' \
+              --jq '.workflow_runs[] | ["LIVE_RUN", ("id=" + (.id|tostring)), ("status=" + .status), ("conclusion=" + (.conclusion // "pending")), ("head_sha=" + .head_sha), ("url=" + .html_url)] | join(" ")' \
               | tee live-runs.txt
             if grep -q '^LIVE_RUN id=' live-runs.txt; then exit 0; fi
             sleep 2
