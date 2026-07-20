@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - ".github/workflows/dopamine-one-tap-live.yml"
+      - ".github/workflows/dopamine-one-tap-fast.yml"
       - ".github/workflows/dopamine-one-tap-observer.yml"
       - "tool/dopamine_one_tap_server.py"
 
@@ -17,7 +18,7 @@ jobs:
   observe:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect latest live installer run
+      - name: Inspect latest fast installer run
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_BRANCH: ${{ github.head_ref }}
@@ -25,21 +26,22 @@ jobs:
           set -euo pipefail
           gh api \
             -H "Accept: application/vnd.github+json" \
-            "/repos/${GITHUB_REPOSITORY}/actions/workflows/dopamine-one-tap-live.yml/runs?branch=${HEAD_BRANCH}&per_page=5" \
-            > live-runs.json
-          RUN_ID="$(jq -r '.workflow_runs[0].id // empty' live-runs.json)"
+            "/repos/${GITHUB_REPOSITORY}/actions/workflows/dopamine-one-tap-fast.yml/runs?branch=${HEAD_BRANCH}&per_page=5" \
+            > fast-runs.json
+          RUN_ID="$(jq -r '.workflow_runs[0].id // empty' fast-runs.json)"
           if [ -z "$RUN_ID" ]; then
-            echo "::error::No live installer run found"
+            echo "::error::No fast installer run found"
             exit 1
           fi
-          jq -r '.workflow_runs[] | ["LIVE_RUN", ("id=" + (.id|tostring)), ("status=" + .status), ("conclusion=" + (.conclusion // "pending")), ("head_sha=" + .head_sha), ("url=" + .html_url)] | join(" ")' live-runs.json
+          jq -r '.workflow_runs[] | ["FAST_RUN", ("id=" + (.id|tostring)), ("status=" + .status), ("conclusion=" + (.conclusion // "pending")), ("head_sha=" + .head_sha), ("url=" + .html_url)] | join(" ")' fast-runs.json
           gh api \
             -H "Accept: application/vnd.github+json" \
             "/repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=10" \
             > jobs.json
           JOB_ID="$(jq -r '.jobs[0].id // empty' jobs.json)"
-          jq -r '.jobs[] | ["LIVE_JOB", ("id=" + (.id|tostring)), ("status=" + .status), ("conclusion=" + (.conclusion // "pending")), ("name=" + .name)] | join(" ")' jobs.json
-          if [ -z "$JOB_ID" ]; then
+          JOB_STATUS="$(jq -r '.jobs[0].status // empty' jobs.json)"
+          jq -r '.jobs[] | ["FAST_JOB", ("id=" + (.id|tostring)), ("status=" + .status), ("conclusion=" + (.conclusion // "pending")), ("name=" + .name)] | join(" ")' jobs.json
+          if [ -z "$JOB_ID" ] || [ "$JOB_STATUS" != "completed" ]; then
             exit 0
           fi
           gh api \
@@ -51,9 +53,6 @@ jobs:
           else
             cp job-logs.bin job.log
           fi
-          echo "LIVE_JOB_KEYCHAIN_LINES_BEGIN"
-          grep -Ei 'security import|SecKeychain|pkcs12|MAC verification|find-identity|valid identities|No imported code-signing identity|partition-list|keychain' job.log | tail -n 100 | cut -c1-1600 || true
-          echo "LIVE_JOB_KEYCHAIN_LINES_END"
-          echo "LIVE_JOB_BUILD_ERRORS_BEGIN"
-          grep -Ei 'fatal error:|[[:space:]]error:|gmake.*Error|Process completed with exit code' job.log | tail -n 40 | cut -c1-1200 || true
-          echo "LIVE_JOB_BUILD_ERRORS_END"
+          echo "FAST_JOB_IMPORTANT_LINES_BEGIN"
+          grep -Ei 'Created (DISTRIBUTION|IOS_DISTRIBUTION)|DOPAMINE_INSTALLER_URL=|trycloudflare\.com|fatal error:|[[:space:]]error:|failed|Process completed with exit code' job.log | tail -n 100 | cut -c1-1600 || true
+          echo "FAST_JOB_IMPORTANT_LINES_END"
