@@ -27,8 +27,9 @@ jobs:
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APPLE_P12_PASSWORD: "1"
       DOPAMINE_BUNDLE_ID: com.nightvibes33.dopamine.ipad5
-      DOPAMINE_PROFILE_NAME: Dopamine iPad 5 Ad Hoc
-      PREBUILT_URL: "https://sdmntprwestus3.oaiusercontent.com/files/00000000-48f8-81fd-a68f-df71253ced2a/raw?se=2026-07-20T06:27:47Z&sp=r&sv=2026-02-06&sr=b&scid=75a7b4e1-cc90-58df-bac6-bc052f7a2f3a&skoid=fadb8e47-d3c7-4c79-a9c3-970d9af3b213&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-07-20T00:25:18Z&ske=2026-07-22T00:25:18Z&sks=b&skv=2026-02-06&sig=o0/eKG88NZJUbSLoxS7tgf5vaxfNvpLdRlXXSe9sQHg%3D"
+      DOPAMINE_PROFILE_NAME: Dopamine iPad 5 Development
+      DOPAMINE_PROFILE_TYPE: IOS_APP_DEVELOPMENT
+      PREBUILT_URL: "https://sdmntprwestus3.oaiusercontent.com/files/00000000-2600-81fd-a455-17c2e6b6e098/raw?se=2026-07-20T06:35:02Z&sp=r&sv=2026-02-06&sr=b&scid=212b7942-90c8-524f-806b-c96eb3d42031&skoid=fadb8e47-d3c7-4c79-a9c3-970d9af3b213&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-07-20T00:16:42Z&ske=2026-07-22T00:16:42Z&sks=b&skv=2026-02-06&sig=DC1801wTlVtR1dVKy3hd/v26pjPeNRidYjUIeUc/FUg%3D"
 
     steps:
       - name: Checkout installer source
@@ -65,14 +66,14 @@ jobs:
           test -s dopamine/Application/Dopamine.ipa
           shasum -a 256 dopamine/Application/Dopamine.ipa
 
-      - name: Create Apple distribution certificate and P12
+      - name: Create Apple development certificate and P12
         run: |
           set -euo pipefail
-          openssl genrsa -out signing/distribution.key 2048
+          openssl genrsa -out signing/development.key 2048
           openssl req -new -sha256 \
-            -key signing/distribution.key \
-            -subj "/CN=NightVibes33 Dopamine Installer/O=NightVibes33/C=US" \
-            -out signing/distribution.csr
+            -key signing/development.key \
+            -subj "/CN=NightVibes33 Dopamine Development/O=NightVibes33/C=US" \
+            -out signing/development.csr
 
           .venv/bin/python - <<'PY'
           import base64, os, time
@@ -88,32 +89,32 @@ jobs:
               headers={"kid": os.environ["APP_STORE_CONNECT_KEY_ID"], "typ": "JWT"},
           )
           headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-          csr = Path("signing/distribution.csr").read_text()
-          last = None
-          for cert_type in ("DISTRIBUTION", "IOS_DISTRIBUTION"):
+          csr = Path("signing/development.csr").read_text()
+          failures = []
+          for cert_type in ("IOS_DEVELOPMENT", "DEVELOPMENT"):
               body = {"data": {"type": "certificates", "attributes": {"certificateType": cert_type, "csrContent": csr}}}
               response = requests.post("https://api.appstoreconnect.apple.com/v1/certificates", headers=headers, json=body, timeout=60)
               if response.status_code == 201:
                   data = response.json()["data"]
                   Path("signing/certificate.id").write_text(data["id"])
-                  Path("signing/distribution.cer").write_bytes(base64.b64decode(data["attributes"]["certificateContent"]))
+                  Path("signing/development.cer").write_bytes(base64.b64decode(data["attributes"]["certificateContent"]))
                   print(f"Created {cert_type} certificate {data['id']}")
                   break
-              last = f"{response.status_code}: {response.text}"
+              failures.append(f"{cert_type} -> {response.status_code}: {response.text}")
           else:
-              raise SystemExit(f"Unable to create Apple distribution certificate: {last}")
+              raise SystemExit("Unable to create Apple development certificate:\n" + "\n".join(failures))
           PY
 
-          openssl x509 -inform DER -in signing/distribution.cer -out signing/distribution.pem
+          openssl x509 -inform DER -in signing/development.cer -out signing/development.pem
           openssl pkcs12 -export -legacy \
-            -inkey signing/distribution.key \
-            -in signing/distribution.pem \
-            -name "Dopamine Installer Distribution" \
-            -out signing/Dopamine-Distribution.p12 \
+            -inkey signing/development.key \
+            -in signing/development.pem \
+            -name "Dopamine Installer Development" \
+            -out signing/Dopamine-Development.p12 \
             -passout pass:"${APPLE_P12_PASSWORD}"
-          openssl pkcs12 -legacy -in signing/Dopamine-Distribution.p12 -passin pass:"${APPLE_P12_PASSWORD}" -info -noout
+          openssl pkcs12 -legacy -in signing/Dopamine-Development.p12 -passin pass:"${APPLE_P12_PASSWORD}" -info -noout
           echo "APPLE_CERTIFICATE_ID=$(cat signing/certificate.id)" >> "$GITHUB_ENV"
-          echo "APPLE_P12_PATH=$PWD/signing/Dopamine-Distribution.p12" >> "$GITHUB_ENV"
+          echo "APPLE_P12_PATH=$PWD/signing/Dopamine-Development.p12" >> "$GITHUB_ENV"
 
       - name: Import signing identity
         run: |
@@ -135,6 +136,16 @@ jobs:
       - name: Start one-tap installer service
         run: |
           set -euo pipefail
+          .venv/bin/python - <<'PY'
+          from pathlib import Path
+          path = Path("tool/dopamine_one_tap_server.py")
+          text = path.read_text()
+          old = '"attributes": {"name": unique_name, "profileType": "IOS_APP_ADHOC"}'
+          new = '"attributes": {"name": unique_name, "profileType": os.environ.get("DOPAMINE_PROFILE_TYPE", "IOS_APP_ADHOC")}'
+          if old not in text:
+              raise SystemExit("Profile type patch target was not found")
+          path.write_text(text.replace(old, new, 1))
+          PY
           SESSION="$(openssl rand -hex 20)"
           CHALLENGE="$(openssl rand -hex 32)"
           echo "INSTALLER_SESSION=$SESSION" >> "$GITHUB_ENV"
@@ -195,6 +206,6 @@ jobs:
           name: Dopamine-fast-session
           path: |
             installer-output/
-            signing/Dopamine-Distribution.p12
+            signing/Dopamine-Development.p12
           retention-days: 1
           if-no-files-found: warn
