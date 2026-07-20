@@ -57,10 +57,6 @@ jobs:
           python3 -m venv .venv
           .venv/bin/python -m pip install --disable-pip-version-check --quiet pyjwt cryptography requests
           echo "PATH=$(brew --prefix make)/libexec/gnubin:$PATH" >> "$GITHUB_ENV"
-          echo "CPATH=$(brew --prefix libarchive)/include:${CPATH:-}" >> "$GITHUB_ENV"
-          echo "LIBRARY_PATH=$(brew --prefix libarchive)/lib:${LIBRARY_PATH:-}" >> "$GITHUB_ENV"
-          echo "LDFLAGS=-L$(brew --prefix libarchive)/lib ${LDFLAGS:-}" >> "$GITHUB_ENV"
-          echo "CPPFLAGS=-I$(brew --prefix libarchive)/include ${CPPFLAGS:-}" >> "$GITHUB_ENV"
 
       - name: Install Procursus build tools
         uses: dhinakg/procursus-action@main
