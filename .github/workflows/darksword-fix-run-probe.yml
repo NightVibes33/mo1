@@ -1,0 +1,40 @@
+name: DarkSword Fix Run Probe
+
+on:
+  push:
+    branches:
+      - automation/apple-signing-kit
+    paths:
+      - ".github/workflows/darksword-fix-run-probe.yml"
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: automation/apple-signing-kit
+      - name: Record profile OTA runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/dopamine-profile-ota.yml/runs?branch=automation/apple-signing-kit&per_page=10" \
+            | jq '[.workflow_runs[] | {id,status,conclusion,head_sha,event,created_at,html_url}]' \
+            > darksword-fix-runs.json
+          CONTENT="$(base64 < darksword-fix-runs.json | tr -d '\n')"
+          SHA="$(gh api "repos/${GITHUB_REPOSITORY}/contents/darksword-fix-runs.json?ref=automation/apple-signing-kit" --jq .sha 2>/dev/null || true)"
+          if [[ -n "$SHA" ]]; then
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/darksword-fix-runs.json" \
+              -f message='Refresh DarkSword fix runs' -f content="$CONTENT" \
+              -f branch='automation/apple-signing-kit' -f sha="$SHA" >/dev/null
+          else
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/darksword-fix-runs.json" \
+              -f message='Record DarkSword fix runs' -f content="$CONTENT" \
+              -f branch='automation/apple-signing-kit' >/dev/null
+          fi
