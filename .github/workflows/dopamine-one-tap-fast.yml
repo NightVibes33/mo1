@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: dopamine-one-tap-live
@@ -28,6 +29,7 @@ jobs:
       APPLE_P12_PASSWORD: "1"
       DOPAMINE_BUNDLE_ID: com.nightvibes33.dopamine.ipad5
       DOPAMINE_PROFILE_NAME: Dopamine iPad 5 Development
+      PREVIOUS_SIGNING_ARTIFACT_ID: "8452841516"
       PREBUILT_URL: "https://sdmntprwestus3.oaiusercontent.com/files/00000000-48f8-81fd-a68f-df71253ced2a/raw?se=2026-07-20T06:27:47Z&sp=r&sv=2026-02-06&sr=b&scid=75a7b4e1-cc90-58df-bac6-bc052f7a2f3a&skoid=fadb8e47-d3c7-4c79-a9c3-970d9af3b213&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-07-20T00:25:18Z&ske=2026-07-22T00:25:18Z&sks=b&skv=2026-02-06&sig=o0/eKG88NZJUbSLoxS7tgf5vaxfNvpLdRlXXSe9sQHg%3D"
 
     steps:
@@ -58,26 +60,39 @@ jobs:
           set -euxo pipefail
           mkdir -p dopamine/Application installer-output signing
           curl -fL --retry 4 --retry-delay 2 "$PREBUILT_URL" -o /tmp/dopamine-artifact.zip
-          unzip -l /tmp/dopamine-artifact.zip
           IPA_PATH="$(zipinfo -1 /tmp/dopamine-artifact.zip | grep -E '(^|/)Dopamine\.ipa$' | head -n 1)"
           test -n "$IPA_PATH"
           unzip -p /tmp/dopamine-artifact.zip "$IPA_PATH" > dopamine/Application/Dopamine.ipa
           test -s dopamine/Application/Dopamine.ipa
           shasum -a 256 dopamine/Application/Dopamine.ipa
 
-      - name: Create Apple development certificate and P12
+      - name: Restore Apple development certificate and P12
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          openssl genrsa -out signing/development.key 2048
-          openssl req -new -sha256 \
-            -key signing/development.key \
-            -subj "/CN=NightVibes33 Dopamine Development/O=NightVibes33/C=US" \
-            -out signing/development.csr
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${PREVIOUS_SIGNING_ARTIFACT_ID}/zip" > /tmp/previous-signing.zip
+          rm -rf /tmp/previous-signing
+          mkdir -p /tmp/previous-signing signing
+          unzip -q /tmp/previous-signing.zip -d /tmp/previous-signing
+          P12_SOURCE="$(find /tmp/previous-signing -name 'Dopamine-Development.p12' -type f | head -n 1)"
+          test -n "$P12_SOURCE"
+          cp "$P12_SOURCE" signing/Dopamine-Development.p12
+          openssl pkcs12 -legacy \
+            -in signing/Dopamine-Development.p12 \
+            -clcerts -nokeys \
+            -passin pass:"${APPLE_P12_PASSWORD}" \
+            -out signing/development.pem
+          P12_CERT_SERIAL="$(openssl x509 -in signing/development.pem -serial -noout | cut -d= -f2)"
+          export P12_CERT_SERIAL
 
           .venv/bin/python - <<'PY'
-          import base64, os, time
+          import os, re, time
           from pathlib import Path
           import jwt, requests
+
+          def norm(value):
+              return re.sub(r"[^0-9A-Fa-f]", "", str(value or "")).upper().lstrip("0") or "0"
 
           key = os.environ["APP_STORE_CONNECT_API_KEY_P8"].replace("\\n", "\n")
           now = int(time.time())
@@ -87,31 +102,36 @@ jobs:
               algorithm="ES256",
               headers={"kid": os.environ["APP_STORE_CONNECT_KEY_ID"], "typ": "JWT"},
           )
-          headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-          csr = Path("signing/development.csr").read_text()
-          failures = []
-          for cert_type in ("IOS_DEVELOPMENT", "DEVELOPMENT"):
-              body = {"data": {"type": "certificates", "attributes": {"certificateType": cert_type, "csrContent": csr}}}
-              response = requests.post("https://api.appstoreconnect.apple.com/v1/certificates", headers=headers, json=body, timeout=60)
-              if response.status_code == 201:
-                  data = response.json()["data"]
-                  Path("signing/certificate.id").write_text(data["id"])
-                  Path("signing/development.cer").write_bytes(base64.b64decode(data["attributes"]["certificateContent"]))
-                  print(f"Created {cert_type} certificate {data['id']}")
-                  break
-              failures.append(f"{cert_type} -> {response.status_code}: {response.text}")
+          headers = {"Authorization": f"Bearer {token}"}
+          target = norm(os.environ["P12_CERT_SERIAL"])
+          url = "https://api.appstoreconnect.apple.com/v1/certificates"
+          params = {"limit": 200}
+          matches = []
+          development = []
+          while url:
+              response = requests.get(url, headers=headers, params=params, timeout=60)
+              response.raise_for_status()
+              payload = response.json()
+              for item in payload.get("data", []):
+                  attrs = item.get("attributes", {})
+                  cert_type = str(attrs.get("certificateType") or "")
+                  if cert_type in {"IOS_DEVELOPMENT", "DEVELOPMENT"}:
+                      development.append(item)
+                  if norm(attrs.get("serialNumber")) == target:
+                      matches.append(item)
+              url = payload.get("links", {}).get("next")
+              params = None
+          if matches:
+              selected = matches[0]
+          elif len(development) == 1:
+              selected = development[0]
           else:
-              raise SystemExit("Unable to create Apple development certificate:\n" + "\n".join(failures))
+              raise SystemExit(f"Could not match preserved P12 serial {target} to an Apple development certificate")
+          Path("signing/certificate.id").write_text(selected["id"])
+          attrs = selected.get("attributes", {})
+          print(f"Matched {attrs.get('certificateType')} certificate {selected['id']} serial {attrs.get('serialNumber')}")
           PY
 
-          openssl x509 -inform DER -in signing/development.cer -out signing/development.pem
-          openssl pkcs12 -export -legacy \
-            -inkey signing/development.key \
-            -in signing/development.pem \
-            -name "Dopamine Installer Development" \
-            -out signing/Dopamine-Development.p12 \
-            -passout pass:"${APPLE_P12_PASSWORD}"
-          openssl pkcs12 -legacy -in signing/Dopamine-Development.p12 -passin pass:"${APPLE_P12_PASSWORD}" -info -noout
           echo "APPLE_CERTIFICATE_ID=$(cat signing/certificate.id)" >> "$GITHUB_ENV"
           echo "APPLE_P12_PATH=$PWD/signing/Dopamine-Development.p12" >> "$GITHUB_ENV"
 
