@@ -30,7 +30,7 @@ jobs:
       DOPAMINE_BUNDLE_ID: com.nightvibes33.dopamine.ipad5
       DOPAMINE_PROFILE_NAME: Dopamine iPad 5 Development
       PREVIOUS_SIGNING_ARTIFACT_ID: "8452841516"
-      PREBUILT_URL: "https://sdmntprwestus3.oaiusercontent.com/files/00000000-48f8-81fd-a68f-df71253ced2a/raw?se=2026-07-20T06:27:47Z&sp=r&sv=2026-02-06&sr=b&scid=75a7b4e1-cc90-58df-bac6-bc052f7a2f3a&skoid=fadb8e47-d3c7-4c79-a9c3-970d9af3b213&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-07-20T00:25:18Z&ske=2026-07-22T00:25:18Z&sks=b&skv=2026-02-06&sig=o0/eKG88NZJUbSLoxS7tgf5vaxfNvpLdRlXXSe9sQHg%3D"
+      PREBUILT_ARTIFACT_ID: "8451065685"
 
     steps:
       - name: Checkout installer source
@@ -56,10 +56,12 @@ jobs:
           .venv/bin/python -m pip install --disable-pip-version-check --quiet pyjwt cryptography requests
 
       - name: Download proven Dopamine IPA
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euxo pipefail
           mkdir -p dopamine/Application installer-output signing
-          curl -fL --retry 4 --retry-delay 2 "$PREBUILT_URL" -o /tmp/dopamine-artifact.zip
+          gh api "/repos/NightVibes33/Dopamine/actions/artifacts/${PREBUILT_ARTIFACT_ID}/zip" > /tmp/dopamine-artifact.zip
           IPA_PATH="$(zipinfo -1 /tmp/dopamine-artifact.zip | grep -E '(^|/)Dopamine\.ipa$' | head -n 1)"
           test -n "$IPA_PATH"
           unzip -p /tmp/dopamine-artifact.zip "$IPA_PATH" > dopamine/Application/Dopamine.ipa
