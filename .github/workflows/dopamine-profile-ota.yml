@@ -19,9 +19,9 @@ concurrency:
 
 jobs:
   installer:
-    name: Register iPad and serve signed IPA
+    name: Build newest main, register iPad, and serve signed IPA
     runs-on: macos-latest
-    timeout-minutes: 300
+    timeout-minutes: 330
     env:
       APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -30,7 +30,8 @@ jobs:
       DOPAMINE_BUNDLE_ID: com.nightvibes33.dopamine.ipad5
       DOPAMINE_PROFILE_NAME: Dopamine iPad 5 Development
       FALLBACK_SIGNING_ARTIFACT_ID: "8452841516"
-      FALLBACK_DOPAMINE_ARTIFACT_ID: "8465177827"
+      SOURCE_REPOSITORY: NightVibes33/Dopamine
+      SOURCE_BRANCH: main
 
     steps:
       - name: Checkout installer
@@ -49,30 +50,103 @@ jobs:
           done
           exit "$missing"
 
-      - name: Install registration and signing dependencies
+      - name: Select current Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install Procursus build tools
+        uses: dhinakg/procursus-action@main
+        with:
+          packages: ldid findutils sed coreutils make
+
+      - name: Install build, registration, and tunnel dependencies
         shell: bash
         run: |
           set -euxo pipefail
-          brew install openssl cloudflared
+          brew install make libarchive openssl cloudflared
+          echo "PATH=$(brew --prefix make)/libexec/gnubin:$PATH" >> "$GITHUB_ENV"
           python3 -m venv .venv
           .venv/bin/python -m pip install --disable-pip-version-check --quiet pyjwt cryptography requests
 
-      - name: Download newest validated Dopamine iPad 5 IPA
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Clone newest Dopamine main
         shell: bash
         run: |
           set -euxo pipefail
-          mkdir -p dopamine/Application installer-output signing
-          ARTIFACT_ID="$(gh api "/repos/NightVibes33/Dopamine/actions/artifacts?name=Dopamine-iPad5-DarkSword-StockBaseline&per_page=100" \
-            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0].id // empty' 2>/dev/null || true)"
-          ARTIFACT_ID="${ARTIFACT_ID:-$FALLBACK_DOPAMINE_ARTIFACT_ID}"
-          gh api "/repos/NightVibes33/Dopamine/actions/artifacts/${ARTIFACT_ID}/zip" > /tmp/dopamine-artifact.zip
-          IPA_PATH="$(zipinfo -1 /tmp/dopamine-artifact.zip | grep -E '(^|/)(Dopamine|Dopamine-iPad5[^/]*)\.ipa$' | head -n 1)"
-          test -n "$IPA_PATH"
-          unzip -p /tmp/dopamine-artifact.zip "$IPA_PATH" > dopamine/Application/Dopamine.ipa
-          test -s dopamine/Application/Dopamine.ipa
-          shasum -a 256 dopamine/Application/Dopamine.ipa
+          EXPECTED_SHA="$(git ls-remote "https://github.com/${SOURCE_REPOSITORY}.git" "refs/heads/${SOURCE_BRANCH}" | awk '{print $1}')"
+          test -n "$EXPECTED_SHA"
+          git clone --depth 1 --branch "$SOURCE_BRANCH" --recurse-submodules --shallow-submodules \
+            "https://github.com/${SOURCE_REPOSITORY}.git" dopamine
+          ACTUAL_SHA="$(git -C dopamine rev-parse HEAD)"
+          [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]]
+          echo "DOPAMINE_SOURCE_SHA=$ACTUAL_SHA" >> "$GITHUB_ENV"
+          printf '%s\n' "$ACTUAL_SHA" > dopamine-installer-source-sha.txt
+
+      - name: Apply iPad 5 DarkSword patch
+        shell: bash
+        working-directory: dopamine
+        run: |
+          set -euxo pipefail
+          python3 research/ipad5_darksword_patch.py
+          git diff --check
+
+      - name: Install THEOS and iOS 16.5 SDK
+        shell: bash
+        working-directory: dopamine
+        run: |
+          set -euxo pipefail
+          export THEOS="$PWD/theos"
+          mkdir -p "$THEOS"
+          curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos > install-theos.sh
+          gsed -E "/^\s*get_theos\s*$/,+1 s/^(\s*)(get_sdks)\s*$/\1mkdir -p \${THEOS}\/sdks\n\1touch \${THEOS}\/sdks\/sdk\n\1\2/g" -i install-theos.sh
+          bash install-theos.sh
+          curl -fL https://github.com/theos/sdks/releases/latest/download/iPhoneOS16.5.sdk.tar.xz \
+            -o "$THEOS/sdks/iPhoneOS16.5.sdk.tar.xz"
+          tar -xf "$THEOS/sdks/iPhoneOS16.5.sdk.tar.xz" -C "$THEOS/sdks"
+          rm "$THEOS/sdks/iPhoneOS16.5.sdk.tar.xz"
+
+      - name: Build and install trustcache
+        shell: bash
+        working-directory: dopamine
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 https://github.com/CRKatri/trustcache
+          cd trustcache
+          export CFLAGS="${CFLAGS:-} -I$(brew --prefix openssl)/include -arch arm64"
+          export LDFLAGS="${LDFLAGS:-} -L$(brew --prefix openssl)/lib -arch arm64"
+          gmake -j"$(sysctl -n hw.logicalcpu)" OPENSSL=1
+          sudo cp trustcache /opt/procursus/bin/
+
+      - name: Set newest build metadata
+        shell: bash
+        working-directory: dopamine
+        run: |
+          set -euxo pipefail
+          T2="$(TZ=UTC-2 date +'%Y%m%d_%H%M%S')"
+          TS="$(date -j -f '%Y%m%d_%H%M%S' "$T2" +%s)"
+          SHASH="$(git rev-parse --short HEAD)"
+          echo "ctime=$T2" >> "$GITHUB_ENV"
+          echo "ctimestamp=$TS" >> "$GITHUB_ENV"
+          echo "shorthash=$SHASH" >> "$GITHUB_ENV"
+
+      - name: Download Dopamine bootstraps
+        shell: bash
+        working-directory: dopamine/Application/Dopamine/Resources
+        run: |
+          set -euxo pipefail
+          ./download_bootstraps.sh
+
+      - name: Build newest Dopamine main IPA
+        shell: bash
+        working-directory: dopamine
+        run: |
+          set -euxo pipefail
+          export BASEDIR="$PWD"
+          export THEOS="$BASEDIR/theos"
+          gmake -j"$(sysctl -n hw.logicalcpu)" NIGHTLY=1
+          test -s Application/Dopamine.ipa
+          shasum -a 256 Application/Dopamine.ipa
+          mkdir -p "$GITHUB_WORKSPACE/installer-output" "$GITHUB_WORKSPACE/signing"
 
       - name: Restore the existing Apple development P12
         env:
@@ -171,7 +245,7 @@ jobs:
           echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           echo "SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
 
-      - name: Start profile registration and OTA server
+      - name: Start detailed profile registration and OTA server
         shell: bash
         run: |
           set -euxo pipefail
@@ -208,29 +282,37 @@ jobs:
           done
           test -n "$URL"
           printf '%s/\n' "$URL" > dopamine-installer-url.txt
+          printf '%s\n' "$DOPAMINE_SOURCE_SHA" > dopamine-installer-source-sha.txt
           echo "INSTALLER_URL=$URL/" >> "$GITHUB_ENV"
           echo "::notice title=Dopamine Profile OTA Installer::$URL/"
+          echo "::notice title=Dopamine Source Commit::$DOPAMINE_SOURCE_SHA"
 
-          CONTENT="$(base64 < dopamine-installer-url.txt | tr -d '\n')"
-          SHA="$(gh api "repos/${GITHUB_REPOSITORY}/contents/dopamine-installer-url.txt?ref=automation/apple-signing-kit" --jq .sha 2>/dev/null || true)"
-          if [[ -n "$SHA" ]]; then
-            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/dopamine-installer-url.txt" \
-              -f message='Update Dopamine profile OTA installer URL' \
-              -f content="$CONTENT" \
-              -f branch='automation/apple-signing-kit' \
-              -f sha="$SHA" >/dev/null
-          else
-            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/dopamine-installer-url.txt" \
-              -f message='Record Dopamine profile OTA installer URL' \
-              -f content="$CONTENT" \
-              -f branch='automation/apple-signing-kit' >/dev/null
-          fi
+          upload_file() {
+            local path="$1"
+            local message="$2"
+            local encoded current_sha
+            encoded="$(base64 < "$path" | tr -d '\n')"
+            current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/${path}?ref=automation/apple-signing-kit" --jq .sha 2>/dev/null || true)"
+            if [[ -n "$current_sha" ]]; then
+              gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/${path}" \
+                -f message="$message" -f content="$encoded" \
+                -f branch='automation/apple-signing-kit' -f sha="$current_sha" >/dev/null
+            else
+              gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/${path}" \
+                -f message="$message" -f content="$encoded" \
+                -f branch='automation/apple-signing-kit' >/dev/null
+            fi
+          }
+          upload_file dopamine-installer-url.txt 'Update newest Dopamine profile OTA URL'
+          upload_file dopamine-installer-source-sha.txt 'Record newest Dopamine source SHA'
 
-      - name: Upload installer URL
+      - name: Upload installer URL and source proof
         uses: actions/upload-artifact@v4
         with:
           name: Dopamine-profile-OTA-installer-url
-          path: dopamine-installer-url.txt
+          path: |
+            dopamine-installer-url.txt
+            dopamine-installer-source-sha.txt
           retention-days: 1
           if-no-files-found: error
 
@@ -239,6 +321,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "DOPAMINE_INSTALLER_URL=$INSTALLER_URL"
+          echo "DOPAMINE_SOURCE_SHA=$DOPAMINE_SOURCE_SHA"
           SERVER_PID="$(cat installer-output/server.pid)"
           TUNNEL_PID="$(cat installer-output/tunnel.pid)"
           END=$((SECONDS + 14400))
@@ -256,5 +339,6 @@ jobs:
           path: |
             installer-output/
             signing/Dopamine-Development.p12
+            dopamine-installer-source-sha.txt
           retention-days: 1
           if-no-files-found: warn
