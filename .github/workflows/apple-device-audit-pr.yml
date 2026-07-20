@@ -1,0 +1,83 @@
+name: Apple Device Audit PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/apple-device-audit-pr.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: List registered Apple devices safely
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install API client dependencies
+        run: python3 -m pip install --disable-pip-version-check --quiet pyjwt cryptography requests
+
+      - name: Query registered iPads
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, time
+          import jwt, requests
+
+          required = [
+              "APP_STORE_CONNECT_API_KEY_P8",
+              "APP_STORE_CONNECT_KEY_ID",
+              "APP_STORE_CONNECT_ISSUER_ID",
+          ]
+          missing = [name for name in required if not os.environ.get(name)]
+          if missing:
+              print("::error::Missing Apple API secrets: " + ", ".join(missing))
+              raise SystemExit(1)
+
+          private_key = os.environ["APP_STORE_CONNECT_API_KEY_P8"].replace("\\n", "\n")
+          now = int(time.time())
+          token = jwt.encode(
+              {"iss": os.environ["APP_STORE_CONNECT_ISSUER_ID"], "iat": now, "exp": now + 600, "aud": "appstoreconnect-v1"},
+              private_key,
+              algorithm="ES256",
+              headers={"kid": os.environ["APP_STORE_CONNECT_KEY_ID"], "typ": "JWT"},
+          )
+          headers = {"Authorization": f"Bearer {token}"}
+          url = "https://api.appstoreconnect.apple.com/v1/devices"
+          params = {"limit": 200, "fields[devices]": "name,platform,udid,deviceClass,status,model,addedDate"}
+          devices = []
+          while url:
+              response = requests.get(url, headers=headers, params=params, timeout=30)
+              if response.status_code != 200:
+                  print(f"::error::Apple API returned HTTP {response.status_code}")
+                  raise SystemExit(1)
+              payload = response.json()
+              devices.extend(payload.get("data", []))
+              url = payload.get("links", {}).get("next")
+              params = None
+
+          ipads = []
+          for item in devices:
+              attrs = item.get("attributes", {})
+              model = str(attrs.get("model") or "")
+              device_class = str(attrs.get("deviceClass") or "")
+              if device_class.upper() == "IPAD" or "IPAD" in model.upper():
+                  udid = str(attrs.get("udid") or "")
+                  ipads.append({
+                      "model": model or "unknown",
+                      "status": attrs.get("status") or "unknown",
+                      "platform": attrs.get("platform") or "unknown",
+                      "addedDate": attrs.get("addedDate") or "unknown",
+                      "udidSuffix": udid[-4:] if udid else "none",
+                      "udidHash": hashlib.sha256(udid.encode()).hexdigest()[:12] if udid else "none",
+                  })
+
+          print("APPLE_DEVICE_AUDIT_BEGIN")
+          print(json.dumps({"registeredDeviceCount": len(devices), "registeredIPadCount": len(ipads), "ipads": ipads}, indent=2))
+          print("APPLE_DEVICE_AUDIT_END")
+          PY
