@@ -30,7 +30,7 @@ jobs:
       DOPAMINE_BUNDLE_ID: com.nightvibes33.dopamine.ipad5
       DOPAMINE_PROFILE_NAME: Dopamine iPad 5 Development
       PREVIOUS_SIGNING_ARTIFACT_ID: "8452841516"
-      PREBUILT_ARTIFACT_ID: "8451065685"
+      PREBUILT_ARTIFACT_ID: "8453738925"
 
     steps:
       - name: Checkout installer source
