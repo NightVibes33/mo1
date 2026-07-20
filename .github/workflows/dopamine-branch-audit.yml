@@ -1,0 +1,52 @@
+name: Dopamine Branch Audit
+
+on:
+  push:
+    branches:
+      - automation/branch-audit-temp
+    paths:
+      - ".github/workflows/dopamine-branch-audit.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: automation/branch-audit-temp
+      - name: Compare every Dopamine branch to main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate "/repos/NightVibes33/Dopamine/branches?per_page=100" > /tmp/branches-pages.json
+          jq -s 'add' /tmp/branches-pages.json > /tmp/branches.json
+          MAIN_SHA="$(gh api /repos/NightVibes33/Dopamine/branches/main --jq .commit.sha)"
+          printf '{"main_sha":"%s","branches":[' "$MAIN_SHA" > branch-audit.json
+          first=1
+          while IFS= read -r branch; do
+            [[ "$branch" == "main" ]] && continue
+            encoded="$(jq -rn --arg v "$branch" '$v|@uri')"
+            compare="$(gh api "/repos/NightVibes33/Dopamine/compare/main...${encoded}")"
+            status="$(jq -r .status <<<"$compare")"
+            ahead="$(jq -r .ahead_by <<<"$compare")"
+            behind="$(jq -r .behind_by <<<"$compare")"
+            sha="$(gh api "/repos/NightVibes33/Dopamine/branches/${encoded}" --jq .commit.sha)"
+            [[ $first -eq 0 ]] && printf ',' >> branch-audit.json
+            first=0
+            jq -cn --arg name "$branch" --arg sha "$sha" --arg status "$status" --argjson ahead "$ahead" --argjson behind "$behind" '{name:$name,sha:$sha,status_vs_main:$status,ahead_by:$ahead,behind_by:$behind}' >> branch-audit.json
+          done < <(jq -r '.[].name' /tmp/branches.json)
+          printf ']}' >> branch-audit.json
+          jq . branch-audit.json > branch-audit.pretty.json
+          mv branch-audit.pretty.json branch-audit.json
+          CONTENT="$(base64 < branch-audit.json | tr -d '\n')"
+          SHA="$(gh api "repos/${GITHUB_REPOSITORY}/contents/branch-audit.json?ref=automation/branch-audit-temp" --jq .sha 2>/dev/null || true)"
+          if [[ -n "$SHA" ]]; then
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/branch-audit.json" -f message='Refresh Dopamine branch audit' -f content="$CONTENT" -f branch='automation/branch-audit-temp' -f sha="$SHA" >/dev/null
+          else
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/branch-audit.json" -f message='Record Dopamine branch audit' -f content="$CONTENT" -f branch='automation/branch-audit-temp' >/dev/null
+          fi
