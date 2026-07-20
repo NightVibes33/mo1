@@ -40,6 +40,7 @@ P12_PASSWORD = os.environ.get("APPLE_P12_PASSWORD", "1")
 API_KEY = os.environ["APP_STORE_CONNECT_API_KEY_P8"].replace("\\n", "\n")
 API_KEY_ID = os.environ["APP_STORE_CONNECT_KEY_ID"]
 API_ISSUER_ID = os.environ["APP_STORE_CONNECT_ISSUER_ID"]
+BUILD_NUMBER = os.environ.get("DOPAMINE_BUILD_NUMBER", str(int(time.time())))
 
 STATE_LOCK = threading.Lock()
 STATE: dict[str, Any] = {
@@ -199,6 +200,8 @@ def sign_ipa(profile_bytes: bytes) -> None:
         info["CFBundleIdentifier"] = BUNDLE_ID
         info["CFBundleDisplayName"] = "Dopamine iPad 5"
         info["CFBundleName"] = "Dopamine"
+        info["CFBundleShortVersionString"] = "2.4.99"
+        info["CFBundleVersion"] = BUILD_NUMBER
         with info_path.open("wb") as handle:
             plistlib.dump(info, handle, fmt=plistlib.FMT_BINARY, sort_keys=False)
 
@@ -245,7 +248,7 @@ def register_and_sign(udid: str, product: str, version: str) -> None:
         sign_ipa(profile)
         update_state(
             status="ready",
-            message="Dopamine is signed and ready to install.",
+            message=f"Dopamine build {BUILD_NUMBER} is signed and ready to install.",
             signed_sha256=hashlib.sha256(SIGNED_IPA.read_bytes()).hexdigest(),
             signed_size=SIGNED_IPA.stat().st_size,
         )
@@ -298,7 +301,7 @@ def manifest(base_url: str) -> bytes:
             "assets": [{"kind": "software-package", "url": f"{base_url}/download.ipa?session={SESSION}"}],
             "metadata": {
                 "bundle-identifier": BUNDLE_ID,
-                "bundle-version": "2.5.0",
+                "bundle-version": BUILD_NUMBER,
                 "kind": "software",
                 "title": "Dopamine iPad 5",
             },
@@ -318,7 +321,7 @@ def page(base_url: str) -> bytes:
 <body><main class=\"card\"><h1>Dopamine iPad 5 Installer</h1><p>One guided flow: identify this iPad, register it with your Apple Developer team, sign the experimental DarkSword build, then install it.</p>
 <div class=\"steps\"><div class=\"step\"><b>1. Identify this iPad</b>Apple requires its UDID for Ad Hoc signing.</div><div class=\"step\"><b>2. Automatic signing</b>The server registers the device and creates its provisioning profile.</div><div class=\"step\"><b>3. Install</b>Return here after Settings finishes installing the temporary identification profile.</div></div>
 <a class=\"button\" href=\"/enroll.mobileconfig?session={safe_session}\">Start iPad Registration</a>
-<a id=\"install\" class=\"button hidden\" href=\"{html.escape(install_url)}\">Install Dopamine</a>
+<a id=\"install\" class=\"button hidden\" target=\"_self\" href=\"{html.escape(install_url)}\">Install Dopamine Build {BUILD_NUMBER}</a>
 <div id=\"status\" class=\"status\">Waiting for this iPad.</div><small>The profile requests UDID, product model and OS version only. Apple requires confirmation for both the profile and app installation; those prompts cannot be bypassed.</small></main>
 <script>const s={json.dumps(SESSION)};const box=document.getElementById('status');const install=document.getElementById('install');async function poll(){{try{{const r=await fetch('/status?session='+encodeURIComponent(s),{{cache:'no-store'}});const j=await r.json();box.textContent=j.message+(j.error?'\\n'+j.error:'');if(j.status==='ready')install.classList.remove('hidden');}}catch(e){{box.textContent='Connection interrupted. Reload this page.'}}}}poll();setInterval(poll,2500);</script></body></html>""".encode()
 
