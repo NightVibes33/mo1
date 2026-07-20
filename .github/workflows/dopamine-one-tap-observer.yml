@@ -46,10 +46,14 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             "/repos/${GITHUB_REPOSITORY}/actions/jobs/${JOB_ID}/logs" \
             > job-logs.bin
-          echo "LIVE_JOB_LOG_TAIL_BEGIN"
           if unzip -tq job-logs.bin >/dev/null 2>&1; then
-            unzip -p job-logs.bin | tail -n 180
+            unzip -p job-logs.bin > job.log
           else
-            tail -n 180 job-logs.bin
+            cp job-logs.bin job.log
           fi
-          echo "LIVE_JOB_LOG_TAIL_END"
+          echo "LIVE_JOB_ERROR_LINES_BEGIN"
+          grep -Ei '(^|[^a-z])(error|failed|failure|fatal|not found|unavailable|conflict|cannot|unsupported)([^a-z]|$)' job.log | tail -n 60 || true
+          echo "LIVE_JOB_ERROR_LINES_END"
+          echo "LIVE_JOB_LAST_LINES_BEGIN"
+          tail -n 35 job.log
+          echo "LIVE_JOB_LAST_LINES_END"
