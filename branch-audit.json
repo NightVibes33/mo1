@@ -1,0 +1,26 @@
+{
+  "main_sha": "9b0b648346c96151556214e9100ee8029f2e7d80",
+  "branches": [
+    {
+      "name": "2.x",
+      "sha": "e89072adc591881146c9513a616fa68b7323d6a7",
+      "status_vs_main": "behind",
+      "ahead_by": 0,
+      "behind_by": 32
+    },
+    {
+      "name": "main-backup-before-installer",
+      "sha": "9b0b648346c96151556214e9100ee8029f2e7d80",
+      "status_vs_main": "identical",
+      "ahead_by": 0,
+      "behind_by": 0
+    },
+    {
+      "name": "research/ipad5-darksword",
+      "sha": "9b0b648346c96151556214e9100ee8029f2e7d80",
+      "status_vs_main": "identical",
+      "ahead_by": 0,
+      "behind_by": 0
+    }
+  ]
+}
