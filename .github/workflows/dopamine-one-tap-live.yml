@@ -107,7 +107,7 @@ jobs:
           export shorthash="$(git rev-parse --short HEAD)"
           cd Application/Dopamine/Resources
           ./download_bootstraps.sh
-          cd ../../../..
+          cd ../../..
           gmake -j"$(sysctl -n hw.logicalcpu)" NIGHTLY=1
           test -f Application/Dopamine.ipa
           shasum -a 256 Application/Dopamine.ipa
