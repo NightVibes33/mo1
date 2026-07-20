@@ -1,0 +1,198 @@
+name: Dopamine One-Tap Fast Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - automation/apple-signing-kit
+    paths:
+      - ".github/workflows/dopamine-one-tap-fast.yml"
+      - "tool/dopamine_one_tap_server.py"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dopamine-one-tap-live
+  cancel-in-progress: true
+
+jobs:
+  installer:
+    name: Fast iPad registration and signing service
+    runs-on: macos-latest
+    timeout-minutes: 300
+    env:
+      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APPLE_P12_PASSWORD: "1"
+      DOPAMINE_BUNDLE_ID: com.nightvibes33.dopamine.ipad5
+      DOPAMINE_PROFILE_NAME: Dopamine iPad 5 Ad Hoc
+      PREBUILT_URL: "https://sdmntprwestus3.oaiusercontent.com/files/00000000-48f8-81fd-a68f-df71253ced2a/raw?se=2026-07-20T06:27:47Z&sp=r&sv=2026-02-06&sr=b&scid=75a7b4e1-cc90-58df-bac6-bc052f7a2f3a&skoid=fadb8e47-d3c7-4c79-a9c3-970d9af3b213&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-07-20T00:25:18Z&ske=2026-07-22T00:25:18Z&sks=b&skv=2026-02-06&sig=o0/eKG88NZJUbSLoxS7tgf5vaxfNvpLdRlXXSe9sQHg%3D"
+
+    steps:
+      - name: Checkout installer source
+        uses: actions/checkout@v4
+
+      - name: Validate Apple API credentials
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in APP_STORE_CONNECT_API_KEY_P8 APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Install signing service dependencies
+        run: |
+          set -euxo pipefail
+          brew install openssl cloudflared
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --disable-pip-version-check --quiet pyjwt cryptography requests
+
+      - name: Download proven Dopamine IPA
+        run: |
+          set -euxo pipefail
+          mkdir -p dopamine/Application installer-output signing
+          curl -fL --retry 4 --retry-delay 2 "$PREBUILT_URL" -o /tmp/dopamine-artifact.zip
+          unzip -l /tmp/dopamine-artifact.zip
+          IPA_PATH="$(zipinfo -1 /tmp/dopamine-artifact.zip | grep -E '(^|/)Dopamine\.ipa$' | head -n 1)"
+          test -n "$IPA_PATH"
+          unzip -p /tmp/dopamine-artifact.zip "$IPA_PATH" > dopamine/Application/Dopamine.ipa
+          test -s dopamine/Application/Dopamine.ipa
+          shasum -a 256 dopamine/Application/Dopamine.ipa
+
+      - name: Create Apple distribution certificate and P12
+        run: |
+          set -euo pipefail
+          openssl genrsa -out signing/distribution.key 2048
+          openssl req -new -sha256 \
+            -key signing/distribution.key \
+            -subj "/CN=NightVibes33 Dopamine Installer/O=NightVibes33/C=US" \
+            -out signing/distribution.csr
+
+          .venv/bin/python - <<'PY'
+          import base64, os, time
+          from pathlib import Path
+          import jwt, requests
+
+          key = os.environ["APP_STORE_CONNECT_API_KEY_P8"].replace("\\n", "\n")
+          now = int(time.time())
+          token = jwt.encode(
+              {"iss": os.environ["APP_STORE_CONNECT_ISSUER_ID"], "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
+              key,
+              algorithm="ES256",
+              headers={"kid": os.environ["APP_STORE_CONNECT_KEY_ID"], "typ": "JWT"},
+          )
+          headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+          csr = Path("signing/distribution.csr").read_text()
+          last = None
+          for cert_type in ("DISTRIBUTION", "IOS_DISTRIBUTION"):
+              body = {"data": {"type": "certificates", "attributes": {"certificateType": cert_type, "csrContent": csr}}}
+              response = requests.post("https://api.appstoreconnect.apple.com/v1/certificates", headers=headers, json=body, timeout=60)
+              if response.status_code == 201:
+                  data = response.json()["data"]
+                  Path("signing/certificate.id").write_text(data["id"])
+                  Path("signing/distribution.cer").write_bytes(base64.b64decode(data["attributes"]["certificateContent"]))
+                  print(f"Created {cert_type} certificate {data['id']}")
+                  break
+              last = f"{response.status_code}: {response.text}"
+          else:
+              raise SystemExit(f"Unable to create Apple distribution certificate: {last}")
+          PY
+
+          openssl x509 -inform DER -in signing/distribution.cer -out signing/distribution.pem
+          openssl pkcs12 -export \
+            -inkey signing/distribution.key \
+            -in signing/distribution.pem \
+            -name "Dopamine Installer Distribution" \
+            -out signing/Dopamine-Distribution.p12 \
+            -passout pass:"${APPLE_P12_PASSWORD}"
+          echo "APPLE_CERTIFICATE_ID=$(cat signing/certificate.id)" >> "$GITHUB_ENV"
+          echo "APPLE_P12_PATH=$PWD/signing/Dopamine-Distribution.p12" >> "$GITHUB_ENV"
+
+      - name: Import signing identity
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/dopamine-installer.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$APPLE_P12_PATH" -k "$KEYCHAIN" -P "$APPLE_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | awk '/Dopamine Installer Distribution|Apple Distribution|iPhone Distribution/ {print $2; exit}')"
+          test -n "$IDENTITY"
+          echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Start one-tap installer service
+        run: |
+          set -euo pipefail
+          SESSION="$(openssl rand -hex 20)"
+          CHALLENGE="$(openssl rand -hex 32)"
+          echo "INSTALLER_SESSION=$SESSION" >> "$GITHUB_ENV"
+          echo "INSTALLER_CHALLENGE=$CHALLENGE" >> "$GITHUB_ENV"
+          export INSTALLER_SESSION="$SESSION"
+          export INSTALLER_CHALLENGE="$CHALLENGE"
+          export UNSIGNED_IPA="$PWD/dopamine/Application/Dopamine.ipa"
+          export OUTPUT_DIR="$PWD/installer-output"
+          nohup .venv/bin/python tool/dopamine_one_tap_server.py > installer-output/server.log 2>&1 &
+          echo $! > installer-output/server.pid
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/health >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/health
+
+      - name: Publish secure HTTPS installer
+        run: |
+          set -euo pipefail
+          nohup cloudflared tunnel --url http://127.0.0.1:8080 --no-autoupdate > installer-output/tunnel.log 2>&1 &
+          echo $! > installer-output/tunnel.pid
+          URL=""
+          for i in $(seq 1 90); do
+            URL="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' installer-output/tunnel.log | head -n 1 || true)"
+            [ -n "$URL" ] && break
+            sleep 1
+          done
+          test -n "$URL"
+          echo "$URL" > installer-output/installer-url.txt
+          echo "INSTALLER_URL=$URL" >> "$GITHUB_ENV"
+          echo "::notice title=Dopamine Installer::$URL"
+
+      - name: Upload live installer URL
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dopamine-live-installer-url
+          path: installer-output/installer-url.txt
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Keep installer online
+        run: |
+          set -euo pipefail
+          echo "DOPAMINE_INSTALLER_URL=$INSTALLER_URL"
+          SERVER_PID="$(cat installer-output/server.pid)"
+          TUNNEL_PID="$(cat installer-output/tunnel.pid)"
+          END=$((SECONDS + 14400))
+          while [ "$SECONDS" -lt "$END" ]; do
+            kill -0 "$SERVER_PID" 2>/dev/null || { cat installer-output/server.log; exit 1; }
+            kill -0 "$TUNNEL_PID" 2>/dev/null || { cat installer-output/tunnel.log; exit 1; }
+            sleep 30
+          done
+
+      - name: Upload session diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dopamine-fast-session
+          path: |
+            installer-output/
+            signing/Dopamine-Distribution.p12
+          retention-days: 1
+          if-no-files-found: warn
