@@ -16,10 +16,10 @@ text = text.replace(
     'allowed["get-task-allow"] = True',
 )
 
-# Brand the complete OTA flow. Internal script filenames remain unchanged.
+# Brand the complete OTA flow. Internal repository filenames remain unchanged.
 text = text.replace("DOPAMINE_", "PALERAMINE_")
 text = text.replace("Dopamine", "Paleramine")
-text = text.replace("dopamine-sign-", "paleramine-sign-")
+text = text.replace("dopamine", "paleramine")
 text = text.replace('"2.4.99"', '"0.1.0"')
 text = text.replace(
     "sign the experimental DarkSword build, then install it.",
@@ -38,6 +38,7 @@ required = (
     "Paleramine-Diagnostics.log",
     "PALERAMINE_BUNDLE_ID",
     "PALERAMINE_BUILD_NUMBER",
+    "com.nightvibes33.paleramine.enroll",
     "setInterval(poll,2500)",
 )
 missing = [item for item in required if item not in text]
