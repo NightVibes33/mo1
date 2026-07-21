@@ -32,28 +32,38 @@ jobs:
 
           path = Path('/tmp/paleramine-profile-ota.yml')
           text = path.read_text(encoding='utf-8')
-          replacements = {
-              'name: Paleramine Profile OTA Installer': 'name: Paleramine Runtime Preview OTA Installer',
-              'name: Build Paleramine, register iPad, and serve signed IPA': 'name: Build safe Paleramine Runtime Preview and serve signed IPA',
-              'SOURCE_BRANCH: research/paleramine-no-pc': 'SOURCE_BRANCH: research/paleramine-runtime-preentry',
-              '- name: Apply Paleramine integration patch': '- name: Apply Paleramine branding and safe runtime-preview gate',
-              '          python3 research/paleramine_full_build_patch.py\n          git diff --check': (
-                  '          python3 research/paleramine_full_build_patch.py\n'
-                  '          python3 -m py_compile research/paleramine_runtime_preview_patch.py\n'
-                  '          python3 research/paleramine_runtime_preview_patch.py\n'
-                  '          git diff --check'
-              ),
-              "          grep -F 'bundle_id=com.nightvibes33.paleramine.ipad5' paleramine-build-manifest.txt": (
-                  "          grep -F 'bundle_id=com.nightvibes33.paleramine.ipad5' paleramine-build-manifest.txt\n"
-                  "          grep -F 'build_mode=runtime-preview' paleramine-build-manifest.txt\n"
-                  "          grep -F 'kernel_entry=disabled' paleramine-build-manifest.txt\n"
-                  "          grep -F 'ota_installable=true' paleramine-build-manifest.txt"
-              ),
-          }
-          for old, new in replacements.items():
-              if text.count(old) != 1:
-                  raise SystemExit(f'Expected exactly one workflow marker: {old!r}')
-              text = text.replace(old, new)
+          text = text.replace('name: Paleramine Profile OTA Installer', 'name: Paleramine Runtime Preview OTA Installer', 1)
+          text = text.replace('name: Build Paleramine, register iPad, and serve signed IPA', 'name: Build safe Paleramine Runtime Preview and serve signed IPA', 1)
+          text = text.replace('SOURCE_BRANCH: research/paleramine-no-pc', 'SOURCE_BRANCH: research/paleramine-runtime-preentry', 1)
+          text = text.replace('- name: Apply Paleramine integration patch', '- name: Apply Paleramine branding and safe runtime-preview gate', 1)
+
+          patch_line = '          python3 research/paleramine_full_build_patch.py\n'
+          preview_lines = (
+              patch_line
+              + '          python3 -m py_compile research/paleramine_runtime_preview_patch.py\n'
+              + '          python3 research/paleramine_runtime_preview_patch.py\n'
+          )
+          text = text.replace(patch_line, preview_lines, 1)
+
+          bundle_check = "          grep -F 'bundle_id=com.nightvibes33.paleramine.ipad5' paleramine-build-manifest.txt\n"
+          safety_checks = (
+              bundle_check
+              + "          grep -F 'build_mode=runtime-preview' paleramine-build-manifest.txt\n"
+              + "          grep -F 'kernel_entry=disabled' paleramine-build-manifest.txt\n"
+              + "          grep -F 'ota_installable=true' paleramine-build-manifest.txt\n"
+          )
+          text = text.replace(bundle_check, safety_checks, 1)
+
+          required = [
+              'name: Paleramine Runtime Preview OTA Installer',
+              'SOURCE_BRANCH: research/paleramine-runtime-preentry',
+              'python3 research/paleramine_runtime_preview_patch.py',
+              "grep -F 'kernel_entry=disabled' paleramine-build-manifest.txt",
+          ]
+          for marker in required:
+              if marker not in text:
+                  raise SystemExit(f'Missing restored workflow marker: {marker}')
+
           path.write_text(text, encoding='utf-8')
           PY
           mv /tmp/paleramine-profile-ota.yml .github/workflows/dopamine-profile-ota.yml
