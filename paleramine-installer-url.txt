@@ -1,1 +1,1 @@
-DISABLED_AFTER_DEVICE_REBOOT
+https://pros-brook-whale-spotlight.trycloudflare.com/
