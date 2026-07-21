@@ -1,4 +1,4 @@
-name: Dopamine Profile OTA Installer
+name: Paleramine Profile OTA Installer
 
 on:
   workflow_dispatch:
@@ -8,18 +8,19 @@ on:
     paths:
       - ".github/workflows/dopamine-profile-ota.yml"
       - "tool/prepare_dopamine_profile_ota.py"
+      - "tool/dopamine_one_tap_server.py"
 
 permissions:
   contents: write
   actions: read
 
 concurrency:
-  group: dopamine-profile-ota-live
+  group: paleramine-profile-ota-live
   cancel-in-progress: true
 
 jobs:
   installer:
-    name: Build newest main, register iPad, and serve signed IPA
+    name: Build Paleramine, register iPad, and serve signed IPA
     runs-on: macos-latest
     timeout-minutes: 330
     env:
@@ -27,11 +28,11 @@ jobs:
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APPLE_P12_PASSWORD: "1"
-      DOPAMINE_BUNDLE_ID: com.nightvibes33.dopamine.ipad5
-      DOPAMINE_PROFILE_NAME: Dopamine iPad 5 Development
+      PALERAMINE_BUNDLE_ID: com.nightvibes33.paleramine.ipad5
+      PALERAMINE_PROFILE_NAME: Paleramine iPad 5 Development
       FALLBACK_SIGNING_ARTIFACT_ID: "8452841516"
       SOURCE_REPOSITORY: NightVibes33/Dopamine
-      SOURCE_BRANCH: main
+      SOURCE_BRANCH: research/paleramine-no-pc
 
     steps:
       - name: Checkout installer
@@ -69,30 +70,34 @@ jobs:
           python3 -m venv .venv
           .venv/bin/python -m pip install --disable-pip-version-check --quiet pyjwt cryptography requests
 
-      - name: Clone newest Dopamine main
+      - name: Clone pinned Paleramine source branch
         shell: bash
         run: |
           set -euxo pipefail
           EXPECTED_SHA="$(git ls-remote "https://github.com/${SOURCE_REPOSITORY}.git" "refs/heads/${SOURCE_BRANCH}" | awk '{print $1}')"
           test -n "$EXPECTED_SHA"
           git clone --depth 1 --branch "$SOURCE_BRANCH" --recurse-submodules --shallow-submodules \
-            "https://github.com/${SOURCE_REPOSITORY}.git" dopamine
-          ACTUAL_SHA="$(git -C dopamine rev-parse HEAD)"
+            "https://github.com/${SOURCE_REPOSITORY}.git" paleramine
+          ACTUAL_SHA="$(git -C paleramine rev-parse HEAD)"
           [[ "$ACTUAL_SHA" == "$EXPECTED_SHA" ]]
-          echo "DOPAMINE_SOURCE_SHA=$ACTUAL_SHA" >> "$GITHUB_ENV"
-          printf '%s\n' "$ACTUAL_SHA" > dopamine-installer-source-sha.txt
+          echo "PALERAMINE_SOURCE_SHA=$ACTUAL_SHA" >> "$GITHUB_ENV"
+          printf '%s\n' "$ACTUAL_SHA" > paleramine-installer-source-sha.txt
 
-      - name: Apply iPad 5 DarkSword patch
+      - name: Apply Paleramine integration patch
         shell: bash
-        working-directory: dopamine
+        working-directory: paleramine
         run: |
           set -euxo pipefail
-          python3 research/ipad5_darksword_patch.py
+          python3 -m py_compile research/paleramine_full_build_patch.py
+          python3 research/paleramine_full_build_patch.py
           git diff --check
+          test -s paleramine-build-manifest.txt
+          grep -F 'brand=Paleramine' paleramine-build-manifest.txt
+          grep -F 'bundle_id=com.nightvibes33.paleramine.ipad5' paleramine-build-manifest.txt
 
       - name: Install THEOS and iOS 16.5 SDK
         shell: bash
-        working-directory: dopamine
+        working-directory: paleramine
         run: |
           set -euxo pipefail
           export THEOS="$PWD/theos"
@@ -107,7 +112,7 @@ jobs:
 
       - name: Build and install trustcache
         shell: bash
-        working-directory: dopamine
+        working-directory: paleramine
         run: |
           set -euxo pipefail
           git clone --depth 1 https://github.com/CRKatri/trustcache
@@ -117,9 +122,9 @@ jobs:
           gmake -j"$(sysctl -n hw.logicalcpu)" OPENSSL=1
           sudo cp trustcache /opt/procursus/bin/
 
-      - name: Set newest build metadata
+      - name: Set Paleramine build metadata
         shell: bash
-        working-directory: dopamine
+        working-directory: paleramine
         run: |
           set -euxo pipefail
           T2="$(TZ=UTC-2 date +'%Y%m%d_%H%M%S')"
@@ -129,26 +134,36 @@ jobs:
           echo "ctimestamp=$TS" >> "$GITHUB_ENV"
           echo "shorthash=$SHASH" >> "$GITHUB_ENV"
 
-      - name: Download Dopamine bootstraps
+      - name: Download bootstrap assets
         shell: bash
-        working-directory: dopamine/Application/Dopamine/Resources
+        working-directory: paleramine/Application/Dopamine/Resources
         run: |
           set -euxo pipefail
           ./download_bootstraps.sh
 
-      - name: Build newest Dopamine main IPA
+      - name: Build Paleramine IPA and symbols
         shell: bash
-        working-directory: dopamine
+        working-directory: paleramine
         run: |
           set -euxo pipefail
           export BASEDIR="$PWD"
           export THEOS="$BASEDIR/theos"
           gmake -j"$(sysctl -n hw.logicalcpu)" NIGHTLY=1
-          test -s Application/Dopamine.ipa
-          shasum -a 256 Application/Dopamine.ipa
+          test -s Application/Paleramine.ipa
           mkdir -p "$GITHUB_WORKSPACE/installer-output" "$GITHUB_WORKSPACE/signing"
+          shasum -a 256 Application/Paleramine.ipa | tee "$GITHUB_WORKSPACE/installer-output/Paleramine-unsigned.sha256"
 
-      - name: Restore the existing Apple development P12
+          APP_BIN="Application/build/Build/Products/Debug-iphoneos/Paleramine.app/Paleramine"
+          DS_BIN="Application/build/Build/Products/Debug-iphoneos/Paleramine.app/Frameworks/DarkSword.framework/DarkSword"
+          test -s "$APP_BIN"
+          test -s "$DS_BIN"
+          dsymutil "$APP_BIN" -o "$GITHUB_WORKSPACE/installer-output/Paleramine.app.dSYM"
+          dsymutil "$DS_BIN" -o "$GITHUB_WORKSPACE/installer-output/DarkSword.framework.dSYM"
+          dwarfdump --uuid "$APP_BIN" | tee "$GITHUB_WORKSPACE/installer-output/Paleramine-binary-uuid.txt"
+          dwarfdump --uuid "$DS_BIN" | tee "$GITHUB_WORKSPACE/installer-output/DarkSword-binary-uuid.txt"
+          cp paleramine-build-manifest.txt "$GITHUB_WORKSPACE/installer-output/"
+
+      - name: Restore existing Apple development P12
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -163,9 +178,9 @@ jobs:
           unzip -q /tmp/signing-artifact.zip -d /tmp/signing-artifact
           P12_SOURCE="$(find /tmp/signing-artifact -name 'Dopamine-Development.p12' -type f | head -n 1)"
           test -n "$P12_SOURCE"
-          cp "$P12_SOURCE" signing/Dopamine-Development.p12
+          cp "$P12_SOURCE" signing/Paleramine-Development.p12
           openssl pkcs12 -legacy \
-            -in signing/Dopamine-Development.p12 \
+            -in signing/Paleramine-Development.p12 \
             -clcerts -nokeys \
             -passin pass:"$APPLE_P12_PASSWORD" \
             -out signing/development.pem
@@ -177,7 +192,6 @@ jobs:
           import re
           import time
           from pathlib import Path
-
           import jwt
           import requests
 
@@ -187,12 +201,7 @@ jobs:
           key = os.environ["APP_STORE_CONNECT_API_KEY_P8"].replace("\\n", "\n")
           now = int(time.time())
           token = jwt.encode(
-              {
-                  "iss": os.environ["APP_STORE_CONNECT_ISSUER_ID"],
-                  "iat": now,
-                  "exp": now + 900,
-                  "aud": "appstoreconnect-v1",
-              },
+              {"iss": os.environ["APP_STORE_CONNECT_ISSUER_ID"], "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
               key,
               algorithm="ES256",
               headers={"kid": os.environ["APP_STORE_CONNECT_KEY_ID"], "typ": "JWT"},
@@ -226,13 +235,13 @@ jobs:
           PY
 
           echo "APPLE_CERTIFICATE_ID=$(cat signing/certificate.id)" >> "$GITHUB_ENV"
-          echo "APPLE_P12_PATH=$PWD/signing/Dopamine-Development.p12" >> "$GITHUB_ENV"
+          echo "APPLE_P12_PATH=$PWD/signing/Paleramine-Development.p12" >> "$GITHUB_ENV"
 
       - name: Import signing identity
         shell: bash
         run: |
           set -euxo pipefail
-          KEYCHAIN="$RUNNER_TEMP/dopamine-profile-ota.keychain-db"
+          KEYCHAIN="$RUNNER_TEMP/paleramine-profile-ota.keychain-db"
           KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security set-keychain-settings -lut 21600 "$KEYCHAIN"
@@ -245,7 +254,7 @@ jobs:
           echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           echo "SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
 
-      - name: Start detailed profile registration and OTA server
+      - name: Start Paleramine registration and OTA server
         shell: bash
         run: |
           set -euxo pipefail
@@ -255,9 +264,9 @@ jobs:
           CHALLENGE="$(openssl rand -hex 32)"
           export INSTALLER_SESSION="$SESSION"
           export INSTALLER_CHALLENGE="$CHALLENGE"
-          export UNSIGNED_IPA="$PWD/dopamine/Application/Dopamine.ipa"
+          export UNSIGNED_IPA="$PWD/paleramine/Application/Paleramine.ipa"
           export OUTPUT_DIR="$PWD/installer-output"
-          export DOPAMINE_BUILD_NUMBER="$(date -u +%Y%m%d%H%M%S)"
+          export PALERAMINE_BUILD_NUMBER="$(date -u +%Y%m%d%H%M%S)"
           nohup .venv/bin/python tool/dopamine_one_tap_server.py > installer-output/server.log 2>&1 &
           echo $! > installer-output/server.pid
           for _ in $(seq 1 30); do
@@ -266,7 +275,7 @@ jobs:
           done
           curl -fsS http://127.0.0.1:8080/health
 
-      - name: Publish Cloudflare installer
+      - name: Publish Paleramine Cloudflare installer
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -281,11 +290,11 @@ jobs:
             sleep 1
           done
           test -n "$URL"
-          printf '%s/\n' "$URL" > dopamine-installer-url.txt
-          printf '%s\n' "$DOPAMINE_SOURCE_SHA" > dopamine-installer-source-sha.txt
+          printf '%s/\n' "$URL" > paleramine-installer-url.txt
+          printf '%s\n' "$PALERAMINE_SOURCE_SHA" > paleramine-installer-source-sha.txt
           echo "INSTALLER_URL=$URL/" >> "$GITHUB_ENV"
-          echo "::notice title=Dopamine Profile OTA Installer::$URL/"
-          echo "::notice title=Dopamine Source Commit::$DOPAMINE_SOURCE_SHA"
+          echo "::notice title=Paleramine Profile OTA Installer::$URL/"
+          echo "::notice title=Paleramine Source Commit::$PALERAMINE_SOURCE_SHA"
 
           upload_file() {
             local path="$1"
@@ -303,16 +312,16 @@ jobs:
                 -f branch='automation/apple-signing-kit' >/dev/null
             fi
           }
-          upload_file dopamine-installer-url.txt 'Update newest Dopamine profile OTA URL'
-          upload_file dopamine-installer-source-sha.txt 'Record newest Dopamine source SHA'
+          upload_file paleramine-installer-url.txt 'Update Paleramine profile OTA URL'
+          upload_file paleramine-installer-source-sha.txt 'Record Paleramine source SHA'
 
       - name: Upload installer URL and source proof
         uses: actions/upload-artifact@v4
         with:
-          name: Dopamine-profile-OTA-installer-url
+          name: Paleramine-profile-OTA-installer-url
           path: |
-            dopamine-installer-url.txt
-            dopamine-installer-source-sha.txt
+            paleramine-installer-url.txt
+            paleramine-installer-source-sha.txt
           retention-days: 1
           if-no-files-found: error
 
@@ -320,8 +329,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "DOPAMINE_INSTALLER_URL=$INSTALLER_URL"
-          echo "DOPAMINE_SOURCE_SHA=$DOPAMINE_SOURCE_SHA"
+          echo "PALERAMINE_INSTALLER_URL=$INSTALLER_URL"
+          echo "PALERAMINE_SOURCE_SHA=$PALERAMINE_SOURCE_SHA"
           SERVER_PID="$(cat installer-output/server.pid)"
           TUNNEL_PID="$(cat installer-output/tunnel.pid)"
           END=$((SECONDS + 14400))
@@ -331,14 +340,15 @@ jobs:
             sleep 30
           done
 
-      - name: Upload diagnostics
+      - name: Upload Paleramine diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Dopamine-profile-OTA-session
+          name: Paleramine-profile-OTA-session
           path: |
             installer-output/
-            signing/Dopamine-Development.p12
-            dopamine-installer-source-sha.txt
+            signing/Paleramine-Development.p12
+            paleramine-installer-source-sha.txt
+            paleramine/paleramine-build-manifest.txt
           retention-days: 1
           if-no-files-found: warn
