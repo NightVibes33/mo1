@@ -1,0 +1,84 @@
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	﻿2026-07-21T02:28:09.8208563Z ##[group]Run set -euxo pipefail
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8209334Z ^[[36;1mset -euxo pipefail^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8209910Z ^[[36;1mgh api "repos/${GITHUB_REPOSITORY}/git/blobs/ff96d5e75307e4700fc14d8743a50eb1d5992d4f" --jq .content \^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8210577Z ^[[36;1m  | tr -d '\n' | base64 --decode > /tmp/paleramine-profile-ota.yml^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8210984Z ^[[36;1mpython3 - <<'PY'^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8211269Z ^[[36;1mfrom pathlib import Path^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8211566Z ^[[36;1m^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8211865Z ^[[36;1mpath = Path('/tmp/paleramine-profile-ota.yml')^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8212277Z ^[[36;1mtext = path.read_text(encoding='utf-8')^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8212609Z ^[[36;1m^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8212837Z ^[[36;1mchanges = [^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8213297Z ^[[36;1m    ('name: Paleramine Profile OTA Installer', 'name: Paleramine Runtime Preview OTA Installer'),^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8214140Z ^[[36;1m    ('name: Build Paleramine, register iPad, and serve signed IPA', 'name: Build safe Paleramine Runtime Preview and serve signed IPA'),^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8215060Z ^[[36;1m    ('SOURCE_BRANCH: research/paleramine-no-pc', 'SOURCE_BRANCH: research/paleramine-runtime-preentry'),^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8215882Z ^[[36;1m    ('- name: Apply Paleramine integration patch', '- name: Apply Paleramine branding and safe runtime-preview gate'),^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8216440Z ^[[36;1m]^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8216677Z ^[[36;1mfor old, new in changes:^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8217062Z ^[[36;1m    if old not in text:^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8217672Z ^[[36;1m        raise SystemExit(f'Missing workflow marker: {old}')^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8218325Z ^[[36;1m    text = text.replace(old, new, 1)^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8218905Z ^[[36;1m^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8219678Z ^[[36;1mpatch_line = '          python3 research/paleramine_full_build_patch.py\n'^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8220361Z ^[[36;1mif patch_line not in text:^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8220983Z ^[[36;1m    raise SystemExit('Missing full-build patch invocation')^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8221817Z ^[[36;1mtext = text.replace(^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8222309Z ^[[36;1m    patch_line,^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8222783Z ^[[36;1m    patch_line^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8223525Z ^[[36;1m    + '          python3 -m py_compile research/paleramine_runtime_preview_patch.py\n'^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8224516Z ^[[36;1m    + '          python3 research/paleramine_runtime_preview_patch.py\n',^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8225249Z ^[[36;1m    1,^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8225673Z ^[[36;1m)^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8226089Z ^[[36;1m^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8226936Z ^[[36;1mbundle_line = "          grep -F 'bundle_id=com.nightvibes33.paleramine.ipad5' paleramine-build-manifest.txt\n"^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8227849Z ^[[36;1mif bundle_line not in text:^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8228221Z ^[[36;1m    raise SystemExit('Missing bundle manifest check')^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8228624Z ^[[36;1mtext = text.replace(^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8228908Z ^[[36;1m    bundle_line,^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8229484Z ^[[36;1m    bundle_line^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8229915Z ^[[36;1m    + "          grep -F 'build_mode=runtime-preview' paleramine-build-manifest.txt\n"^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8230496Z ^[[36;1m    + "          grep -F 'kernel_entry=disabled' paleramine-build-manifest.txt\n"^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8231055Z ^[[36;1m    + "          grep -F 'ota_installable=true' paleramine-build-manifest.txt\n",^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8231495Z ^[[36;1m    1,^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8231725Z ^[[36;1m)^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8231942Z ^[[36;1m^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8232205Z ^[[36;1mpath.write_text(text, encoding='utf-8')^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8232534Z ^[[36;1mPY^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8232930Z ^[[36;1mmv /tmp/paleramine-profile-ota.yml .github/workflows/dopamine-profile-ota.yml^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8233411Z ^[[36;1mgit diff --check^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8233972Z ^[[36;1mgrep -F 'SOURCE_BRANCH: research/paleramine-runtime-preentry' .github/workflows/dopamine-profile-ota.yml^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8234935Z ^[[36;1mgrep -F 'paleramine_runtime_preview_patch.py' .github/workflows/dopamine-profile-ota.yml^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8235742Z ^[[36;1mgrep -F "kernel_entry=disabled" .github/workflows/dopamine-profile-ota.yml^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8236209Z ^[[36;1mgit config user.name github-actions^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8236584Z ^[[36;1mgit config user.email github-actions@github.com^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8236999Z ^[[36;1mgit add .github/workflows/dopamine-profile-ota.yml^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8237441Z ^[[36;1mgit commit -m 'Enable safe Paleramine Runtime Preview OTA'^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8237891Z ^[[36;1mgit push origin HEAD:automation/apple-signing-kit^[[0m
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8320421Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8320855Z env:
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8324030Z   GH_TOKEN: ***
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8324296Z ##[endgroup]
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8431784Z + gh api repos/NightVibes33/mo1/git/blobs/ff96d5e75307e4700fc14d8743a50eb1d5992d4f --jq .content
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8433559Z + tr -d '\n'
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:09.8434602Z + base64 --decode
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.1436904Z + python3 -
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.1702336Z + mv /tmp/paleramine-profile-ota.yml .github/workflows/dopamine-profile-ota.yml
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.1720016Z + git diff --check
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.5794688Z + grep -F 'SOURCE_BRANCH: research/paleramine-runtime-preentry' .github/workflows/dopamine-profile-ota.yml
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.5809095Z       SOURCE_BRANCH: research/paleramine-runtime-preentry
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.5810878Z + grep -F paleramine_runtime_preview_patch.py .github/workflows/dopamine-profile-ota.yml
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.5822798Z           python3 -m py_compile research/paleramine_runtime_preview_patch.py
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.5823781Z           python3 research/paleramine_runtime_preview_patch.py
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.5840946Z + grep -F kernel_entry=disabled .github/workflows/dopamine-profile-ota.yml
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.5852635Z           grep -F 'kernel_entry=disabled' paleramine-build-manifest.txt
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.5854266Z + git config user.name github-actions
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.5872285Z + git config user.email github-actions@github.com
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.5888760Z + git add .github/workflows/dopamine-profile-ota.yml
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:12.9951270Z + git commit -m 'Enable safe Paleramine Runtime Preview OTA'
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:13.0046979Z [automation/apple-signing-kit 000dc14] Enable safe Paleramine Runtime Preview OTA
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:13.0048302Z  1 file changed, 332 insertions(+), 56 deletions(-)
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:13.0070839Z + git push origin HEAD:automation/apple-signing-kit
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:13.7613741Z To https://github.com/NightVibes33/mo1
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:13.7615706Z  ! [remote rejected] HEAD -> automation/apple-signing-kit (refusing to allow a GitHub App to create or update workflow `.github/workflows/dopamine-profile-ota.yml` without `workflows` permission)
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:13.7617596Z error: failed to push some refs to 'https://github.com/NightVibes33/mo1'
+Restore safe OTA workflow	Restore immutable OTA workflow and apply safety gate	2026-07-21T02:28:13.7646647Z ##[error]Process completed with exit code 1.
