@@ -1,4 +1,4 @@
-name: Restore Paleramine Runtime Preview OTA
+name: Stage Paleramine Runtime Preview OTA
 
 on:
   workflow_dispatch:
@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 jobs:
-  restore:
-    name: Restore safe OTA workflow
+  stage:
+    name: Generate safe OTA workflow
     runs-on: ubuntu-latest
     steps:
       - name: Checkout installer branch
@@ -21,20 +21,19 @@ jobs:
         with:
           ref: automation/apple-signing-kit
 
-      - name: Restore immutable OTA workflow and apply safety gate
+      - name: Generate immutable OTA workflow with safety gate
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euxo pipefail
           gh api "repos/${GITHUB_REPOSITORY}/git/blobs/ff96d5e75307e4700fc14d8743a50eb1d5992d4f" --jq .content \
-            | tr -d '\n' | base64 --decode > /tmp/paleramine-profile-ota.yml
+            | tr -d '\n' | base64 --decode > paleramine-restored-workflow.yml.txt
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path('/tmp/paleramine-profile-ota.yml')
+          path = Path('paleramine-restored-workflow.yml.txt')
           text = path.read_text(encoding='utf-8')
-
           changes = [
               ('name: Paleramine Profile OTA Installer', 'name: Paleramine Runtime Preview OTA Installer'),
               ('name: Build Paleramine, register iPad, and serve signed IPA', 'name: Build safe Paleramine Runtime Preview and serve signed IPA'),
@@ -68,16 +67,13 @@ jobs:
               + "          grep -F 'ota_installable=true' paleramine-build-manifest.txt\n",
               1,
           )
-
           path.write_text(text, encoding='utf-8')
           PY
-          mv /tmp/paleramine-profile-ota.yml .github/workflows/dopamine-profile-ota.yml
-          git diff --check
-          grep -F 'SOURCE_BRANCH: research/paleramine-runtime-preentry' .github/workflows/dopamine-profile-ota.yml
-          grep -F 'paleramine_runtime_preview_patch.py' .github/workflows/dopamine-profile-ota.yml
-          grep -F "kernel_entry=disabled" .github/workflows/dopamine-profile-ota.yml
+          grep -F 'SOURCE_BRANCH: research/paleramine-runtime-preentry' paleramine-restored-workflow.yml.txt
+          grep -F 'paleramine_runtime_preview_patch.py' paleramine-restored-workflow.yml.txt
+          grep -F 'kernel_entry=disabled' paleramine-restored-workflow.yml.txt
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add .github/workflows/dopamine-profile-ota.yml
-          git commit -m 'Enable safe Paleramine Runtime Preview OTA'
+          git add paleramine-restored-workflow.yml.txt
+          git commit -m 'Stage safe Paleramine Runtime Preview OTA workflow'
           git push origin HEAD:automation/apple-signing-kit
