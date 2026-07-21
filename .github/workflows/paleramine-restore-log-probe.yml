@@ -1,0 +1,34 @@
+name: Paleramine Restore Log Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - automation/apple-signing-kit
+    paths:
+      - ".github/workflows/paleramine-restore-log-probe.yml"
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: automation/apple-signing-kit
+      - name: Capture failed restore log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          gh run view 29795898494 --repo "$GITHUB_REPOSITORY" --log-failed > paleramine-restore-error.txt 2>&1 || true
+          tail -n 120 paleramine-restore-error.txt > paleramine-restore-error.tail
+          mv paleramine-restore-error.tail paleramine-restore-error.txt
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add paleramine-restore-error.txt
+          git commit -m 'Capture Paleramine restore failure' || exit 0
+          git push origin HEAD:automation/apple-signing-kit

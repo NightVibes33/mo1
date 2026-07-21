@@ -1,0 +1,232 @@
+name: Dopamine One-Tap Fast Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - automation/apple-signing-kit
+    paths:
+      - ".github/workflows/dopamine-one-tap-fast.yml"
+      - "tool/dopamine_one_tap_server.py"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: dopamine-one-tap-live
+  cancel-in-progress: true
+
+jobs:
+  installer:
+    name: Fast iPad registration and signing service
+    runs-on: macos-latest
+    timeout-minutes: 300
+    env:
+      APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APPLE_P12_PASSWORD: "1"
+      DOPAMINE_BUNDLE_ID: com.nightvibes33.dopamine.ipad5
+      DOPAMINE_PROFILE_NAME: Dopamine iPad 5 Development
+      PREVIOUS_SIGNING_ARTIFACT_ID: "8452841516"
+      PREBUILT_ARTIFACT_ID: "8463606568"
+
+    steps:
+      - name: Checkout installer source
+        uses: actions/checkout@v4
+
+      - name: Validate Apple API credentials
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in APP_STORE_CONNECT_API_KEY_P8 APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Install signing service dependencies
+        run: |
+          set -euxo pipefail
+          brew install openssl cloudflared
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --disable-pip-version-check --quiet pyjwt cryptography requests
+
+      - name: Download proven Dopamine IPA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          mkdir -p dopamine/Application installer-output signing
+          gh api "/repos/NightVibes33/Dopamine/actions/artifacts/${PREBUILT_ARTIFACT_ID}/zip" > /tmp/dopamine-artifact.zip
+          IPA_PATH="$(zipinfo -1 /tmp/dopamine-artifact.zip | grep -E '(^|/)Dopamine\.ipa$' | head -n 1)"
+          test -n "$IPA_PATH"
+          unzip -p /tmp/dopamine-artifact.zip "$IPA_PATH" > dopamine/Application/Dopamine.ipa
+          test -s dopamine/Application/Dopamine.ipa
+          shasum -a 256 dopamine/Application/Dopamine.ipa
+
+      - name: Restore Apple development certificate and P12
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${PREVIOUS_SIGNING_ARTIFACT_ID}/zip" > /tmp/previous-signing.zip
+          rm -rf /tmp/previous-signing
+          mkdir -p /tmp/previous-signing signing
+          unzip -q /tmp/previous-signing.zip -d /tmp/previous-signing
+          P12_SOURCE="$(find /tmp/previous-signing -name 'Dopamine-Development.p12' -type f | head -n 1)"
+          test -n "$P12_SOURCE"
+          cp "$P12_SOURCE" signing/Dopamine-Development.p12
+          openssl pkcs12 -legacy \
+            -in signing/Dopamine-Development.p12 \
+            -clcerts -nokeys \
+            -passin pass:"${APPLE_P12_PASSWORD}" \
+            -out signing/development.pem
+          P12_CERT_SERIAL="$(openssl x509 -in signing/development.pem -serial -noout | cut -d= -f2)"
+          export P12_CERT_SERIAL
+
+          .venv/bin/python - <<'PY'
+          import os, re, time
+          from pathlib import Path
+          import jwt, requests
+
+          def norm(value):
+              return re.sub(r"[^0-9A-Fa-f]", "", str(value or "")).upper().lstrip("0") or "0"
+
+          key = os.environ["APP_STORE_CONNECT_API_KEY_P8"].replace("\\n", "\n")
+          now = int(time.time())
+          token = jwt.encode(
+              {"iss": os.environ["APP_STORE_CONNECT_ISSUER_ID"], "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
+              key,
+              algorithm="ES256",
+              headers={"kid": os.environ["APP_STORE_CONNECT_KEY_ID"], "typ": "JWT"},
+          )
+          headers = {"Authorization": f"Bearer {token}"}
+          target = norm(os.environ["P12_CERT_SERIAL"])
+          url = "https://api.appstoreconnect.apple.com/v1/certificates"
+          params = {"limit": 200}
+          matches = []
+          development = []
+          while url:
+              response = requests.get(url, headers=headers, params=params, timeout=60)
+              response.raise_for_status()
+              payload = response.json()
+              for item in payload.get("data", []):
+                  attrs = item.get("attributes", {})
+                  cert_type = str(attrs.get("certificateType") or "")
+                  if cert_type in {"IOS_DEVELOPMENT", "DEVELOPMENT"}:
+                      development.append(item)
+                  if norm(attrs.get("serialNumber")) == target:
+                      matches.append(item)
+              url = payload.get("links", {}).get("next")
+              params = None
+          if matches:
+              selected = matches[0]
+          elif len(development) == 1:
+              selected = development[0]
+          else:
+              raise SystemExit(f"Could not match preserved P12 serial {target} to an Apple development certificate")
+          Path("signing/certificate.id").write_text(selected["id"])
+          attrs = selected.get("attributes", {})
+          print(f"Matched {attrs.get('certificateType')} certificate {selected['id']} serial {attrs.get('serialNumber')}")
+          PY
+
+          echo "APPLE_CERTIFICATE_ID=$(cat signing/certificate.id)" >> "$GITHUB_ENV"
+          echo "APPLE_P12_PATH=$PWD/signing/Dopamine-Development.p12" >> "$GITHUB_ENV"
+
+      - name: Import signing identity
+        run: |
+          set -euxo pipefail
+          KEYCHAIN="$RUNNER_TEMP/dopamine-installer.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$APPLE_P12_PATH" -k "$KEYCHAIN" -P "$APPLE_P12_PASSWORD" -A -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KEYCHAIN"
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | grep -Eo '[0-9A-F]{40}' | head -n 1)"
+          test -n "$IDENTITY"
+          echo "APPLE_SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Start one-tap installer service
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("tool/dopamine_one_tap_server.py")
+          text = path.read_text()
+          text = text.replace('"profileType": "IOS_APP_ADHOC"', '"profileType": "IOS_APP_DEVELOPMENT"')
+          text = text.replace('allowed["get-task-allow"] = False', 'allowed["get-task-allow"] = True')
+          if '"profileType": "IOS_APP_DEVELOPMENT"' not in text:
+              raise SystemExit("Could not patch profile type to IOS_APP_DEVELOPMENT")
+          path.write_text(text)
+          PY
+          SESSION="$(openssl rand -hex 20)"
+          CHALLENGE="$(openssl rand -hex 32)"
+          echo "INSTALLER_SESSION=$SESSION" >> "$GITHUB_ENV"
+          echo "INSTALLER_CHALLENGE=$CHALLENGE" >> "$GITHUB_ENV"
+          export INSTALLER_SESSION="$SESSION"
+          export INSTALLER_CHALLENGE="$CHALLENGE"
+          export UNSIGNED_IPA="$PWD/dopamine/Application/Dopamine.ipa"
+          export OUTPUT_DIR="$PWD/installer-output"
+          nohup .venv/bin/python tool/dopamine_one_tap_server.py > installer-output/server.log 2>&1 &
+          echo $! > installer-output/server.pid
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8080/health >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/health
+
+      - name: Publish secure HTTPS installer
+        run: |
+          set -euo pipefail
+          nohup cloudflared tunnel --url http://127.0.0.1:8080 --no-autoupdate > installer-output/tunnel.log 2>&1 &
+          echo $! > installer-output/tunnel.pid
+          URL=""
+          for i in $(seq 1 90); do
+            URL="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' installer-output/tunnel.log | head -n 1 || true)"
+            [ -n "$URL" ] && break
+            sleep 1
+          done
+          test -n "$URL"
+          echo "$URL" > installer-output/installer-url.txt
+          echo "INSTALLER_URL=$URL" >> "$GITHUB_ENV"
+          echo "::notice title=Dopamine Installer::$URL"
+
+      - name: Upload live installer URL
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dopamine-live-installer-url
+          path: installer-output/installer-url.txt
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Keep installer online
+        run: |
+          set -euo pipefail
+          echo "DOPAMINE_INSTALLER_URL=$INSTALLER_URL"
+          SERVER_PID="$(cat installer-output/server.pid)"
+          TUNNEL_PID="$(cat installer-output/tunnel.pid)"
+          END=$((SECONDS + 14400))
+          while [ "$SECONDS" -lt "$END" ]; do
+            kill -0 "$SERVER_PID" 2>/dev/null || { cat installer-output/server.log; exit 1; }
+            kill -0 "$TUNNEL_PID" 2>/dev/null || { cat installer-output/tunnel.log; exit 1; }
+            sleep 30
+          done
+
+      - name: Upload session diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dopamine-fast-session
+          path: |
+            installer-output/
+            signing/Dopamine-Development.p12
+          retention-days: 1
+          if-no-files-found: warn

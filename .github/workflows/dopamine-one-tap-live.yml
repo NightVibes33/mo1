@@ -1,0 +1,13 @@
+name: Dopamine One-Tap Live Installer (manual only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  manual-only:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Use the Dopamine One-Tap Fast Installer workflow."
