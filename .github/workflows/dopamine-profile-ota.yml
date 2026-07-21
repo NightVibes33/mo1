@@ -16,53 +16,58 @@ jobs:
     name: Restore safe OTA workflow
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout full installer history
+      - name: Checkout installer branch
         uses: actions/checkout@v4
         with:
           ref: automation/apple-signing-kit
-          fetch-depth: 0
 
-      - name: Restore and retarget the proven OTA pipeline
+      - name: Restore immutable OTA workflow and apply safety gate
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euxo pipefail
-          git show 35615043bb6491e90b455523461c07d5bb0f64bd:.github/workflows/dopamine-profile-ota.yml > /tmp/paleramine-profile-ota.yml
+          gh api "repos/${GITHUB_REPOSITORY}/git/blobs/ff96d5e75307e4700fc14d8743a50eb1d5992d4f" --jq .content \
+            | tr -d '\n' | base64 --decode > /tmp/paleramine-profile-ota.yml
           python3 - <<'PY'
           from pathlib import Path
 
           path = Path('/tmp/paleramine-profile-ota.yml')
           text = path.read_text(encoding='utf-8')
-          text = text.replace('name: Paleramine Profile OTA Installer', 'name: Paleramine Runtime Preview OTA Installer', 1)
-          text = text.replace('name: Build Paleramine, register iPad, and serve signed IPA', 'name: Build safe Paleramine Runtime Preview and serve signed IPA', 1)
-          text = text.replace('SOURCE_BRANCH: research/paleramine-no-pc', 'SOURCE_BRANCH: research/paleramine-runtime-preentry', 1)
-          text = text.replace('- name: Apply Paleramine integration patch', '- name: Apply Paleramine branding and safe runtime-preview gate', 1)
+
+          changes = [
+              ('name: Paleramine Profile OTA Installer', 'name: Paleramine Runtime Preview OTA Installer'),
+              ('name: Build Paleramine, register iPad, and serve signed IPA', 'name: Build safe Paleramine Runtime Preview and serve signed IPA'),
+              ('SOURCE_BRANCH: research/paleramine-no-pc', 'SOURCE_BRANCH: research/paleramine-runtime-preentry'),
+              ('- name: Apply Paleramine integration patch', '- name: Apply Paleramine branding and safe runtime-preview gate'),
+          ]
+          for old, new in changes:
+              if old not in text:
+                  raise SystemExit(f'Missing workflow marker: {old}')
+              text = text.replace(old, new, 1)
 
           patch_line = '          python3 research/paleramine_full_build_patch.py\n'
-          preview_lines = (
+          if patch_line not in text:
+              raise SystemExit('Missing full-build patch invocation')
+          text = text.replace(
+              patch_line,
               patch_line
               + '          python3 -m py_compile research/paleramine_runtime_preview_patch.py\n'
-              + '          python3 research/paleramine_runtime_preview_patch.py\n'
+              + '          python3 research/paleramine_runtime_preview_patch.py\n',
+              1,
           )
-          text = text.replace(patch_line, preview_lines, 1)
 
-          bundle_check = "          grep -F 'bundle_id=com.nightvibes33.paleramine.ipad5' paleramine-build-manifest.txt\n"
-          safety_checks = (
-              bundle_check
+          bundle_line = "          grep -F 'bundle_id=com.nightvibes33.paleramine.ipad5' paleramine-build-manifest.txt\n"
+          if bundle_line not in text:
+              raise SystemExit('Missing bundle manifest check')
+          text = text.replace(
+              bundle_line,
+              bundle_line
               + "          grep -F 'build_mode=runtime-preview' paleramine-build-manifest.txt\n"
               + "          grep -F 'kernel_entry=disabled' paleramine-build-manifest.txt\n"
-              + "          grep -F 'ota_installable=true' paleramine-build-manifest.txt\n"
+              + "          grep -F 'ota_installable=true' paleramine-build-manifest.txt\n",
+              1,
           )
-          text = text.replace(bundle_check, safety_checks, 1)
-
-          required = [
-              'name: Paleramine Runtime Preview OTA Installer',
-              'SOURCE_BRANCH: research/paleramine-runtime-preentry',
-              'python3 research/paleramine_runtime_preview_patch.py',
-              "grep -F 'kernel_entry=disabled' paleramine-build-manifest.txt",
-          ]
-          for marker in required:
-              if marker not in text:
-                  raise SystemExit(f'Missing restored workflow marker: {marker}')
 
           path.write_text(text, encoding='utf-8')
           PY
@@ -70,6 +75,7 @@ jobs:
           git diff --check
           grep -F 'SOURCE_BRANCH: research/paleramine-runtime-preentry' .github/workflows/dopamine-profile-ota.yml
           grep -F 'paleramine_runtime_preview_patch.py' .github/workflows/dopamine-profile-ota.yml
+          grep -F "kernel_entry=disabled" .github/workflows/dopamine-profile-ota.yml
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add .github/workflows/dopamine-profile-ota.yml
