@@ -30,14 +30,33 @@ text = text.replace(
     'info["CFBundleShortVersionString"] = "0.1.0"',
 )
 
+# Make the OTA page explicit that this IPA is calibration-only and cannot
+# perform a jailbreak, socket spray, PCB corruption, bootstrap installation,
+# trust-cache upload, or userspace reboot.
+text = text.replace("Paleramine iPad 5 Installer", "Paleramine Safe Calibration")
+text = text.replace(
+    "One guided flow: identify this iPad, register it with your Apple Developer team, sign the experimental DarkSword build, then install it.",
+    "This IPA runs a bounded 512-page race calibration only. The full DarkSword jailbreak path, socket spray, PCB corruption, bootstrap writes and userspace reboot are disabled.",
+)
+text = text.replace("Install Paleramine Build", "Install Safe Calibration")
+text = text.replace(
+    "Paleramine build {BUILD_NUMBER} is signed and ready to install.",
+    "Paleramine safe calibration {BUILD_NUMBER} is signed and ready to install.",
+)
+text = text.replace(
+    "Signing the Paleramine IPA for this iPad…",
+    "Signing the Paleramine safe-calibration IPA for this iPad…",
+)
+
 required = (
     '"profileType": "IOS_APP_DEVELOPMENT"',
     'allowed["get-task-allow"] = True',
     'PALERAMINE_BUNDLE_ID',
     'PALERAMINE_PROFILE_NAME',
     'PALERAMINE_BUILD_NUMBER',
-    'Paleramine iPad 5 Installer',
-    'Install Paleramine Build',
+    'Paleramine Safe Calibration',
+    'Install Safe Calibration',
+    'bounded 512-page race calibration only',
     'Paleramine iPad Registration',
     'Paleramine-iPad5-signed.ipa',
     'setInterval(poll,2500)',
@@ -48,5 +67,3 @@ if missing:
 
 TARGET.write_text(text, encoding="utf-8")
 print(f"Prepared {TARGET}")
-
-# Safe calibration rebuild trigger: 2026-07-21T01:59:43Z
