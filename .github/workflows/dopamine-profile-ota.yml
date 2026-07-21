@@ -1,4 +1,4 @@
-name: Paleramine OTA Disabled
+name: Restore Paleramine Runtime Preview OTA
 
 on:
   workflow_dispatch:
@@ -9,18 +9,59 @@ on:
       - ".github/workflows/dopamine-profile-ota.yml"
 
 permissions:
-  contents: read
-
-concurrency:
-  group: paleramine-profile-ota-live
-  cancel-in-progress: true
+  contents: write
 
 jobs:
-  disabled:
-    name: Paleramine OTA disabled after unsafe observation build
+  restore:
+    name: Restore safe OTA workflow
     runs-on: ubuntu-latest
     steps:
-      - name: Stop publication
+      - name: Checkout full installer history
+        uses: actions/checkout@v4
+        with:
+          ref: automation/apple-signing-kit
+          fetch-depth: 0
+
+      - name: Restore and retarget the proven OTA pipeline
+        shell: bash
         run: |
-          echo "The Paleramine observation OTA is disabled."
-          echo "Do not publish another IPA until kernel entry and runtime activation are verified."
+          set -euxo pipefail
+          git show 35615043bb6491e90b455523461c07d5bb0f64bd:.github/workflows/dopamine-profile-ota.yml > /tmp/paleramine-profile-ota.yml
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('/tmp/paleramine-profile-ota.yml')
+          text = path.read_text(encoding='utf-8')
+          replacements = {
+              'name: Paleramine Profile OTA Installer': 'name: Paleramine Runtime Preview OTA Installer',
+              'name: Build Paleramine, register iPad, and serve signed IPA': 'name: Build safe Paleramine Runtime Preview and serve signed IPA',
+              'SOURCE_BRANCH: research/paleramine-no-pc': 'SOURCE_BRANCH: research/paleramine-runtime-preentry',
+              '- name: Apply Paleramine integration patch': '- name: Apply Paleramine branding and safe runtime-preview gate',
+              '          python3 research/paleramine_full_build_patch.py\n          git diff --check': (
+                  '          python3 research/paleramine_full_build_patch.py\n'
+                  '          python3 -m py_compile research/paleramine_runtime_preview_patch.py\n'
+                  '          python3 research/paleramine_runtime_preview_patch.py\n'
+                  '          git diff --check'
+              ),
+              "          grep -F 'bundle_id=com.nightvibes33.paleramine.ipad5' paleramine-build-manifest.txt": (
+                  "          grep -F 'bundle_id=com.nightvibes33.paleramine.ipad5' paleramine-build-manifest.txt\n"
+                  "          grep -F 'build_mode=runtime-preview' paleramine-build-manifest.txt\n"
+                  "          grep -F 'kernel_entry=disabled' paleramine-build-manifest.txt\n"
+                  "          grep -F 'ota_installable=true' paleramine-build-manifest.txt"
+              ),
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'Expected exactly one workflow marker: {old!r}')
+              text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8')
+          PY
+          mv /tmp/paleramine-profile-ota.yml .github/workflows/dopamine-profile-ota.yml
+          git diff --check
+          grep -F 'SOURCE_BRANCH: research/paleramine-runtime-preentry' .github/workflows/dopamine-profile-ota.yml
+          grep -F 'paleramine_runtime_preview_patch.py' .github/workflows/dopamine-profile-ota.yml
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .github/workflows/dopamine-profile-ota.yml
+          git commit -m 'Enable safe Paleramine Runtime Preview OTA'
+          git push origin HEAD:automation/apple-signing-kit
