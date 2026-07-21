@@ -1,0 +1,33 @@
+name: Paleramine Calibration Run Probe
+
+on:
+  push:
+    branches:
+      - automation/apple-signing-kit
+    paths:
+      - ".github/workflows/paleramine-calibration-run-probe.yml"
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: automation/apple-signing-kit
+      - name: Record latest Paleramine runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs?branch=automation/apple-signing-kit&per_page=20" \
+            --jq '{runs: [.workflow_runs[] | {id,name,path,status,conclusion,head_sha,run_number,event,created_at,updated_at,html_url}]}' \
+            > paleramine-calibration-runs.json
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add paleramine-calibration-runs.json
+          git commit -m 'Record Paleramine calibration workflow runs' || exit 0
+          git push origin HEAD:automation/apple-signing-kit
