@@ -23,7 +23,7 @@ text = text.replace("dopamine-sign-", "paleramine-sign-")
 text = text.replace('"2.4.99"', '"0.1.0"')
 text = text.replace(
     "sign the experimental DarkSword build, then install it.",
-    "sign the Paleramine iPad5 research build, then install it. This build includes exact-device safety checks and Files-visible diagnostics.",
+    "sign the Paleramine iPad5 research build, then install it. This build includes exact-device safety checks and Files-visible diagnostics in Files → Paleramine → Paleramine-Diagnostics.log.",
 )
 text = text.replace(
     "The profile requests UDID, product model and OS version only.",
@@ -35,7 +35,7 @@ required = (
     'allowed["get-task-allow"] = True',
     "Paleramine iPad 5 Installer",
     "Install Paleramine Build",
-    "Paleramine-Diagnostics",
+    "Paleramine-Diagnostics.log",
     "PALERAMINE_BUNDLE_ID",
     "PALERAMINE_BUILD_NUMBER",
     "setInterval(poll,2500)",
