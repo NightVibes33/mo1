@@ -1,0 +1,25 @@
+name: Dispatch Paleramine Safe Calibration OTA
+
+on:
+  push:
+    branches:
+      - automation/apple-signing-kit
+    paths:
+      - ".github/workflows/dispatch-paleramine-calibration.yml"
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch calibration OTA workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          gh workflow run paleramine-profile-ota.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref automation/apple-signing-kit
