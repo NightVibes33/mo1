@@ -23,3 +23,5 @@ jobs:
           gh workflow run paleramine-profile-ota.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref automation/apple-signing-kit
+
+# rebuild after worker-shutdown fix
