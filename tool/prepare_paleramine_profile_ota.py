@@ -48,3 +48,5 @@ if missing:
 
 TARGET.write_text(text, encoding="utf-8")
 print(f"Prepared {TARGET}")
+
+# Safe calibration rebuild trigger: 2026-07-21T01:59:43Z
