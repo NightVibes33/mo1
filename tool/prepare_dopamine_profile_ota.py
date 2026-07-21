@@ -23,19 +23,20 @@ text = text.replace("dopamine", "paleramine")
 text = text.replace('"2.4.99"', '"0.1.0"')
 text = text.replace(
     "sign the experimental DarkSword build, then install it.",
-    "sign the Paleramine iPad5 research build, then install it. This build includes exact-device safety checks and Files-visible diagnostics in Files → Paleramine → Paleramine-Diagnostics.log.",
+    "sign the Paleramine iPad5 runtime-preview build, then install it. Kernel entry is intentionally disabled in this build so opening the app cannot run DarkSword or reboot the iPad.",
 )
 text = text.replace(
     "The profile requests UDID, product model and OS version only.",
     "The profile requests UDID, product model and OS version only. Paleramine is locked to iPad6,11/iPad6,12 on iPadOS 16.7.11 (20H360).",
 )
+text = text.replace("Paleramine iPad 5 Installer", "Paleramine Runtime Preview Installer")
+text = text.replace("Install Paleramine Build", "Install Paleramine Runtime Preview")
 
 required = (
     '"profileType": "IOS_APP_DEVELOPMENT"',
     'allowed["get-task-allow"] = True',
-    "Paleramine iPad 5 Installer",
-    "Install Paleramine Build",
-    "Paleramine-Diagnostics.log",
+    "Paleramine Runtime Preview Installer",
+    "Install Paleramine Runtime Preview",
     "PALERAMINE_BUNDLE_ID",
     "PALERAMINE_BUILD_NUMBER",
     "com.nightvibes33.paleramine.enroll",
@@ -46,3 +47,5 @@ if missing:
     raise SystemExit(f"Paleramine installer verification failed: {missing}")
 
 path.write_text(text, encoding="utf-8")
+
+# OTA re-enabled trigger: 2026-07-20 America/Chicago
