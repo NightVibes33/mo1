@@ -510,6 +510,14 @@ private enum NowPlayingChannel {
     let durationSeconds = doubleValue(arguments["durationSeconds"])
     let positionSeconds = max(0, doubleValue(arguments["positionSeconds"]) ?? 0)
     let isPlaying = arguments["isPlaying"] as? Bool ?? false
+    let queueIndex = max(0, intValue(arguments["queueIndex"]) ?? 0)
+    let queueCount = max(0, intValue(arguments["queueCount"]) ?? 0)
+    let canSkipNext = arguments["canSkipNext"] as? Bool ?? false
+    let canSkipPrevious = arguments["canSkipPrevious"] as? Bool ?? false
+
+    let commandCenter = MPRemoteCommandCenter.shared()
+    commandCenter.nextTrackCommand.isEnabled = canSkipNext
+    commandCenter.previousTrackCommand.isEnabled = canSkipPrevious
 
     var info: [String: Any] = [:]
     info[MPMediaItemPropertyTitle] = (title?.isEmpty == false ? title : "Unknown Song")
@@ -529,6 +537,11 @@ private enum NowPlayingChannel {
 
     info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = positionSeconds
     info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+    info[MPNowPlayingInfoPropertyMediaType] = MPNowPlayingInfoMediaType.audio.rawValue
+    if queueCount > 0 {
+      info[MPNowPlayingInfoPropertyPlaybackQueueIndex] = min(queueIndex, queueCount - 1)
+      info[MPNowPlayingInfoPropertyPlaybackQueueCount] = queueCount
+    }
 
     if let artwork = artwork(from: artworkPath) {
       info[MPMediaItemPropertyArtwork] = artwork
@@ -573,6 +586,17 @@ private enum NowPlayingChannel {
     }
 
     return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+  }
+
+  private static func intValue(_ value: Any?) -> Int? {
+    switch value {
+    case let number as NSNumber:
+      return number.intValue
+    case let string as String:
+      return Int(string)
+    default:
+      return nil
+    }
   }
 
   private static func doubleValue(_ value: Any?) -> Double? {

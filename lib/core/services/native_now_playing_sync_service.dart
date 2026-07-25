@@ -182,6 +182,10 @@ class _NativeNowPlayingSyncController {
       'isPlaying': nativeEqActive
           ? nowPlaying.isPlaying && (nativeEqSnapshot?.isPlaying ?? false)
           : nowPlaying.isPlaying && player.playing,
+      'queueIndex': nowPlaying.currentIndex,
+      'queueCount': nowPlaying.metadataList.length,
+      'canSkipNext': nowPlaying.currentIndex + 1 < nowPlaying.metadataList.length,
+      'canSkipPrevious': nowPlaying.metadataList.length > 1,
       'artworkPath': metadata.thumbnailPath,
     };
 
