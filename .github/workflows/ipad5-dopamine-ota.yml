@@ -80,8 +80,10 @@ jobs:
           IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | awk '/^[[:space:]]*[0-9]+\)/ {print $2; exit}')"
           test -n "$IDENTITY"
           BUNDLE_ID="$(cat work/bundle-id.txt)"
-          python3 -m pip install --quiet PyJWT cryptography
-          DOPAMINE_BUNDLE_ID="$BUNDLE_ID" DOPAMINE_CERT_SHA1="$IDENTITY" python3 tool/fresh_dopamine_profile.py
+          python3 -m venv profile-venv
+          profile-venv/bin/python -m pip install --quiet --upgrade pip
+          profile-venv/bin/python -m pip install --quiet PyJWT cryptography
+          DOPAMINE_BUNDLE_ID="$BUNDLE_ID" DOPAMINE_CERT_SHA1="$IDENTITY" profile-venv/bin/python tool/fresh_dopamine_profile.py
           security cms -D -i work/profile.mobileprovision > work/profile.plist
           python3 - <<'PY'
           import plistlib
