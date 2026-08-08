@@ -80,8 +80,9 @@ jobs:
           unzip -q "$UNSIGNED_IPA" -d work/unpacked
           APP="$(find work/unpacked/Payload -maxdepth 1 -type d -name '*.app' -print -quit)"
           BUNDLE_ID="$(cat work/bundle-id.txt)"
+          BUILD_NUMBER="$(date -u +%Y%m%d%H%M%S)"
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$APP/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(date -u +%Y%m%d%H%M%S)" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Info.plist"
           VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")"
           cp work/profile.mobileprovision "$APP/embedded.mobileprovision"
           find "$APP" -type d -name _CodeSignature -prune -exec rm -rf '{}' +
@@ -95,7 +96,7 @@ jobs:
           python3 - <<PY
           import json
           from pathlib import Path
-          Path('output/metadata.json').write_text(json.dumps({'bundle_id':'$BUNDLE_ID','version':'$VERSION','title':'Dopamine iPad 5','source_sha':'fa0776152e9352782c80bf9ee2f7e11809a759db'}, indent=2)+'\n')
+          Path('output/metadata.json').write_text(json.dumps({'bundle_id':'$BUNDLE_ID','version':'$VERSION','build':'$BUILD_NUMBER','title':'Dopamine iPad 5','source_sha':'fa0776152e9352782c80bf9ee2f7e11809a759db'}, indent=2)+'\n')
           PY
 
       - name: Prepare registration runtime
