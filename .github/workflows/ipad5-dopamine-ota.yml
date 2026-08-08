@@ -2,6 +2,10 @@ name: iPad5 Dopamine OTA
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ipad5-dopamine-ota.yml"
 
 permissions:
   actions: read
@@ -39,7 +43,6 @@ jobs:
           mkdir -p work output
           UNSIGNED_IPA="$(find unsigned -type f -name '*.ipa' -print -quit)"
           test -s "$UNSIGNED_IPA"
-
           python3 - <<'PY'
           import base64
           from pathlib import Path
@@ -51,10 +54,9 @@ jobs:
           raw=''.join(''.join(p.read_text().split()) for p in parts) if parts else Path('signer/dopamine/Dopamine-iPad5.mobileprovision.b64').read_text()
           Path('work/profile.mobileprovision').write_bytes(base64.b64decode(clean(raw), validate=True))
           PY
-
           security cms -D -i work/profile.mobileprovision > work/profile.plist
           python3 - <<'PY'
-          import json, plistlib
+          import plistlib
           from pathlib import Path
           p=plistlib.loads(Path('work/profile.plist').read_bytes())
           e=p['Entitlements']
@@ -62,7 +64,6 @@ jobs:
           Path('work/entitlements.plist').write_bytes(plistlib.dumps(e, fmt=plistlib.FMT_XML, sort_keys=False))
           Path('work/bundle-id.txt').write_text(bid)
           PY
-
           KEYCHAIN="$RUNNER_TEMP/ipad5-ota.keychain-db"
           KEYCHAIN_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
@@ -75,7 +76,6 @@ jobs:
           test -n "$IDENTITY"
           echo "REGISTRATION_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
           echo "REGISTRATION_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
-
           mkdir -p work/unpacked
           unzip -q "$UNSIGNED_IPA" -d work/unpacked
           APP="$(find work/unpacked/Payload -maxdepth 1 -type d -name '*.app' -print -quit)"
@@ -124,7 +124,6 @@ jobs:
           BUNDLE_ID="$(jq -r .bundle_id output/metadata.json)"
           VERSION="$(jq -r .version output/metadata.json)"
           TITLE="$(jq -r .title output/metadata.json)"
-
           RUNNER_TRACKING_ID="" nohup "$REGISTRATION_PYTHON" signer/tools/dopamine_registration_server.py \
             --site site/complete \
             --base-ipa registration-signing/base.ipa \
@@ -137,13 +136,11 @@ jobs:
             --base-url-file "$GITHUB_WORKSPACE/cloudflare-base-url.txt" \
             --host 127.0.0.1 --port 8080 > registration-server.log 2>&1 &
           echo "$!" > server.pid
-
           ARCH="$(uname -m)"; [[ "$ARCH" == "arm64" ]] && CF_ARCH=arm64 || CF_ARCH=amd64
           curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-${CF_ARCH}.tgz" -o cloudflared.tgz
           tar -xzf cloudflared.tgz && chmod +x cloudflared
           RUNNER_TRACKING_ID="" nohup ./cloudflared tunnel --url http://127.0.0.1:8080 --no-autoupdate > cloudflared.log 2>&1 &
           echo "$!" > tunnel.pid
-
           URL=""
           for _ in $(seq 1 90); do
             URL="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' cloudflared.log | head -n1 || true)"
@@ -152,12 +149,10 @@ jobs:
           done
           test -n "$URL"
           printf '%s\n' "$URL" > cloudflare-base-url.txt
-
-          RESULT="$(python3 signer/tools/build_dopamine_site.py --site site/complete --ipa output/Dopamine-iPad5-signed.ipa --metadata output/metadata.json --base-url "$URL/complete")"
+          python3 signer/tools/build_dopamine_site.py --site site/complete --ipa output/Dopamine-iPad5-signed.ipa --metadata output/metadata.json --base-url "$URL/complete" >/tmp/site-result.json
           curl -fsS --retry 20 --retry-all-errors --retry-delay 2 "$URL/complete/" >/dev/null
           curl -fsS --retry 20 --retry-all-errors --retry-delay 2 "$URL/complete/register.mobileconfig" -o /tmp/register.mobileconfig
           test -s /tmp/register.mobileconfig
-
           INSTALLER_URL="$URL/complete/"
           printf '%s\n' "$INSTALLER_URL" > ipad5-ota-url.txt
           echo "installer_url=$INSTALLER_URL" >> "$GITHUB_OUTPUT"
