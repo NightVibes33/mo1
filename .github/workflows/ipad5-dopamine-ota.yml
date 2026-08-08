@@ -26,58 +26,7 @@ jobs:
           path: signer
 
       - name: Patch Apple Profile Service callback handling
-        shell: bash
-        run: |
-          set -euxo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('signer/tools/dopamine_registration_server.py')
-          s = p.read_text()
-          old = '''            body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
-            values = plistlib.loads(body)
-            if not isinstance(values, dict):
-                raise RuntimeError("Invalid registration callback")
-            self.server.state.register(values)
-            self.send_response(HTTPStatus.SEE_OTHER)
-            self.send_header("Location", f"{self.server.state.base_url()}/complete/?registered=1")
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-'''
-          new = '''            body = self.rfile.read(int(self.headers.get("Content-Length", "0")))
-            try:
-                values = plistlib.loads(body)
-            except Exception:
-                with tempfile.TemporaryDirectory(prefix="dopamine-profile-post-") as temp_name:
-                    temp = Path(temp_name)
-                    signed = temp / "device-response.cms"
-                    decoded = temp / "device-response.plist"
-                    signed.write_bytes(body)
-                    decoded.write_text(run(["security", "cms", "-D", "-i", str(signed)]))
-                    values = plistlib.loads(decoded.read_bytes())
-            if not isinstance(values, dict):
-                raise RuntimeError("Invalid registration callback")
-            self.server.state.register(values)
-            response_profile = {
-                "PayloadContent": [],
-                "PayloadOrganization": "NightVibes33",
-                "PayloadDisplayName": "Dopamine iPad Registration Complete",
-                "PayloadDescription": "Device registration completed for Dopamine OTA installation.",
-                "PayloadVersion": 1,
-                "PayloadUUID": str(uuid.uuid4()).upper(),
-                "PayloadIdentifier": "com.nightvibes33.dopamine.registration.complete",
-                "PayloadType": "Configuration",
-            }
-            content = plistlib.dumps(response_profile, fmt=plistlib.FMT_XML, sort_keys=False)
-            self.send_response(HTTPStatus.OK)
-            self.send_header("Content-Type", "application/x-apple-aspen-config")
-            self.send_header("Content-Length", str(len(content)))
-            self.end_headers()
-            self.wfile.write(content)
-'''
-          if old not in s:
-              raise SystemExit('profile callback block not found')
-          p.write_text(s.replace(old, new, 1))
-          PY
+        run: python3 tool/patch_dopamine_profile_service.py
 
       - name: Download green Dopamine IPA
         uses: actions/download-artifact@v4
@@ -134,9 +83,9 @@ jobs:
           unzip -q "$UNSIGNED_IPA" -d work/unpacked
           APP="$(find work/unpacked/Payload -maxdepth 1 -type d -name '*.app' -print -quit)"
           BUNDLE_ID="$(cat work/bundle-id.txt)"
+          BUILD_NUMBER="$(date -u +%Y%m%d%H%M%S)"
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$APP/Info.plist"
-          BUILD="$(date -u +%Y%m%d%H%M%S)"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Info.plist"
           VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")"
           cp work/profile.mobileprovision "$APP/embedded.mobileprovision"
           find "$APP" -type d -name _CodeSignature -prune -exec rm -rf '{}' +
@@ -150,7 +99,7 @@ jobs:
           python3 - <<PY
           import json
           from pathlib import Path
-          Path('output/metadata.json').write_text(json.dumps({'bundle_id':'$BUNDLE_ID','version':'$VERSION','build':'$BUILD','title':'Dopamine iPad 5','source_sha':'fa0776152e9352782c80bf9ee2f7e11809a759db'}, indent=2)+'\n')
+          Path('output/metadata.json').write_text(json.dumps({'bundle_id':'$BUNDLE_ID','version':'$VERSION','build':'$BUILD_NUMBER','title':'Dopamine iPad 5','source_sha':'fa0776152e9352782c80bf9ee2f7e11809a759db'}, indent=2)+'\n')
           PY
 
       - name: Prepare registration runtime
@@ -173,11 +122,23 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          test -n "$ASC_KEY_ID"; test -n "$ASC_ISSUER_ID"; test -n "$ASC_PRIVATE_KEY"
+          test -n "$ASC_KEY_ID"
+          test -n "$ASC_ISSUER_ID"
+          test -n "$ASC_PRIVATE_KEY"
           BUNDLE_ID="$(jq -r .bundle_id output/metadata.json)"
           VERSION="$(jq -r .version output/metadata.json)"
           TITLE="$(jq -r .title output/metadata.json)"
-          RUNNER_TRACKING_ID="" nohup "$REGISTRATION_PYTHON" signer/tools/dopamine_registration_server.py --site site/complete --base-ipa registration-signing/base.ipa --bundle-id "$BUNDLE_ID" --version "$VERSION" --title "$TITLE" --identity "$REGISTRATION_IDENTITY" --keychain "$REGISTRATION_KEYCHAIN" --repo-root "$GITHUB_WORKSPACE/signer" --base-url-file "$GITHUB_WORKSPACE/cloudflare-base-url.txt" --host 127.0.0.1 --port 8080 > registration-server.log 2>&1 &
+          RUNNER_TRACKING_ID="" nohup "$REGISTRATION_PYTHON" signer/tools/dopamine_registration_server.py \
+            --site site/complete \
+            --base-ipa registration-signing/base.ipa \
+            --bundle-id "$BUNDLE_ID" \
+            --version "$VERSION" \
+            --title "$TITLE" \
+            --identity "$REGISTRATION_IDENTITY" \
+            --keychain "$REGISTRATION_KEYCHAIN" \
+            --repo-root "$GITHUB_WORKSPACE/signer" \
+            --base-url-file "$GITHUB_WORKSPACE/cloudflare-base-url.txt" \
+            --host 127.0.0.1 --port 8080 > registration-server.log 2>&1 &
           echo "$!" > server.pid
           ARCH="$(uname -m)"; [[ "$ARCH" == "arm64" ]] && CF_ARCH=arm64 || CF_ARCH=amd64
           curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-${CF_ARCH}.tgz" -o cloudflared.tgz
@@ -185,7 +146,11 @@ jobs:
           RUNNER_TRACKING_ID="" nohup ./cloudflared tunnel --url http://127.0.0.1:8080 --no-autoupdate > cloudflared.log 2>&1 &
           echo "$!" > tunnel.pid
           URL=""
-          for _ in $(seq 1 90); do URL="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' cloudflared.log | head -n1 || true)"; [[ -n "$URL" ]] && break; sleep 2; done
+          for _ in $(seq 1 90); do
+            URL="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' cloudflared.log | head -n1 || true)"
+            [[ -n "$URL" ]] && break
+            sleep 2
+          done
           test -n "$URL"
           printf '%s\n' "$URL" > cloudflare-base-url.txt
           python3 signer/tools/build_dopamine_site.py --site site/complete --ipa output/Dopamine-iPad5-signed.ipa --metadata output/metadata.json --base-url "$URL/complete" >/tmp/site-result.json
