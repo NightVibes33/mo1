@@ -1,0 +1,181 @@
+name: iPad5 Dopamine OTA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  sign-and-serve:
+    runs-on: macos-latest
+    timeout-minutes: 300
+    steps:
+      - name: Checkout mo1
+        uses: actions/checkout@v4
+
+      - name: Checkout iPad signer assets
+        uses: actions/checkout@v4
+        with:
+          repository: NightVibes33/app-code-certificates
+          path: signer
+
+      - name: Download green Dopamine IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: Dopamine
+          path: unsigned
+          repository: NightVibes33/Dopamine
+          run-id: 31246332731
+          github-token: ${{ github.token }}
+
+      - name: Prepare iPad signing identity and profile
+        shell: bash
+        env:
+          P12_PASSWORD: "1"
+        run: |
+          set -euxo pipefail
+          mkdir -p work output
+          UNSIGNED_IPA="$(find unsigned -type f -name '*.ipa' -print -quit)"
+          test -s "$UNSIGNED_IPA"
+
+          python3 - <<'PY'
+          import base64
+          from pathlib import Path
+          def clean(value: str) -> str:
+              value=''.join(value.split())
+              return value + '=' * (-len(value) % 4)
+          Path('work/development.p12').write_bytes(base64.b64decode(clean(Path('signer/dopamine/Dopamine-Development.p12.b64').read_text()), validate=True))
+          parts=sorted(Path('signer/dopamine/profile.parts').glob('*'))
+          raw=''.join(''.join(p.read_text().split()) for p in parts) if parts else Path('signer/dopamine/Dopamine-iPad5.mobileprovision.b64').read_text()
+          Path('work/profile.mobileprovision').write_bytes(base64.b64decode(clean(raw), validate=True))
+          PY
+
+          security cms -D -i work/profile.mobileprovision > work/profile.plist
+          python3 - <<'PY'
+          import json, plistlib
+          from pathlib import Path
+          p=plistlib.loads(Path('work/profile.plist').read_bytes())
+          e=p['Entitlements']
+          bid=e['application-identifier'].split('.',1)[1]
+          Path('work/entitlements.plist').write_bytes(plistlib.dumps(e, fmt=plistlib.FMT_XML, sort_keys=False))
+          Path('work/bundle-id.txt').write_text(bid)
+          PY
+
+          KEYCHAIN="$RUNNER_TEMP/ipad5-ota.keychain-db"
+          KEYCHAIN_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 18000 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import work/development.p12 -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | awk '/^[[:space:]]*[0-9]+\)/ {print $2; exit}')"
+          test -n "$IDENTITY"
+          echo "REGISTRATION_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          echo "REGISTRATION_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+          mkdir -p work/unpacked
+          unzip -q "$UNSIGNED_IPA" -d work/unpacked
+          APP="$(find work/unpacked/Payload -maxdepth 1 -type d -name '*.app' -print -quit)"
+          BUNDLE_ID="$(cat work/bundle-id.txt)"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(date -u +%Y%m%d%H%M%S)" "$APP/Info.plist"
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")"
+          cp work/profile.mobileprovision "$APP/embedded.mobileprovision"
+          find "$APP" -type d -name _CodeSignature -prune -exec rm -rf '{}' +
+          if [[ -d "$APP/Frameworks" ]]; then
+            while IFS= read -r -d '' framework; do codesign --force --sign "$IDENTITY" --keychain "$KEYCHAIN" --timestamp=none "$framework"; done < <(find "$APP/Frameworks" -depth -type d -name '*.framework' -print0)
+          fi
+          while IFS= read -r -d '' dylib; do codesign --force --sign "$IDENTITY" --keychain "$KEYCHAIN" --timestamp=none "$dylib"; done < <(find "$APP" -type f -name '*.dylib' -print0)
+          codesign --force --sign "$IDENTITY" --keychain "$KEYCHAIN" --timestamp=none --entitlements work/entitlements.plist --generate-entitlement-der "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          (cd work/unpacked && zip -qry "$GITHUB_WORKSPACE/output/Dopamine-iPad5-signed.ipa" Payload)
+          python3 - <<PY
+          import json
+          from pathlib import Path
+          Path('output/metadata.json').write_text(json.dumps({'bundle_id':'$BUNDLE_ID','version':'$VERSION','title':'Dopamine iPad 5','source_sha':'fa0776152e9352782c80bf9ee2f7e11809a759db'}, indent=2)+'\n')
+          PY
+
+      - name: Prepare registration runtime
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 -m venv registration-venv
+          registration-venv/bin/python -m pip install --upgrade pip
+          registration-venv/bin/python -m pip install PyJWT cryptography
+          echo "REGISTRATION_PYTHON=$GITHUB_WORKSPACE/registration-venv/bin/python" >> "$GITHUB_ENV"
+          mkdir -p site/complete registration-signing
+          cp output/Dopamine-iPad5-signed.ipa registration-signing/base.ipa
+
+      - name: Start verified iPad registration OTA
+        id: ota
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -n "$ASC_KEY_ID"
+          test -n "$ASC_ISSUER_ID"
+          test -n "$ASC_PRIVATE_KEY"
+          BUNDLE_ID="$(jq -r .bundle_id output/metadata.json)"
+          VERSION="$(jq -r .version output/metadata.json)"
+          TITLE="$(jq -r .title output/metadata.json)"
+
+          RUNNER_TRACKING_ID="" nohup "$REGISTRATION_PYTHON" signer/tools/dopamine_registration_server.py \
+            --site site/complete \
+            --base-ipa registration-signing/base.ipa \
+            --bundle-id "$BUNDLE_ID" \
+            --version "$VERSION" \
+            --title "$TITLE" \
+            --identity "$REGISTRATION_IDENTITY" \
+            --keychain "$REGISTRATION_KEYCHAIN" \
+            --repo-root "$GITHUB_WORKSPACE/signer" \
+            --base-url-file "$GITHUB_WORKSPACE/cloudflare-base-url.txt" \
+            --host 127.0.0.1 --port 8080 > registration-server.log 2>&1 &
+          echo "$!" > server.pid
+
+          ARCH="$(uname -m)"; [[ "$ARCH" == "arm64" ]] && CF_ARCH=arm64 || CF_ARCH=amd64
+          curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-${CF_ARCH}.tgz" -o cloudflared.tgz
+          tar -xzf cloudflared.tgz && chmod +x cloudflared
+          RUNNER_TRACKING_ID="" nohup ./cloudflared tunnel --url http://127.0.0.1:8080 --no-autoupdate > cloudflared.log 2>&1 &
+          echo "$!" > tunnel.pid
+
+          URL=""
+          for _ in $(seq 1 90); do
+            URL="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' cloudflared.log | head -n1 || true)"
+            [[ -n "$URL" ]] && break
+            sleep 2
+          done
+          test -n "$URL"
+          printf '%s\n' "$URL" > cloudflare-base-url.txt
+
+          RESULT="$(python3 signer/tools/build_dopamine_site.py --site site/complete --ipa output/Dopamine-iPad5-signed.ipa --metadata output/metadata.json --base-url "$URL/complete")"
+          curl -fsS --retry 20 --retry-all-errors --retry-delay 2 "$URL/complete/" >/dev/null
+          curl -fsS --retry 20 --retry-all-errors --retry-delay 2 "$URL/complete/register.mobileconfig" -o /tmp/register.mobileconfig
+          test -s /tmp/register.mobileconfig
+
+          INSTALLER_URL="$URL/complete/"
+          printf '%s\n' "$INSTALLER_URL" > ipad5-ota-url.txt
+          echo "installer_url=$INSTALLER_URL" >> "$GITHUB_OUTPUT"
+          echo "::notice title=iPad5 Dopamine OTA::$INSTALLER_URL"
+
+      - name: Upload OTA URL
+        uses: actions/upload-artifact@v4
+        with:
+          name: iPad5-Dopamine-OTA-URL
+          path: ipad5-ota-url.txt
+          retention-days: 2
+
+      - name: Keep OTA online
+        shell: bash
+        run: |
+          SERVER_PID="$(cat server.pid)"; TUNNEL_PID="$(cat tunnel.pid)"
+          for _ in $(seq 1 530); do
+            kill -0 "$SERVER_PID" 2>/dev/null || exit 1
+            kill -0 "$TUNNEL_PID" 2>/dev/null || exit 1
+            sleep 30
+          done
