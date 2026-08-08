@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/ipad5-dopamine-ota.yml"
+      - "tool/fresh_dopamine_profile.py"
 
 permissions:
   actions: read
@@ -37,10 +38,13 @@ jobs:
           run-id: 31246332731
           github-token: ${{ github.token }}
 
-      - name: Prepare iPad signing identity and profile
+      - name: Prepare iPad signing identity and fresh profile
         shell: bash
         env:
           P12_PASSWORD: "1"
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
         run: |
           set -euxo pipefail
           mkdir -p work output
@@ -62,9 +66,7 @@ jobs:
           import plistlib
           from pathlib import Path
           p=plistlib.loads(Path('work/profile.plist').read_bytes())
-          e=p['Entitlements']
-          bid=e['application-identifier'].split('.',1)[1]
-          Path('work/entitlements.plist').write_bytes(plistlib.dumps(e, fmt=plistlib.FMT_XML, sort_keys=False))
+          bid=p['Entitlements']['application-identifier'].split('.',1)[1]
           Path('work/bundle-id.txt').write_text(bid)
           PY
           KEYCHAIN="$RUNNER_TEMP/ipad5-ota.keychain-db"
@@ -77,12 +79,24 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN"
           IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | awk '/^[[:space:]]*[0-9]+\)/ {print $2; exit}')"
           test -n "$IDENTITY"
+          BUNDLE_ID="$(cat work/bundle-id.txt)"
+          python3 -m pip install --quiet PyJWT cryptography
+          DOPAMINE_BUNDLE_ID="$BUNDLE_ID" DOPAMINE_CERT_SHA1="$IDENTITY" python3 tool/fresh_dopamine_profile.py
+          security cms -D -i work/profile.mobileprovision > work/profile.plist
+          python3 - <<'PY'
+          import plistlib
+          from pathlib import Path
+          p=plistlib.loads(Path('work/profile.plist').read_bytes())
+          e=p['Entitlements']
+          Path('work/entitlements.plist').write_bytes(plistlib.dumps(e, fmt=plistlib.FMT_XML, sort_keys=False))
+          Path('work/device-count.txt').write_text(str(len(p.get('ProvisionedDevices', []))))
+          PY
+          echo "Fresh profile device count: $(cat work/device-count.txt)"
           echo "REGISTRATION_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
           echo "REGISTRATION_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
           mkdir -p work/unpacked
           unzip -q "$UNSIGNED_IPA" -d work/unpacked
           APP="$(find work/unpacked/Payload -maxdepth 1 -type d -name '*.app' -print -quit)"
-          BUNDLE_ID="$(cat work/bundle-id.txt)"
           BUILD_NUMBER="$(date -u +%Y%m%d%H%M%S)"
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Info.plist"
@@ -155,8 +169,6 @@ jobs:
           printf '%s\n' "$URL" > cloudflare-base-url.txt
           python3 signer/tools/build_dopamine_site.py --site site/complete --ipa output/Dopamine-iPad5-signed.ipa --metadata output/metadata.json --base-url "$URL/complete" >/tmp/site-result.json
           curl -fsS --retry 20 --retry-all-errors --retry-delay 2 "$URL/complete/" >/dev/null
-          curl -fsS --retry 20 --retry-all-errors --retry-delay 2 "$URL/complete/register.mobileconfig" -o /tmp/register.mobileconfig
-          test -s /tmp/register.mobileconfig
           INSTALLER_URL="$URL/complete/"
           printf '%s\n' "$INSTALLER_URL" > ipad5-ota-url.txt
           echo "installer_url=$INSTALLER_URL" >> "$GITHUB_OUTPUT"
