@@ -73,6 +73,7 @@ flutter:
     - assets/
     - assets/fonts/
     - assets/images/
+    - assets/images/source_icons/
 
   fonts:
     - family: Helvetica
