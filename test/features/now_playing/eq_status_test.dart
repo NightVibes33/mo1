@@ -4,8 +4,8 @@ import 'package:dopi/features/now_playing/utils/eq_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  const neutral = [0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  const rock = [5.0, 4, 3, 0, -2, 0, 2, 4, 5, 5];
+  const neutral = <double>[0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  const rock = <double>[5, 4, 3, 0, -2, 0, 2, 4, 5, 5];
 
   MusicMetadata localTrack() => MusicMetadata(
         trackName: 'Local MP3',
