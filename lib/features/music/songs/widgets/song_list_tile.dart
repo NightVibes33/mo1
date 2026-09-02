@@ -4,12 +4,11 @@ import 'package:dopi/core/extensions/build_context_extensions.dart';
 import 'package:dopi/core/models/music_metadata.dart';
 import 'package:dopi/core/utils/metadata_artwork.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 const _appleMusicSourceIcon =
-    'assets/images/source_icons/apple_music.svg';
-const _navidromeSourceIcon = 'assets/images/source_icons/navidrome.svg';
-const _jellyfinSourceIcon = 'assets/images/source_icons/jellyfin.svg';
+    'assets/images/source_icons/apple_music.png';
+const _navidromeSourceIcon = 'assets/images/source_icons/navidrome.png';
+const _jellyfinSourceIcon = 'assets/images/source_icons/jellyfin.png';
 
 class _SourceLogoBadge extends StatelessWidget {
   final MusicSourceType sourceType;
@@ -52,6 +51,38 @@ class _SourceLogoBadge extends StatelessWidget {
   }
 }
 
+class _BrandedSourceImage extends StatelessWidget {
+  final String assetPath;
+  final double size;
+  final IconData fallbackIcon;
+  final Color fallbackColor;
+
+  const _BrandedSourceImage({
+    required this.assetPath,
+    required this.size,
+    required this.fallbackIcon,
+    required this.fallbackColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      assetPath,
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
+      gaplessPlayback: true,
+      excludeFromSemantics: true,
+      errorBuilder: (_, _, _) => Icon(
+        fallbackIcon,
+        size: size - 1,
+        color: fallbackColor,
+      ),
+    );
+  }
+}
+
 class _SourceLogoIcon extends StatelessWidget {
   final MusicSourceType sourceType;
   final bool isSelected;
@@ -65,25 +96,25 @@ class _SourceLogoIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (sourceType) {
       case MusicSourceType.appleMusic:
-        return SvgPicture.asset(
-          _appleMusicSourceIcon,
-          width: 16,
-          height: 16,
-          excludeFromSemantics: true,
+        return const _BrandedSourceImage(
+          assetPath: _appleMusicSourceIcon,
+          size: 16,
+          fallbackIcon: CupertinoIcons.music_note_2,
+          fallbackColor: Color(0xFFFF2D55),
         );
       case MusicSourceType.navidrome:
-        return SvgPicture.asset(
-          _navidromeSourceIcon,
-          width: 17,
-          height: 17,
-          excludeFromSemantics: true,
+        return const _BrandedSourceImage(
+          assetPath: _navidromeSourceIcon,
+          size: 17,
+          fallbackIcon: CupertinoIcons.music_note_2,
+          fallbackColor: Color(0xFF0084FF),
         );
       case MusicSourceType.jellyfin:
-        return SvgPicture.asset(
-          _jellyfinSourceIcon,
-          width: 16,
-          height: 16,
-          excludeFromSemantics: true,
+        return const _BrandedSourceImage(
+          assetPath: _jellyfinSourceIcon,
+          size: 16,
+          fallbackIcon: CupertinoIcons.play_rectangle_fill,
+          fallbackColor: Color(0xFF7C63C7),
         );
       case MusicSourceType.remote:
         return Icon(
