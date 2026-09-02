@@ -1,46 +1,13 @@
 import 'dart:math' as math;
 
 import 'package:dopi/core/extensions/build_context_extensions.dart';
-import 'package:dopi/core/models/music_metadata.dart';
 import 'package:dopi/core/services/native_eq_player_service.dart';
 import 'package:dopi/features/now_playing/models/now_playing_model.dart';
+import 'package:dopi/features/now_playing/utils/eq_status.dart';
 import 'package:dopi/features/now_playing/widgets/album_reflective_art.dart';
 import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-String? _eqStatusText({
-  required MusicMetadata? currentMetadata,
-  required bool eqRequested,
-  required bool nativeEqActive,
-  required String? nativeEqFailure,
-  required String title,
-}) {
-  if (!eqRequested) {
-    return null;
-  }
-  if (currentMetadata == null) {
-    return null;
-  }
-  if (currentMetadata.isAppleMusicCatalogTrack) {
-    return 'EQ unavailable: Apple Music';
-  }
-  if (nativeEqActive) {
-    return 'EQ active: $title';
-  }
-  if (nativeEqFailure != null) {
-    return 'EQ failed: select song to retry';
-  }
-  switch (currentMetadata.sourceType) {
-    case MusicSourceType.local:
-    case MusicSourceType.navidrome:
-    case MusicSourceType.jellyfin:
-    case MusicSourceType.remote:
-      return 'EQ not applied: $title';
-    case MusicSourceType.appleMusic:
-      return 'EQ unavailable: Apple Music';
-  }
-}
 
 class _EqStatusPill extends StatelessWidget {
   final String text;
@@ -119,14 +86,17 @@ class NowPlayingWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentMetadata = nowPlayingDetails.currentMetadata;
     final settings = ref.watch(settingsPreferencesControllerProvider);
-    final nativeEqActive = ref.watch(nativeEqPlaybackActiveProvider);
+    final nativeEqRuntimeState = ref.watch(nativeEqRuntimeStateProvider);
+    final nativeEqSnapshot = ref.watch(nativeEqPlaybackSnapshotProvider).value;
     final nativeEqFailure = ref.watch(nativeEqFailureProvider);
-    final eqStatus = _eqStatusText(
+    final eqStatus = buildEqStatusText(
       currentMetadata: currentMetadata,
-      eqRequested: !settings.activeEqualizerHasNeutralCurve,
-      nativeEqActive: nativeEqActive,
+      savedBandGainsDb: settings.activeEqualizerBandGainsDb,
+      savedPreampDb: settings.activeEqualizerPreampDb,
+      savedTitle: settings.equalizerDisplayTitle,
+      runtimeState: nativeEqRuntimeState,
+      snapshot: nativeEqSnapshot,
       nativeEqFailure: nativeEqFailure,
-      title: settings.equalizerDisplayTitle,
     );
     final heroTag =
         '${currentMetadata?.albumName}-${currentMetadata?.albumArtistName}';

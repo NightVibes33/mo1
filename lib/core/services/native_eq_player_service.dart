@@ -14,11 +14,18 @@ import 'package:path_provider/path_provider.dart';
 
 final nativeEqFailureProvider = StateProvider<String?>((_) => null);
 
+final nativeEqRuntimeStateProvider = StateProvider<NativeEqRuntimeState>(
+  (_) => const NativeEqRuntimeState.neutral(),
+);
+
 final nativeEqPlayerServiceProvider = Provider<NativeEqPlayerService>((ref) {
   return NativeEqPlayerService(
     ref.read(debugLogServiceProvider),
     onFailureChanged: (failure) {
       ref.read(nativeEqFailureProvider.notifier).state = failure;
+    },
+    onRuntimeStateChanged: (runtimeState) {
+      ref.read(nativeEqRuntimeStateProvider.notifier).state = runtimeState;
     },
   );
 });
@@ -29,6 +36,47 @@ final nativeEqPlaybackSnapshotProvider =
     StreamProvider.autoDispose<NativeEqPlaybackSnapshot>((ref) {
       return ref.watch(nativeEqPlayerServiceProvider).playbackSnapshots();
     });
+
+class NativeEqRuntimeState {
+  static const int bandCount = 10;
+
+  final String? presetName;
+  final String? displayName;
+  final List<double> bandGainsDb;
+  final double preampDb;
+
+  const NativeEqRuntimeState({
+    this.presetName,
+    this.displayName,
+    required this.bandGainsDb,
+    this.preampDb = 0,
+  });
+
+  const NativeEqRuntimeState.neutral()
+    : presetName = null,
+      displayName = null,
+      bandGainsDb = const [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      preampDb = 0;
+
+  bool get hasAudibleProcessing =>
+      bandGainsDb.any((gain) => gain.abs() >= 0.001) || preampDb.abs() >= 0.001;
+
+  bool get isPreview => presetName == 'custom_preview';
+
+  bool matchesCurve(List<double> gains, double otherPreampDb) {
+    final normalized = _normalizeRuntimeBandGains(gains);
+    if (normalized.length != bandGainsDb.length ||
+        (preampDb - otherPreampDb).abs() >= 0.001) {
+      return false;
+    }
+    for (var index = 0; index < bandGainsDb.length; index++) {
+      if ((bandGainsDb[index] - normalized[index]).abs() >= 0.001) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
 
 class PreparedNativeEqQueue {
   final List<Map<String, Object?>> items;
@@ -50,17 +98,41 @@ class NativeEqPlayerService {
 
   final DebugLogService _debugLogService;
   final void Function(String? failure) _onFailureChanged;
+  final void Function(NativeEqRuntimeState runtimeState) _onRuntimeStateChanged;
   final HttpClient _httpClient = HttpClient();
   String? lastLoadFailure;
 
   NativeEqPlayerService(
     this._debugLogService, {
     required void Function(String? failure) onFailureChanged,
-  }) : _onFailureChanged = onFailureChanged;
+    required void Function(NativeEqRuntimeState runtimeState)
+    onRuntimeStateChanged,
+  }) : _onFailureChanged = onFailureChanged,
+       _onRuntimeStateChanged = onRuntimeStateChanged;
 
   void _setFailure(String? failure) {
     lastLoadFailure = failure;
     _onFailureChanged(failure);
+  }
+
+  void _setRuntimeState({
+    String? presetName,
+    String? displayName,
+    required List<double> bandGainsDb,
+    required double preampDb,
+  }) {
+    _onRuntimeStateChanged(
+      NativeEqRuntimeState(
+        presetName: presetName,
+        displayName: displayName,
+        bandGainsDb: _normalizeRuntimeBandGains(bandGainsDb),
+        preampDb: preampDb,
+      ),
+    );
+  }
+
+  void _clearRuntimeState() {
+    _onRuntimeStateChanged(const NativeEqRuntimeState.neutral());
   }
 
   bool get isSupported => !kIsWeb && Platform.isIOS;
@@ -171,6 +243,10 @@ class NativeEqPlayerService {
       final loaded = didLoad ?? false;
       if (loaded) {
         _setFailure(null);
+        _setRuntimeState(
+          bandGainsDb: bandGainsDb,
+          preampDb: preampDb,
+        );
         _debugLogService.info(
           'equalizer',
           'Native EQ queue loaded.',
@@ -201,7 +277,15 @@ class NativeEqPlayerService {
 
   Future<bool> play() => _boolMethod('play');
   Future<bool> pause() => _boolMethod('pause');
-  Future<bool> stop() => _boolMethod('stop');
+
+  Future<bool> stop() async {
+    final stopped = await _boolMethod('stop');
+    if (stopped) {
+      _clearRuntimeState();
+    }
+    return stopped;
+  }
+
   Future<bool> next() => _boolMethod('next');
   Future<bool> previous() => _boolMethod('previous');
 
@@ -244,6 +328,14 @@ class NativeEqPlayerService {
         map: result,
       );
       _setFailure(applyResult.isApplied ? null : applyResult.message);
+      if (applyResult.isApplied) {
+        _setRuntimeState(
+          presetName: presetName,
+          displayName: displayName,
+          bandGainsDb: bandGainsDb,
+          preampDb: preampDb,
+        );
+      }
       return applyResult;
     } on PlatformException catch (error) {
       _setFailure(error.message ?? error.code);
@@ -469,6 +561,17 @@ class NativeEqPlaybackSnapshot {
       preampDb: _doubleValue(map['preampDb']),
     );
   }
+}
+
+List<double> _normalizeRuntimeBandGains(List<double> gains) {
+  return List<double>.unmodifiable(
+    List<double>.generate(NativeEqRuntimeState.bandCount, (index) {
+      if (index >= gains.length || !gains[index].isFinite) {
+        return 0;
+      }
+      return gains[index].clamp(-12, 12).toDouble();
+    }),
+  );
 }
 
 Duration _durationFromSeconds(Object? value) {
