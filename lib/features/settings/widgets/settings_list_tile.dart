@@ -1,6 +1,6 @@
-import 'package:dope/core/constants/app_palette.dart';
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/widgets/marquee_text.dart';
+import 'package:dopi/core/constants/app_palette.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/widgets/marquee_text.dart';
 import 'package:flutter/cupertino.dart';
 
 class SettingsListTile extends StatelessWidget {

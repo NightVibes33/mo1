@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/core/services/audio_player_service.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/core/services/audio_player_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,7 +42,7 @@ class _DeepLinkController {
       return;
     }
     final uri = Uri.tryParse(rawLink);
-    if (uri == null || uri.scheme != 'dope') {
+    if (uri == null || !const {'dopi', 'dope'}.contains(uri.scheme)) {
       return;
     }
     final router = _ref.read(routerProvider);

@@ -1,9 +1,9 @@
-import 'package:dope/core/constants/assets.dart';
-import 'package:dope/core/constants/keys.dart';
-import 'package:dope/features/device/widgets/device_controls.dart';
-import 'package:dope/features/device/widgets/device_screen.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
-import 'package:dope/features/settings/models/wheel_style.dart';
+import 'package:dopi/core/constants/assets.dart';
+import 'package:dopi/core/constants/keys.dart';
+import 'package:dopi/features/device/widgets/device_controls.dart';
+import 'package:dopi/features/device/widgets/device_screen.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/features/settings/models/wheel_style.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

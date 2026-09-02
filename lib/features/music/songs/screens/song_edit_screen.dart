@@ -1,16 +1,16 @@
 import 'dart:io';
 
-import 'package:dope/core/constants/assets.dart';
-import 'package:dope/core/constants/constants.dart';
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/utils/metadata_artwork.dart';
-import 'package:dope/core/services/music_metadata_lookup_service.dart';
-import 'package:dope/features/music/songs/models/music_metadata_match.dart';
-import 'package:dope/features/music/songs/widgets/lyrics_search_sheet.dart';
-import 'package:dope/features/music/songs/widgets/metadata_match_sheet.dart';
-import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
-import 'package:dope/features/status_bar/widgets/status_bar.dart';
+import 'package:dopi/core/constants/assets.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/utils/metadata_artwork.dart';
+import 'package:dopi/core/services/music_metadata_lookup_service.dart';
+import 'package:dopi/features/music/songs/models/music_metadata_match.dart';
+import 'package:dopi/features/music/songs/widgets/lyrics_search_sheet.dart';
+import 'package:dopi/features/music/songs/widgets/metadata_match_sheet.dart';
+import 'package:dopi/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dopi/features/status_bar/widgets/status_bar.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -1,4 +1,4 @@
-import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
 import 'package:flutter/cupertino.dart';
 
 enum ClickWheelSensitivity {

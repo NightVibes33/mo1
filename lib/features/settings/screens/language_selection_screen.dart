@@ -1,10 +1,10 @@
-import 'package:dope/core/extensions/locale_extensions.dart';
-import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/core/widgets/display_list_tile.dart';
-import 'package:dope/features/custom_screen_elements/custom_screen.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
-import 'package:dope/features/status_bar/widgets/status_bar.dart';
-import 'package:dope/l10n/generated/app_localizations.dart';
+import 'package:dopi/core/extensions/locale_extensions.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/core/widgets/display_list_tile.dart';
+import 'package:dopi/features/custom_screen_elements/custom_screen.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/features/status_bar/widgets/status_bar.dart';
+import 'package:dopi/l10n/generated/app_localizations.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:dope/core/constants/constants.dart';
-import 'package:dope/core/providers/device_directory_provider.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/providers/device_directory_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final appDocumentsServiceProvider = Provider<AppDocumentsService>((ref) {
@@ -20,6 +20,10 @@ class AppDocumentsService {
 
   Directory get appDirectory => Directory(
     _join(documentsDirectory.path, Constants.appDocumentsFolderName),
+  );
+
+  Directory get previousAppDirectory => Directory(
+    _join(documentsDirectory.path, Constants.previousAppDocumentsFolderName),
   );
 
   Directory get legacyAppDirectory => Directory(
@@ -57,21 +61,21 @@ class AppDocumentsService {
   }
 
   Future<void> migrateLegacyStorage() async {
-    final legacyDirectory = legacyAppDirectory;
-    if (!await legacyDirectory.exists()) {
-      await ensureDirectories();
-      return;
-    }
-
     final currentDirectory = appDirectory;
-    if (!await currentDirectory.exists()) {
-      try {
-        await legacyDirectory.rename(currentDirectory.path);
-      } catch (_) {
-        await _mergeDirectoryContents(legacyDirectory, currentDirectory);
-        await _deleteDirectoryIfExists(legacyDirectory);
+    for (final legacyDirectory in [previousAppDirectory, legacyAppDirectory]) {
+      if (!await legacyDirectory.exists()) {
+        continue;
       }
-    } else {
+      if (!await currentDirectory.exists()) {
+        try {
+          await legacyDirectory.rename(currentDirectory.path);
+          continue;
+        } catch (_) {
+          await _mergeDirectoryContents(legacyDirectory, currentDirectory);
+          await _deleteDirectoryIfExists(legacyDirectory);
+          continue;
+        }
+      }
       await _mergeDirectoryContents(legacyDirectory, currentDirectory);
       await _deleteDirectoryIfExists(legacyDirectory);
     }
@@ -111,9 +115,10 @@ class AppDocumentsService {
       }
     }
 
-    final legacyDirectory = legacyAppDirectory;
-    if (await legacyDirectory.exists()) {
-      await legacyDirectory.delete(recursive: true);
+    for (final legacyDirectory in [previousAppDirectory, legacyAppDirectory]) {
+      if (await legacyDirectory.exists()) {
+        await legacyDirectory.delete(recursive: true);
+      }
     }
 
     await ensureDirectories();
@@ -203,6 +208,7 @@ class AppDocumentsService {
   static String? _managedAppPathSuffixFor(String normalizedPath) {
     for (final marker in [
       '/${Constants.appDocumentsFolderName}',
+      '/${Constants.previousAppDocumentsFolderName}',
       '/${Constants.legacyAppDocumentsFolderName}',
     ]) {
       if (normalizedPath == marker.substring(1) ||

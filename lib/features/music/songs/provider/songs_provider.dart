@@ -1,6 +1,6 @@
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/providers/filtered_audio_files_provider.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/providers/filtered_audio_files_provider.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final songsProvider = Provider<List<MusicMetadata>>((ref) {

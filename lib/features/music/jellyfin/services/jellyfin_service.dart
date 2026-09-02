@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/features/music/jellyfin/models/jellyfin_browser_item.dart';
-import 'package:dope/features/music/jellyfin/models/jellyfin_connection.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/features/music/jellyfin/models/jellyfin_browser_item.dart';
+import 'package:dopi/features/music/jellyfin/models/jellyfin_connection.dart';
 
 class JellyfinServiceException implements Exception {
   final String message;

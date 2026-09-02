@@ -1,13 +1,13 @@
 import 'dart:async';
 
-import 'package:dope/core/constants/assets.dart';
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/providers/filtered_audio_files_provider.dart';
-import 'package:dope/core/utils/metadata_artwork.dart';
-import 'package:dope/core/widgets/empty_state_widget.dart';
-import 'package:dope/features/menu/models/split_screen_type.dart';
-import 'package:dope/features/music/album/models/album_model.dart';
-import 'package:dope/features/music/album/providers/album_details_provider.dart';
+import 'package:dopi/core/constants/assets.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/providers/filtered_audio_files_provider.dart';
+import 'package:dopi/core/utils/metadata_artwork.dart';
+import 'package:dopi/core/widgets/empty_state_widget.dart';
+import 'package:dopi/features/menu/models/split_screen_type.dart';
+import 'package:dopi/features/music/album/models/album_model.dart';
+import 'package:dopi/features/music/album/providers/album_details_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/services/song_transition_analysis_service.dart';
-import 'package:dope/features/now_playing/models/now_playing_model.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/services/song_transition_analysis_service.dart';
+import 'package:dopi/features/now_playing/models/now_playing_model.dart';
 
 const int minCrossfadeDurationSeconds = 1;
 const int maxCrossfadeDurationSeconds = 12;

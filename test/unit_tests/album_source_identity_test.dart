@@ -1,6 +1,6 @@
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/features/music/album/models/album_model.dart';
-import 'package:dope/features/music/songs/models/music_metadata_match.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/features/music/album/models/album_model.dart';
+import 'package:dopi/features/music/songs/models/music_metadata_match.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

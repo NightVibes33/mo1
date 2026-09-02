@@ -1,4 +1,4 @@
-import 'package:dope/features/menu/models/split_screen_type.dart';
+import 'package:dopi/features/menu/models/split_screen_type.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final splitScreenControllerProvider =

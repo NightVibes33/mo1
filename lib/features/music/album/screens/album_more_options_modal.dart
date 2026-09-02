@@ -1,9 +1,9 @@
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/core/widgets/options_list_tile.dart';
-import 'package:dope/features/custom_screen_elements/custom_screen.dart';
-import 'package:dope/features/music/album/models/album_model.dart';
-import 'package:dope/features/music/playlist/providers/playlists_provider.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/core/widgets/options_list_tile.dart';
+import 'package:dopi/features/custom_screen_elements/custom_screen.dart';
+import 'package:dopi/features/music/album/models/album_model.dart';
+import 'package:dopi/features/music/playlist/providers/playlists_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

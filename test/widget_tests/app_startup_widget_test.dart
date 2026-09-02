@@ -2,14 +2,14 @@
 
 import 'dart:io';
 
-import 'package:dope/classipod_app.dart';
-import 'package:dope/core/models/device_directory.dart';
-import 'package:dope/core/providers/device_directory_provider.dart';
-import 'package:dope/core/providers/shared_preferences_with_cache_provider.dart';
-import 'package:dope/features/app_startup/controllers/app_startup_controller.dart';
-import 'package:dope/features/app_startup/screens/app_startup_screen.dart';
-import 'package:dope/features/app_startup/screens/splash_screen.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/classipod_app.dart';
+import 'package:dopi/core/models/device_directory.dart';
+import 'package:dopi/core/providers/device_directory_provider.dart';
+import 'package:dopi/core/providers/shared_preferences_with_cache_provider.dart';
+import 'package:dopi/features/app_startup/controllers/app_startup_controller.dart';
+import 'package:dopi/features/app_startup/screens/app_startup_screen.dart';
+import 'package:dopi/features/app_startup/screens/splash_screen.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

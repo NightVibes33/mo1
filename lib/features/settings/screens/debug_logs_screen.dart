@@ -1,13 +1,13 @@
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/extensions/go_router_extensions.dart';
-import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/core/services/crash_log_service.dart';
-import 'package:dope/core/services/debug_log_service.dart';
-import 'package:dope/core/services/source_health_service.dart';
-import 'package:dope/core/services/storage_diagnostics_service.dart';
-import 'package:dope/features/device/models/device_action.dart';
-import 'package:dope/features/device/services/device_buttons_service_provider.dart';
-import 'package:dope/features/status_bar/widgets/status_bar.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/extensions/go_router_extensions.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/core/services/crash_log_service.dart';
+import 'package:dopi/core/services/debug_log_service.dart';
+import 'package:dopi/core/services/source_health_service.dart';
+import 'package:dopi/core/services/storage_diagnostics_service.dart';
+import 'package:dopi/features/device/models/device_action.dart';
+import 'package:dopi/features/device/services/device_buttons_service_provider.dart';
+import 'package:dopi/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show SelectableText;
 import 'package:flutter/services.dart';
@@ -58,7 +58,7 @@ class _DebugLogsScreenState extends ConsumerState<DebugLogsScreen> {
         .map((entry) => '- ${entry.label}: ${entry.displaySize} | ${entry.path}')
         .join('\n');
     return [
-      '== døPe Debug Bundle ==',
+      '== doPi Debug Bundle ==',
       'createdAt=${DateTime.now().toIso8601String()}',
       'debugSessionId=$debugSessionId',
       '',

@@ -1,9 +1,9 @@
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/services/music_metadata_lookup_service.dart';
-import 'package:dope/features/music/songs/screens/song_edit_screen.dart';
-import 'package:dope/features/music/songs/widgets/lyrics_search_sheet.dart';
-import 'package:dope/features/music/songs/widgets/metadata_match_sheet.dart';
-import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/services/music_metadata_lookup_service.dart';
+import 'package:dopi/features/music/songs/screens/song_edit_screen.dart';
+import 'package:dopi/features/music/songs/widgets/lyrics_search_sheet.dart';
+import 'package:dopi/features/music/songs/widgets/metadata_match_sheet.dart';
+import 'package:dopi/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

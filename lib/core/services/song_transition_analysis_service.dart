@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/providers/shared_preferences_with_cache_provider.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/providers/shared_preferences_with_cache_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

@@ -1,16 +1,16 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dope/core/constants/constants.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/providers/device_directory_provider.dart';
-import 'package:dope/core/providers/shared_preferences_with_cache_provider.dart';
-import 'package:dope/core/services/app_documents_service.dart';
-import 'package:dope/core/services/crash_log_service.dart';
-import 'package:dope/features/music/playlist/models/playlist_model.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
-import 'package:dope/features/settings/models/exclude_directory_model.dart';
-import 'package:dope/hive/hive_registrar.g.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/providers/device_directory_provider.dart';
+import 'package:dopi/core/providers/shared_preferences_with_cache_provider.dart';
+import 'package:dopi/core/services/app_documents_service.dart';
+import 'package:dopi/core/services/crash_log_service.dart';
+import 'package:dopi/features/music/playlist/models/playlist_model.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/features/settings/models/exclude_directory_model.dart';
+import 'package:dopi/hive/hive_registrar.g.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,7 +27,7 @@ final appStartupControllerProvider = FutureProvider<void>((ref) async {
       ]),
       JustAudioBackground.init(
         androidNotificationChannelId: 'classipod.audio.playback',
-        androidNotificationChannelName: 'døPe Audio playback',
+        androidNotificationChannelName: 'doPi Audio playback',
         androidNotificationChannelDescription:
             'Notification to control the currently playing music files',
         androidNotificationOngoing: true,
@@ -55,7 +55,7 @@ final appStartupControllerProvider = FutureProvider<void>((ref) async {
   }
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
     JustAudioMediaKit.ensureInitialized();
-    JustAudioMediaKit.title = 'døPe';
+    JustAudioMediaKit.title = 'doPi';
   }
   ref
       .read(settingsPreferencesControllerProvider.notifier)

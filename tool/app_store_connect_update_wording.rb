@@ -14,13 +14,13 @@ PLATFORM = ENV.fetch('DOPI_PLATFORM', 'IOS')
 LOCALE = ENV.fetch('DOPI_APP_LOCALE', 'en-US')
 APP_DESCRIPTION = ENV.fetch(
   'DOPI_APP_DESCRIPTION',
-  'døPi is a retro music player for iPhone and iPad built for personal music libraries. Import MP3 files, connect Apple Music, browse albums with a visual carousel, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.'
+  'doPi is a retro music player for iPhone and iPad built for personal music libraries. Import MP3 files, connect Apple Music, browse albums with a visual carousel, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.'
 )
 APP_KEYWORDS = ENV.fetch('DOPI_APP_KEYWORDS', 'music player,mp3,apple music,album carousel,lyrics,equalizer,audio player')
 SUPPORT_URL = ENV.fetch('DOPI_SUPPORT_URL', 'https://github.com/NightVibes33/mo1')
 BETA_DESCRIPTION = ENV.fetch(
   'DOPI_BETA_APP_DESCRIPTION',
-  'døPi is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.'
+  'doPi is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.'
 )
 REVIEW_NOTES = ENV.fetch(
   'DOPI_REVIEW_NOTES',

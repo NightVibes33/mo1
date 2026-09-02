@@ -1,11 +1,11 @@
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/providers/filtered_audio_files_provider.dart';
-import 'package:dope/core/services/apple_music_playback_service.dart';
-import 'package:dope/core/services/music_metadata_lookup_service.dart';
-import 'package:dope/core/services/native_eq_player_service.dart';
-import 'package:dope/core/services/widget_sync_service.dart';
-import 'package:dope/features/music/jellyfin/providers/jellyfin_connection_provider.dart';
-import 'package:dope/features/music/navidrome/providers/navidrome_connection_provider.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/providers/filtered_audio_files_provider.dart';
+import 'package:dopi/core/services/apple_music_playback_service.dart';
+import 'package:dopi/core/services/music_metadata_lookup_service.dart';
+import 'package:dopi/core/services/native_eq_player_service.dart';
+import 'package:dopi/core/services/widget_sync_service.dart';
+import 'package:dopi/features/music/jellyfin/providers/jellyfin_connection_provider.dart';
+import 'package:dopi/features/music/navidrome/providers/navidrome_connection_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

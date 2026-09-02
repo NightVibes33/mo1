@@ -1,19 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/core/services/audio_player_service.dart';
-import 'package:dope/core/widgets/display_list_tile.dart';
-import 'package:dope/features/custom_screen_elements/custom_screen.dart';
-import 'package:dope/features/music/navidrome/models/navidrome_browser_item.dart';
-import 'package:dope/features/music/navidrome/models/navidrome_connection.dart';
-import 'package:dope/features/music/navidrome/providers/navidrome_connection_provider.dart';
-import 'package:dope/features/music/navidrome/providers/navidrome_service_provider.dart';
-import 'package:dope/features/music/navidrome/services/navidrome_service.dart';
-import 'package:dope/features/music/songs/widgets/song_list_tile.dart';
-import 'package:dope/features/status_bar/widgets/status_bar.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/core/services/audio_player_service.dart';
+import 'package:dopi/core/widgets/display_list_tile.dart';
+import 'package:dopi/features/custom_screen_elements/custom_screen.dart';
+import 'package:dopi/features/music/navidrome/models/navidrome_browser_item.dart';
+import 'package:dopi/features/music/navidrome/models/navidrome_connection.dart';
+import 'package:dopi/features/music/navidrome/providers/navidrome_connection_provider.dart';
+import 'package:dopi/features/music/navidrome/providers/navidrome_service_provider.dart';
+import 'package:dopi/features/music/navidrome/services/navidrome_service.dart';
+import 'package:dopi/features/music/songs/widgets/song_list_tile.dart';
+import 'package:dopi/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1211,7 +1211,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Disconnect Server?'),
         content: const Text(
-          'This removes the saved Navidrome connection from døPe.',
+          'This removes the saved Navidrome connection from doPi.',
         ),
         actions: [
           CupertinoDialogAction(

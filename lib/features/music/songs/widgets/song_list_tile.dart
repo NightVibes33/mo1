@@ -1,8 +1,8 @@
-import 'package:dope/core/constants/app_palette.dart';
-import 'package:dope/core/constants/assets.dart';
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/utils/metadata_artwork.dart';
+import 'package:dopi/core/constants/app_palette.dart';
+import 'package:dopi/core/constants/assets.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/utils/metadata_artwork.dart';
 import 'package:flutter/cupertino.dart';
 
 class _SourceLogoBadge extends StatelessWidget {

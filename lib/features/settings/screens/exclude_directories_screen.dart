@@ -1,11 +1,11 @@
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/core/widgets/empty_state_widget.dart';
-import 'package:dope/features/custom_screen_elements/custom_screen.dart';
-import 'package:dope/features/settings/controller/exclude_directories_controller.dart';
-import 'package:dope/features/settings/models/exclude_directory_model.dart';
-import 'package:dope/features/settings/widgets/exclude_directory_tile.dart';
-import 'package:dope/features/status_bar/widgets/status_bar.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/core/widgets/empty_state_widget.dart';
+import 'package:dopi/features/custom_screen_elements/custom_screen.dart';
+import 'package:dopi/features/settings/controller/exclude_directories_controller.dart';
+import 'package:dopi/features/settings/models/exclude_directory_model.dart';
+import 'package:dopi/features/settings/widgets/exclude_directory_tile.dart';
+import 'package:dopi/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

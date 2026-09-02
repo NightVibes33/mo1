@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:dope/core/constants/assets.dart';
-import 'package:dope/core/utils/metadata_artwork.dart';
+import 'package:dopi/core/constants/assets.dart';
+import 'package:dopi/core/utils/metadata_artwork.dart';
 import 'package:flutter/cupertino.dart';
 
 class AlbumReflectiveArt extends StatefulWidget {

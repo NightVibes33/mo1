@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/services/audio_equalizer_service.dart';
-import 'package:dope/core/services/debug_log_service.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/services/audio_equalizer_service.dart';
+import 'package:dopi/core/services/debug_log_service.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';

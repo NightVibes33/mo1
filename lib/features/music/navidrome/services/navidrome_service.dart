@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/features/music/navidrome/models/navidrome_browser_item.dart';
-import 'package:dope/features/music/navidrome/models/navidrome_connection.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/features/music/navidrome/models/navidrome_browser_item.dart';
+import 'package:dopi/features/music/navidrome/models/navidrome_connection.dart';
 
 class NavidromeServiceException implements Exception {
   final String message;

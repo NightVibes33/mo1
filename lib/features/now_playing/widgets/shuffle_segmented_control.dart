@@ -1,6 +1,6 @@
-import 'package:dope/core/constants/app_palette.dart';
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/widgets/custom_sliding_segmented_control.dart';
+import 'package:dopi/core/constants/app_palette.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/widgets/custom_sliding_segmented_control.dart';
 import 'package:flutter/cupertino.dart';
 
 class ShuffleSegmentedControl extends StatelessWidget {

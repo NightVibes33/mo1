@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:dope/features/status_bar/widgets/status_bar.dart';
+import 'package:dopi/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 
 class OptionsModalPage<T> extends Page<T> {

@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/services/music_metadata_lookup_service.dart';
-import 'package:dope/features/music/songs/models/music_metadata_match.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/services/music_metadata_lookup_service.dart';
+import 'package:dopi/features/music/songs/models/music_metadata_match.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

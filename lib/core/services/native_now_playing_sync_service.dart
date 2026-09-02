@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dope/core/services/audio_player_service.dart';
-import 'package:dope/core/services/debug_log_service.dart';
-import 'package:dope/core/services/native_eq_player_service.dart';
-import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dopi/core/services/audio_player_service.dart';
+import 'package:dopi/core/services/debug_log_service.dart';
+import 'package:dopi/core/services/native_eq_player_service.dart';
+import 'package:dopi/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

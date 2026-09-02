@@ -1,16 +1,16 @@
 <div align="center">
 
-# døPe
+# doPi
 
-![døPe App Screenshots](screenshots/combined.jpg)
+![doPi App Screenshots](screenshots/combined.jpg)
 
 A retro click-wheel music player for iPhone built around personal libraries, Apple Music catalog playback, local audio imports, server libraries, metadata editing, lyrics, equalizer controls, widgets, and a classic iPod-style interface.
 
 </div>
 
-## What døPe Is
+## What doPi Is
 
-døPe is a Flutter music player inspired by classic iPod navigation. The app keeps the click-wheel, Cover Flow, split-screen browsing, and Now Playing flow, while adding modern library sources and editing tools.
+doPi is a Flutter music player inspired by classic iPod navigation. The app keeps the click-wheel, Cover Flow, split-screen browsing, and Now Playing flow, while adding modern library sources and editing tools.
 
 The app is focused on user-owned or user-authorized music:
 
@@ -19,7 +19,7 @@ The app is focused on user-owned or user-authorized music:
 - Self-hosted music through Navidrome and Jellyfin.
 - Metadata, artwork, lyrics, explicit badges, playlists, equalizer controls, and widgets around those sources.
 
-YouTube support was intentionally removed. døPe does not download audio from YouTube and does not ship a YouTube API key.
+YouTube support was intentionally removed. doPi does not download audio from YouTube and does not ship a YouTube API key.
 
 ## Current Feature Status
 
@@ -68,7 +68,7 @@ YouTube support was intentionally removed. døPe does not download audio from Yo
 - [x] Date-added sorting across mixed sources.
 - [ ] Advanced duplicate merge tools. Planned.
 - [ ] Bulk library cleanup tools. Planned.
-- [ ] Custom folder scanning outside app imports. Not implemented in the current iOS-focused døPe flow; imports are app-managed.
+- [ ] Custom folder scanning outside app imports. Not implemented in the current iOS-focused doPi flow; imports are app-managed.
 
 ### Metadata, Artwork, and Lyrics
 
@@ -110,7 +110,7 @@ YouTube support was intentionally removed. døPe does not download audio from Yo
 - [x] Responsive layout work for different iPhone/iPad screen sizes.
 - [x] About/settings screens.
 - [x] Multi-language/localization infrastructure.
-- [x] Multiple visual refresh passes for the døPe-branded UI.
+- [x] Multiple visual refresh passes for the doPi-branded UI.
 - [ ] Built-in iPod-style games. Planned, not implemented.
 - [ ] Photo viewer. Planned, not implemented.
 - [ ] Video viewer. Planned, not implemented.
@@ -196,7 +196,7 @@ The project is Flutter-based and includes iOS-native bridges for Apple Music pla
 
 ## Privacy and Source Policy
 
-- døPe is designed for music the user owns, imports, or is authorized to access.
+- doPi is designed for music the user owns, imports, or is authorized to access.
 - Apple Music features require user authorization and Apple Music availability on the device.
 - Navidrome and Jellyfin features connect to servers configured by the user.
 - YouTube support is not included.

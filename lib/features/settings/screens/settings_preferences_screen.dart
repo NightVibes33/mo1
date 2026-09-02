@@ -1,19 +1,19 @@
 import 'dart:async';
 
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/core/services/audio_files_service.dart';
-import 'package:dope/core/services/imported_library_refresh_service.dart';
-import 'package:dope/core/services/audio_player_service.dart';
-import 'package:dope/core/services/app_data_reset_service.dart';
-import 'package:dope/features/custom_screen_elements/custom_screen.dart';
-import 'package:dope/features/menu/controller/split_screen_controller.dart';
-import 'package:dope/features/menu/models/split_screen_type.dart';
-import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
-import 'package:dope/features/settings/models/settings_preferences_model.dart';
-import 'package:dope/features/settings/widgets/settings_list_tile.dart';
-import 'package:dope/features/status_bar/widgets/status_bar.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/core/services/audio_files_service.dart';
+import 'package:dopi/core/services/imported_library_refresh_service.dart';
+import 'package:dopi/core/services/audio_player_service.dart';
+import 'package:dopi/core/services/app_data_reset_service.dart';
+import 'package:dopi/features/custom_screen_elements/custom_screen.dart';
+import 'package:dopi/features/menu/controller/split_screen_controller.dart';
+import 'package:dopi/features/menu/models/split_screen_type.dart';
+import 'package:dopi/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/features/settings/models/settings_preferences_model.dart';
+import 'package:dopi/features/settings/widgets/settings_list_tile.dart';
+import 'package:dopi/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -644,7 +644,7 @@ class _ImportProgressDialog extends ConsumerWidget {
             ],
             const SizedBox(height: 6),
             const Text(
-              'Keep døPe open while artwork and metadata are saved.',
+              'Keep doPi open while artwork and metadata are saved.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12),
             ),

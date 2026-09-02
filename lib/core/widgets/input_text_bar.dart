@@ -1,5 +1,5 @@
-import 'package:dope/core/constants/app_palette.dart';
-import 'package:dope/core/constants/constants.dart';
+import 'package:dopi/core/constants/app_palette.dart';
+import 'package:dopi/core/constants/constants.dart';
 import 'package:flutter/cupertino.dart';
 
 class InputTextBarController {

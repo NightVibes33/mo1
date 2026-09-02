@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dope/core/constants/constants.dart';
+import 'package:dopi/core/constants/constants.dart';
 
 class DeviceDirectory {
   final Directory documentsDirectory;

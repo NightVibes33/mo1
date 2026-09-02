@@ -1,6 +1,6 @@
-import 'package:dope/core/constants/keys.dart';
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/features/tutorial/widgets/animated_hand_icon.dart';
+import 'package:dopi/core/constants/keys.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/features/tutorial/widgets/animated_hand_icon.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 

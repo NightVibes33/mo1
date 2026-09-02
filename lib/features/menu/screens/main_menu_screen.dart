@@ -1,14 +1,14 @@
 import 'dart:async';
 
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/core/services/audio_player_service.dart';
-import 'package:dope/core/widgets/display_list_tile.dart';
-import 'package:dope/features/custom_screen_elements/custom_screen.dart';
-import 'package:dope/features/menu/controller/split_screen_controller.dart';
-import 'package:dope/features/menu/models/split_screen_type.dart';
-import 'package:dope/features/status_bar/widgets/status_bar.dart';
-import 'package:dope/features/tutorial/controller/tutorial_controller.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/core/services/audio_player_service.dart';
+import 'package:dopi/core/widgets/display_list_tile.dart';
+import 'package:dopi/features/custom_screen_elements/custom_screen.dart';
+import 'package:dopi/features/menu/controller/split_screen_controller.dart';
+import 'package:dopi/features/menu/models/split_screen_type.dart';
+import 'package:dopi/features/status_bar/widgets/status_bar.dart';
+import 'package:dopi/features/tutorial/controller/tutorial_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

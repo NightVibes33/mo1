@@ -1,5 +1,5 @@
-import 'package:dope/core/constants/assets.dart';
-import 'package:dope/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/constants/assets.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
 import 'package:flutter/cupertino.dart';
 
 enum AppTheme {

@@ -1,21 +1,21 @@
 import 'dart:convert';
 
-import 'package:dope/core/constants/constants.dart';
-import 'package:dope/core/models/shared_preference_keys.dart';
-import 'package:dope/core/providers/shared_preferences_with_cache_provider.dart';
-import 'package:dope/features/settings/models/app_text_size.dart';
-import 'package:dope/features/settings/models/app_theme.dart';
-import 'package:dope/features/settings/models/click_wheel_sensitivity.dart';
-import 'package:dope/features/settings/models/click_wheel_size.dart';
-import 'package:dope/features/settings/models/custom_device_theme.dart';
-import 'package:dope/features/settings/models/custom_equalizer_preset.dart';
-import 'package:dope/features/settings/models/device_color.dart';
-import 'package:dope/features/settings/models/equalizer_preset.dart';
-import 'package:dope/features/settings/models/repeat_mode.dart';
-import 'package:dope/features/settings/models/song_sort_order.dart';
-import 'package:dope/features/settings/models/song_transition_style.dart';
-import 'package:dope/features/settings/models/volume_mode.dart';
-import 'package:dope/features/settings/models/wheel_style.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/models/shared_preference_keys.dart';
+import 'package:dopi/core/providers/shared_preferences_with_cache_provider.dart';
+import 'package:dopi/features/settings/models/app_text_size.dart';
+import 'package:dopi/features/settings/models/app_theme.dart';
+import 'package:dopi/features/settings/models/click_wheel_sensitivity.dart';
+import 'package:dopi/features/settings/models/click_wheel_size.dart';
+import 'package:dopi/features/settings/models/custom_device_theme.dart';
+import 'package:dopi/features/settings/models/custom_equalizer_preset.dart';
+import 'package:dopi/features/settings/models/device_color.dart';
+import 'package:dopi/features/settings/models/equalizer_preset.dart';
+import 'package:dopi/features/settings/models/repeat_mode.dart';
+import 'package:dopi/features/settings/models/song_sort_order.dart';
+import 'package:dopi/features/settings/models/song_transition_style.dart';
+import 'package:dopi/features/settings/models/volume_mode.dart';
+import 'package:dopi/features/settings/models/wheel_style.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

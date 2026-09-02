@@ -1,12 +1,12 @@
-import 'package:dope/core/constants/app_palette.dart';
-import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/core/services/native_color_picker_service.dart';
-import 'package:dope/features/custom_screen_elements/custom_screen.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
-import 'package:dope/features/settings/models/custom_device_theme.dart';
-import 'package:dope/features/settings/models/device_color.dart';
-import 'package:dope/features/settings/models/settings_preferences_model.dart';
-import 'package:dope/features/status_bar/widgets/status_bar.dart';
+import 'package:dopi/core/constants/app_palette.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/core/services/native_color_picker_service.dart';
+import 'package:dopi/features/custom_screen_elements/custom_screen.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/features/settings/models/custom_device_theme.dart';
+import 'package:dopi/features/settings/models/device_color.dart';
+import 'package:dopi/features/settings/models/settings_preferences_model.dart';
+import 'package:dopi/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

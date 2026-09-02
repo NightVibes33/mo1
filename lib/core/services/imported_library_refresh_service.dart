@@ -1,11 +1,11 @@
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/providers/filtered_audio_files_provider.dart';
-import 'package:dope/features/music/album/providers/album_details_provider.dart';
-import 'package:dope/features/music/artists/providers/artist_names_provider.dart';
-import 'package:dope/features/music/genres/providers/genres_provider.dart';
-import 'package:dope/features/music/playlist/providers/playlists_provider.dart';
-import 'package:dope/features/music/songs/provider/songs_provider.dart';
-import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/providers/filtered_audio_files_provider.dart';
+import 'package:dopi/features/music/album/providers/album_details_provider.dart';
+import 'package:dopi/features/music/artists/providers/artist_names_provider.dart';
+import 'package:dopi/features/music/genres/providers/genres_provider.dart';
+import 'package:dopi/features/music/playlist/providers/playlists_provider.dart';
+import 'package:dopi/features/music/songs/provider/songs_provider.dart';
+import 'package:dopi/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 Future<List<MusicMetadata>> refreshImportedLibraryProviders(

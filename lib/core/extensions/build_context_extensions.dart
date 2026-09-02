@@ -1,5 +1,5 @@
-import 'package:dope/core/constants/app_color_scheme.dart';
-import 'package:dope/l10n/generated/app_localizations.dart';
+import 'package:dopi/core/constants/app_color_scheme.dart';
+import 'package:dopi/l10n/generated/app_localizations.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 

@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dope/core/constants/constants.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/features/music/songs/models/music_metadata_match.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/features/music/songs/models/music_metadata_match.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

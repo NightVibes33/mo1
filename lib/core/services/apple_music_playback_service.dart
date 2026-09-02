@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dope/core/services/debug_log_service.dart';
-import 'package:dope/features/settings/models/song_transition_style.dart';
+import 'package:dopi/core/services/debug_log_service.dart';
+import 'package:dopi/features/settings/models/song_transition_style.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

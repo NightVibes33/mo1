@@ -1,9 +1,9 @@
-import 'package:dope/core/constants/app_palette.dart';
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/features/app_startup/screens/app_startup_screen.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
-import 'package:dope/l10n/generated/app_localizations.dart';
+import 'package:dopi/core/constants/app_palette.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/features/app_startup/screens/app_startup_screen.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/l10n/generated/app_localizations.dart';
 import 'package:device_preview_plus/device_preview_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';

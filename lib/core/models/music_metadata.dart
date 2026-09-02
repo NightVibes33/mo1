@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:audio_service/audio_service.dart';
-import 'package:dope/core/constants/constants.dart';
-import 'package:dope/core/utils/metadata_artwork.dart';
-import 'package:dope/features/music/album/models/album_model.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/utils/metadata_artwork.dart';
+import 'package:dopi/features/music/album/models/album_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:just_audio/just_audio.dart';
@@ -210,6 +210,7 @@ String? _parentFolderName(String path) {
 
   const ignoredParents = {
     'classipod',
+    'dopi',
     'døpi',
     'documents',
     'downloads',

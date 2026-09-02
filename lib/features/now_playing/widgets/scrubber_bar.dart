@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:dope/core/constants/app_palette.dart';
-import 'package:dope/core/services/audio_player_service.dart';
+import 'package:dopi/core/constants/app_palette.dart';
+import 'package:dopi/core/services/audio_player_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

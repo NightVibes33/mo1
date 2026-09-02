@@ -105,7 +105,7 @@ platform :android do
         available_apks = Dir["#{apk_output_dir}/*.apk"]
         UI.user_error!("No APK output found to rename in #{apk_output_dir}. Available APKs: #{available_apks.join(', ')}")
       end
-      File.rename(apk_source, "#{apk_output_dir}/dope-android.apk")
+      File.rename(apk_source, "#{apk_output_dir}/dopi-android.apk")
 
       # set_github_release(
       #   repository_name: "adeeteya/Classipod",
@@ -114,7 +114,7 @@ platform :android do
       #   tag_name: options[:version_number],
       #   is_generate_release_notes: true,
       #   commitish: "master",
-      #   upload_assets: ["#{root_path}/build/app/outputs/flutter-apk/dope-android.apk"]
+      #   upload_assets: ["#{root_path}/build/app/outputs/flutter-apk/dopi-android.apk"]
       # )
     end
   end

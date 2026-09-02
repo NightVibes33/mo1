@@ -3,17 +3,17 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dope/core/constants/constants.dart';
-import 'package:dope/core/constants/online_audio_files_metadata.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/providers/device_directory_provider.dart';
-import 'package:dope/core/services/app_documents_service.dart';
-import 'package:dope/core/repositories/metadata_reader_repository.dart';
-import 'package:dope/core/services/debug_log_service.dart';
-import 'package:dope/core/services/music_metadata_lookup_service.dart';
-import 'package:dope/features/music/playlist/models/playlist_model.dart' as playlist_models;
-import 'package:dope/features/music/songs/models/music_metadata_match.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/constants/online_audio_files_metadata.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/providers/device_directory_provider.dart';
+import 'package:dopi/core/services/app_documents_service.dart';
+import 'package:dopi/core/repositories/metadata_reader_repository.dart';
+import 'package:dopi/core/services/debug_log_service.dart';
+import 'package:dopi/core/services/music_metadata_lookup_service.dart';
+import 'package:dopi/features/music/playlist/models/playlist_model.dart' as playlist_models;
+import 'package:dopi/features/music/songs/models/music_metadata_match.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -1172,7 +1172,7 @@ class AudioFilesServiceNotifier
         copiedFileCount++;
         _setLocalImportProgress(
           'Importing MP3s',
-          'Copying songs into døPe...',
+          'Copying songs into doPi...',
           completedCount: copiedFileCount,
           totalCount: pickedFiles.files.length,
         );

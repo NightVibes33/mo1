@@ -10,7 +10,7 @@ on:
       artifact_name:
         description: Artifact name containing the IPA and checksum
         required: true
-        default: "døPe-testflight-ipa-1"
+        default: "doPi-testflight-ipa-1"
 
 permissions:
   actions: read

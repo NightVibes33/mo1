@@ -32,9 +32,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Flutter doctor
-        run: flutter doctor -v
-
       - name: Install dependencies
         run: flutter pub get
 
@@ -50,16 +47,16 @@ jobs:
             find build/ios -maxdepth 4 -type d | sort
             exit 1
           fi
-          rm -rf build/Payload build/døPe-unsigned.ipa
+          rm -rf build/Payload build/doPi-unsigned.ipa
           mkdir -p build/Payload
-          cp -R "$APP_PATH" build/Payload/døPe.app
+          cp -R "$APP_PATH" build/Payload/doPi.app
           cd build
-          /usr/bin/zip -qry døPe-unsigned.ipa Payload
-          ls -lh døPe-unsigned.ipa
+          /usr/bin/zip -qry doPi-unsigned.ipa Payload
+          ls -lh doPi-unsigned.ipa
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: døPe-unsigned-ipa
-          path: build/døPe-unsigned.ipa
+          name: doPi-unsigned-ipa
+          path: build/doPi-unsigned.ipa
           if-no-files-found: error

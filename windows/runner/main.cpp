@@ -49,7 +49,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     }
     size = Win32Window::Size(restored_width, restored_height);
   }
-  if (!window.Create(L"døPi", origin, size)) {
+  if (!window.Create(L"doPi", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

@@ -1,6 +1,6 @@
-import 'package:dope/core/constants/app_palette.dart';
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/features/music/playlist/models/playlist_model.dart';
+import 'package:dopi/core/constants/app_palette.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/features/music/playlist/models/playlist_model.dart';
 import 'package:flutter/cupertino.dart';
 
 class PlaylistListTile extends StatelessWidget {

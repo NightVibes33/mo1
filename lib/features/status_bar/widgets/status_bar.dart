@@ -1,5 +1,5 @@
-import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

@@ -36,7 +36,7 @@ struct DopeWidgetSnapshot: Decodable, Hashable {
 
   static let empty = DopeWidgetSnapshot(
     schemaVersion: 1,
-    trackTitle: "Open døPe",
+    trackTitle: "Open doPi",
     artistName: "Choose music to start",
     albumName: "",
     sourceType: "none",
@@ -52,7 +52,7 @@ struct DopeWidgetSnapshot: Decodable, Hashable {
     eqPreampDb: nil,
     artworkFileName: nil,
     lastUpdatedEpochMs: 0,
-    deepLink: "dope://now-playing",
+    deepLink: "dopi://now-playing",
     queuePreview: []
   )
 }
@@ -111,8 +111,8 @@ struct DopeNowPlayingWidget: Widget {
     StaticConfiguration(kind: DopeWidgetKind.nowPlaying, provider: DopeTimelineProvider()) { entry in
       DopeNowPlayingView(entry: entry)
     }
-    .configurationDisplayName("døPe Now Playing")
-    .description("Show your current døPe song, source, and quick controls.")
+    .configurationDisplayName("doPi Now Playing")
+    .description("Show your current doPi song, source, and quick controls.")
     .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     .contentMarginsDisabled()
   }
@@ -123,8 +123,8 @@ struct DopeMiniIpodWidget: Widget {
     StaticConfiguration(kind: DopeWidgetKind.miniIpod, provider: DopeTimelineProvider()) { entry in
       DopeMiniIpodView(entry: entry)
     }
-    .configurationDisplayName("døPe Mini iPod")
-    .description("A mini iPod-style companion for døPe.")
+    .configurationDisplayName("doPi Mini iPod")
+    .description("A mini iPod-style companion for doPi.")
     .supportedFamilies([.systemMedium, .systemLarge])
     .contentMarginsDisabled()
   }
@@ -135,8 +135,8 @@ struct DopeQueueWidget: Widget {
     StaticConfiguration(kind: DopeWidgetKind.queue, provider: DopeTimelineProvider()) { entry in
       DopeQueueView(entry: entry)
     }
-    .configurationDisplayName("døPe Queue")
-    .description("Preview what is playing next in døPe.")
+    .configurationDisplayName("doPi Queue")
+    .description("Preview what is playing next in doPi.")
     .supportedFamilies([.systemLarge])
     .contentMarginsDisabled()
   }
@@ -147,8 +147,8 @@ struct DopeEqWidget: Widget {
     StaticConfiguration(kind: DopeWidgetKind.eq, provider: DopeTimelineProvider()) { entry in
       DopeEqView(entry: entry)
     }
-    .configurationDisplayName("døPe EQ")
-    .description("Show EQ and source support for the current døPe song.")
+    .configurationDisplayName("doPi EQ")
+    .description("Show EQ and source support for the current doPi song.")
     .supportedFamilies([.systemSmall, .systemMedium])
     .contentMarginsDisabled()
   }
@@ -816,7 +816,7 @@ struct DopeControlRow: View {
 }
 
 private func dopeWidgetURL(_ target: String) -> URL {
-  URL(string: "dope://\(target)") ?? URL(string: "dope://now-playing")!
+  URL(string: "dopi://\(target)") ?? URL(string: "dopi://now-playing")!
 }
 
 private func artworkImage(_ fileName: String?) -> UIImage? {
@@ -833,7 +833,7 @@ private func sourceTitle(_ source: String) -> String {
   case "jellyfin": return "JELLYFIN"
   case "remote": return "REMOTE"
   case "mp3": return "MP3"
-  default: return "døPe"
+  default: return "doPi"
   }
 }
 
@@ -879,7 +879,7 @@ private func queueText(_ snapshot: DopeWidgetSnapshot) -> String {
 private func eqStatus(_ snapshot: DopeWidgetSnapshot) -> String {
   if snapshot.sourceType == "appleMusic" { return "Apple Music bypasses EQ" }
   if snapshot.eqSupported { return "EQ active for this source" }
-  return "Open døPe to choose music"
+  return "Open doPi to choose music"
 }
 
 private func gainText(_ gain: Double) -> String {

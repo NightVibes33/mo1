@@ -1,9 +1,9 @@
-import 'package:dope/core/constants/assets.dart';
-import 'package:dope/core/custom_painter/next_button_custom_painter.dart';
-import 'package:dope/core/custom_painter/play_pause_button_custom_painter.dart';
-import 'package:dope/core/custom_painter/previous_button_custom_painter.dart';
-import 'package:dope/features/settings/models/device_color.dart';
-import 'package:dope/features/settings/models/wheel_style.dart';
+import 'package:dopi/core/constants/assets.dart';
+import 'package:dopi/core/custom_painter/next_button_custom_painter.dart';
+import 'package:dopi/core/custom_painter/play_pause_button_custom_painter.dart';
+import 'package:dopi/core/custom_painter/previous_button_custom_painter.dart';
+import 'package:dopi/features/settings/models/device_color.dart';
+import 'package:dopi/features/settings/models/wheel_style.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 

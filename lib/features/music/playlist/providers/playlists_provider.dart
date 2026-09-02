@@ -1,7 +1,7 @@
-import 'package:dope/core/constants/constants.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/features/music/album/models/album_model.dart';
-import 'package:dope/features/music/playlist/models/playlist_model.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/features/music/album/models/album_model.dart';
+import 'package:dopi/features/music/playlist/models/playlist_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 

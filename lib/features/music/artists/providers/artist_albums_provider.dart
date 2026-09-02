@@ -1,5 +1,5 @@
-import 'package:dope/features/music/album/models/album_model.dart';
-import 'package:dope/features/music/album/providers/album_details_provider.dart';
+import 'package:dopi/features/music/album/models/album_model.dart';
+import 'package:dopi/features/music/album/providers/album_details_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final artistAlbumDetailListProvider = Provider.autoDispose

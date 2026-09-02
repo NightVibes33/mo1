@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/services/native_eq_player_service.dart';
-import 'package:dope/features/now_playing/models/now_playing_model.dart';
-import 'package:dope/features/now_playing/widgets/album_reflective_art.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/services/native_eq_player_service.dart';
+import 'package:dopi/features/now_playing/models/now_playing_model.dart';
+import 'package:dopi/features/now_playing/widgets/album_reflective_art.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

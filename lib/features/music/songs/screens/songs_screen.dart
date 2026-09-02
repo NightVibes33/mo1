@@ -1,16 +1,16 @@
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/navigation/routes.dart';
-import 'package:dope/core/providers/filtered_audio_files_provider.dart';
-import 'package:dope/core/services/audio_files_service.dart';
-import 'package:dope/core/services/audio_player_service.dart';
-import 'package:dope/core/widgets/empty_state_widget.dart';
-import 'package:dope/features/custom_screen_elements/custom_screen.dart';
-import 'package:dope/features/music/playlist/providers/playlists_provider.dart';
-import 'package:dope/features/music/songs/provider/songs_provider.dart';
-import 'package:dope/features/music/songs/widgets/song_list_tile.dart';
-import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
-import 'package:dope/features/status_bar/widgets/status_bar.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/navigation/routes.dart';
+import 'package:dopi/core/providers/filtered_audio_files_provider.dart';
+import 'package:dopi/core/services/audio_files_service.dart';
+import 'package:dopi/core/services/audio_player_service.dart';
+import 'package:dopi/core/widgets/empty_state_widget.dart';
+import 'package:dopi/features/custom_screen_elements/custom_screen.dart';
+import 'package:dopi/features/music/playlist/providers/playlists_provider.dart';
+import 'package:dopi/features/music/songs/provider/songs_provider.dart';
+import 'package:dopi/features/music/songs/widgets/song_list_tile.dart';
+import 'package:dopi/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dopi/features/status_bar/widgets/status_bar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -68,8 +68,8 @@ class _SongsScreenState extends ConsumerState<SongsScreen> with CustomScreen {
         (currentMetadata.hasSameSourceIdentity(songMetadata));
     final message =
         songMetadata.isOnDevice && !songMetadata.isAppleMusicCatalogTrack
-        ? 'This will remove the song from døPe and delete the local file from your device.'
-        : 'This will remove the song from døPe.';
+        ? 'This will remove the song from doPi and delete the local file from your device.'
+        : 'This will remove the song from doPi.';
 
     return await showCupertinoDialog<bool>(
       context: context,

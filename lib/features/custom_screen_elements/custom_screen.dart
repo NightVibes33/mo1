@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/extensions/go_router_extensions.dart';
-import 'package:dope/core/services/audio_player_service.dart';
-import 'package:dope/features/device/models/device_action.dart';
-import 'package:dope/features/device/services/device_buttons_service_provider.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/extensions/go_router_extensions.dart';
+import 'package:dopi/core/services/audio_player_service.dart';
+import 'package:dopi/features/device/models/device_action.dart';
+import 'package:dopi/features/device/services/device_buttons_service_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

@@ -1,6 +1,6 @@
-import 'package:dope/core/constants/constants.dart';
-import 'package:dope/core/providers/filtered_audio_files_provider.dart';
-import 'package:dope/features/music/album/models/album_model.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/providers/filtered_audio_files_provider.dart';
+import 'package:dopi/features/music/album/models/album_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final albumDetailsProvider = Provider<List<AlbumModel>>((ref) {

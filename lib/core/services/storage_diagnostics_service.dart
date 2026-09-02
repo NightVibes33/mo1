@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:dope/core/services/app_documents_service.dart';
+import 'package:dopi/core/services/app_documents_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 

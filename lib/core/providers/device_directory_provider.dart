@@ -1,4 +1,4 @@
-import 'package:dope/core/models/device_directory.dart';
+import 'package:dopi/core/models/device_directory.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 

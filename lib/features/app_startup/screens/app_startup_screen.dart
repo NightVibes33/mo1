@@ -1,6 +1,6 @@
-import 'package:dope/features/app_startup/controllers/app_startup_controller.dart';
-import 'package:dope/features/app_startup/screens/app_startup_error_screen.dart';
-import 'package:dope/features/app_startup/screens/app_startup_loading_screen.dart';
+import 'package:dopi/features/app_startup/controllers/app_startup_controller.dart';
+import 'package:dopi/features/app_startup/screens/app_startup_error_screen.dart';
+import 'package:dopi/features/app_startup/screens/app_startup_loading_screen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

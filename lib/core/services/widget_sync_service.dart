@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/services/audio_player_service.dart';
-import 'package:dope/core/services/debug_log_service.dart';
-import 'package:dope/core/services/native_eq_player_service.dart';
-import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
-import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/services/audio_player_service.dart';
+import 'package:dopi/core/services/debug_log_service.dart';
+import 'package:dopi/core/services/native_eq_player_service.dart';
+import 'package:dopi/features/now_playing/provider/now_playing_details_provider.dart';
+import 'package:dopi/features/settings/controller/settings_preferences_controller.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -154,7 +154,7 @@ class _WidgetSyncController with WidgetsBindingObserver {
         : rawPositionSeconds;
     final snapshot = <String, Object?>{
       'schemaVersion': 2,
-      'trackTitle': metadata?.getTrackName ?? 'Open døPe',
+      'trackTitle': metadata?.getTrackName ?? 'Open doPi',
       'artistName': metadata == null
           ? 'Choose music to start'
           : metadata.getTrackArtistNames ?? metadata.getAlbumArtistName,
@@ -172,7 +172,7 @@ class _WidgetSyncController with WidgetsBindingObserver {
       'eqPreampDb': settings.activeEqualizerPreampDb,
       'artworkPath': metadata?.thumbnailPath,
       'lastUpdatedEpochMs': DateTime.now().millisecondsSinceEpoch,
-      'deepLink': 'dope://now-playing',
+      'deepLink': 'dopi://now-playing',
       'queuePreview': queuePreview,
     };
     final signature = snapshot.toString();

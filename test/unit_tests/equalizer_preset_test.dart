@@ -1,5 +1,5 @@
-import 'package:dope/features/settings/models/custom_equalizer_preset.dart';
-import 'package:dope/features/settings/models/equalizer_preset.dart';
+import 'package:dopi/features/settings/models/custom_equalizer_preset.dart';
+import 'package:dopi/features/settings/models/equalizer_preset.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

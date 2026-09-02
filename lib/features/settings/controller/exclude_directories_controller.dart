@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:dope/core/constants/constants.dart';
-import 'package:dope/core/services/audio_files_service.dart';
-import 'package:dope/features/settings/models/exclude_directory_model.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/services/audio_files_service.dart';
+import 'package:dopi/features/settings/models/exclude_directory_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 

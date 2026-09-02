@@ -1,4 +1,4 @@
-import 'package:dope/features/settings/models/custom_equalizer_preset.dart';
+import 'package:dopi/features/settings/models/custom_equalizer_preset.dart';
 
 enum EqualizerPreset {
   off,

@@ -1,4 +1,4 @@
-import 'package:dope/core/models/music_metadata.dart';
+import 'package:dopi/core/models/music_metadata.dart';
 
 enum MusicMetadataSource { itunes, deezer, appleMusic }
 

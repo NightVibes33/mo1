@@ -1,30 +1,30 @@
-# døPe Privacy Policy
+# doPi Privacy Policy
 
 Effective date: June 9, 2026
 
-døPe is a paid music player app for iOS. It is designed to play music from files you import and, when you choose to connect Apple Music, music available through your Apple Music subscription.
+doPi is a paid music player app for iOS. It is designed to play music from files you import and, when you choose to connect Apple Music, music available through your Apple Music subscription.
 
 ## Information We Collect
 
-døPe does not create user accounts and does not collect, sell, rent, or share personal information with the developer.
+doPi does not create user accounts and does not collect, sell, rent, or share personal information with the developer.
 
 Music files, playlists, metadata edits, artwork, lyrics, equalizer settings, and app preferences are stored locally on your device. If you import MP3 files or connect Apple Music, that information is used inside the app to provide playback, browsing, artwork, lyrics, and library features.
 
 ## Apple Music
 
-If you choose to connect Apple Music, Apple may handle authorization, subscription status, catalog lookup, and playback according to Apple's own terms and privacy policies. døPe uses Apple Music access only to let you browse and play music in the app.
+If you choose to connect Apple Music, Apple may handle authorization, subscription status, catalog lookup, and playback according to Apple's own terms and privacy policies. doPi uses Apple Music access only to let you browse and play music in the app.
 
 ## Tracking and Advertising
 
-døPe does not display ads, does not use third-party advertising identifiers, and does not track you across apps or websites.
+doPi does not display ads, does not use third-party advertising identifiers, and does not track you across apps or websites.
 
 ## Analytics and Diagnostics
 
-døPe does not send analytics, diagnostics, crash reports, or listening history to the developer. Apple may separately provide aggregated App Store or TestFlight information to developers under Apple's own policies.
+doPi does not send analytics, diagnostics, crash reports, or listening history to the developer. Apple may separately provide aggregated App Store or TestFlight information to developers under Apple's own policies.
 
 ## Data Security
 
-Because døPe keeps your music library information on your device, protecting access to your device helps protect the information stored by the app. No method of storage is guaranteed to be completely secure.
+Because doPi keeps your music library information on your device, protecting access to your device helps protect the information stored by the app. No method of storage is guaranteed to be completely secure.
 
 ## Changes to This Policy
 

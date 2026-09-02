@@ -1,14 +1,14 @@
 import 'dart:async';
 
-import 'package:dope/core/constants/constants.dart';
-import 'package:dope/core/models/music_metadata.dart';
-import 'package:dope/core/providers/filtered_audio_files_provider.dart';
-import 'package:dope/core/services/audio_files_service.dart';
-import 'package:dope/core/services/audio_player_service.dart';
-import 'package:dope/features/music/album/providers/album_details_provider.dart';
-import 'package:dope/features/music/playlist/models/playlist_model.dart';
-import 'package:dope/features/music/playlist/providers/playlists_provider.dart';
-import 'package:dope/features/now_playing/models/now_playing_model.dart';
+import 'package:dopi/core/constants/constants.dart';
+import 'package:dopi/core/models/music_metadata.dart';
+import 'package:dopi/core/providers/filtered_audio_files_provider.dart';
+import 'package:dopi/core/services/audio_files_service.dart';
+import 'package:dopi/core/services/audio_player_service.dart';
+import 'package:dopi/features/music/album/providers/album_details_provider.dart';
+import 'package:dopi/features/music/playlist/models/playlist_model.dart';
+import 'package:dopi/features/music/playlist/providers/playlists_provider.dart';
+import 'package:dopi/features/now_playing/models/now_playing_model.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:just_audio/just_audio.dart';

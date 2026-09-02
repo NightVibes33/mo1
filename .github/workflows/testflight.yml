@@ -110,18 +110,18 @@ jobs:
             find build/ios -maxdepth 4 -type d | sort
             exit 1
           fi
-          rm -rf build/Payload build/døPe-unsigned.ipa
+          rm -rf build/Payload build/doPi-unsigned.ipa
           mkdir -p build/Payload
-          cp -R "$APP_PATH" build/Payload/døPe.app
+          cp -R "$APP_PATH" build/Payload/doPi.app
           cd build
-          /usr/bin/zip -qry døPe-unsigned.ipa Payload
-          ls -lh døPe-unsigned.ipa
+          /usr/bin/zip -qry doPi-unsigned.ipa Payload
+          ls -lh doPi-unsigned.ipa
 
       - name: Upload unsigned IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: døPe-unsigned-ipa-${{ github.run_number }}
-          path: build/døPe-unsigned.ipa
+          name: doPi-unsigned-ipa-${{ github.run_number }}
+          path: build/doPi-unsigned.ipa
           retention-days: 30
           if-no-files-found: error
 
@@ -180,13 +180,13 @@ jobs:
             ls -la "$APK_DIR" || true
             exit 1
           fi
-          cp "$APK_SOURCE" "$APK_DIR/dope-android.apk"
+          cp "$APK_SOURCE" "$APK_DIR/dopi-android.apk"
 
       - name: Upload Android APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: døPe-android-apk-${{ github.run_number }}
-          path: build/app/outputs/flutter-apk/dope-android.apk
+          name: doPi-android-apk-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/dopi-android.apk
           retention-days: 30
           if-no-files-found: error
 
@@ -270,7 +270,7 @@ jobs:
           if [ -z "${TESTFLIGHT_BUILD_NUMBER}" ]; then
             TESTFLIGHT_BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
           fi
-          echo "Building døPe TestFlight build ${TESTFLIGHT_BUILD_NUMBER}"
+          echo "Building doPi TestFlight build ${TESTFLIGHT_BUILD_NUMBER}"
           echo "TESTFLIGHT_BUILD_NUMBER=${TESTFLIGHT_BUILD_NUMBER}" >> "${GITHUB_ENV}"
           flutter build ios --release --no-codesign --no-pub --build-number="${TESTFLIGHT_BUILD_NUMBER}"
 
@@ -302,7 +302,7 @@ jobs:
             -scheme Runner \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath build/dope.xcarchive \
+            -archivePath build/dopi.xcarchive \
             DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
             CURRENT_PROJECT_VERSION="${TESTFLIGHT_BUILD_NUMBER}" \
             MARKETING_VERSION="${APP_VERSION}" \
@@ -326,7 +326,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :teamID string ${APPLE_TEAM_ID}" build/ExportOptions.generated.plist
           xcodebuild \
             -exportArchive \
-            -archivePath build/dope.xcarchive \
+            -archivePath build/dopi.xcarchive \
             -exportOptionsPlist build/ExportOptions.generated.plist \
             -exportPath build/export \
             -allowProvisioningUpdates \
@@ -344,7 +344,7 @@ jobs:
       - name: Upload TestFlight IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: døPe-testflight-ipa-${{ github.run_number }}
+          name: doPi-testflight-ipa-${{ github.run_number }}
           path: |
             build/export/*.ipa
             build/export/ipa.sha256
@@ -374,9 +374,9 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           DOPI_APP_BUNDLE_ID: app.mo1.player.39A8Q3T3TR
           DOPI_APP_LOCALE: en-US
-          DOPI_BETA_GROUP_NAME: døPe Public Beta
+          DOPI_BETA_GROUP_NAME: doPi Public Beta
           DOPI_BETA_APP_DESCRIPTION: >-
-            døPe is a retro music player for iPhone and iPad. Test local MP3 import, optional Apple Music browsing for devices signed into an active Apple Music subscription, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
+            doPi is a retro music player for iPhone and iPad. Test local MP3 import, optional Apple Music browsing for devices signed into an active Apple Music subscription, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
           DOPI_BETA_FEEDBACK_EMAIL: bobbytatum12345@gmail.com
           DOPI_BETA_CONTACT_EMAIL: bobbytatum12345@gmail.com
           DOPI_BETA_REVIEW_NOTES: >-

@@ -1,4 +1,4 @@
-import 'package:dope/features/settings/models/device_color.dart';
+import 'package:dopi/features/settings/models/device_color.dart';
 import 'package:flutter/cupertino.dart';
 
 @immutable

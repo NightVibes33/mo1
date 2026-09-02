@@ -1471,9 +1471,9 @@ private enum AppleMusicLookupChannel {
       .sorted()
       .joined(separator: " | ")
     if payload.isEmpty {
-      NSLog("døPe apple_music: \(message)")
+      NSLog("doPi apple_music: \(message)")
     } else {
-      NSLog("døPe apple_music: \(message) | \(payload)")
+      NSLog("doPi apple_music: \(message) | \(payload)")
     }
   }
 
@@ -1709,7 +1709,7 @@ private enum AppleMusicLookupChannel {
         create: true
       )
       let artworkDirectory = documentsDirectory.appendingPathComponent(
-        "døPe/AppleMusicArtwork",
+        "doPi/AppleMusicArtwork",
         isDirectory: true
       )
       try FileManager.default.createDirectory(
@@ -1865,7 +1865,7 @@ private enum AppleMusicLookupChannel {
 
 
 private enum NativeCrashLogWriter {
-  private static let appFolderName = "døPe"
+  private static let appFolderName = "doPi"
 
   static func install() {
     NSSetUncaughtExceptionHandler { exception in
@@ -1931,7 +1931,7 @@ private enum NativeCrashLogWriter {
         }
       }
     } catch {
-      NSLog("døPe native crash log write failed: \(error.localizedDescription)")
+      NSLog("doPi native crash log write failed: \(error.localizedDescription)")
     }
   }
 }

@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import 'package:dope/core/alerts/dialogs.dart';
-import 'package:dope/core/constants/keys.dart';
-import 'package:dope/core/extensions/build_context_extensions.dart';
-import 'package:dope/core/providers/battery_optimization_provider.dart';
-import 'package:dope/features/tutorial/models/tutorial_model.dart';
-import 'package:dope/features/tutorial/repository/tutorial_repository.dart';
-import 'package:dope/features/tutorial/widgets/tutorial_view_widget.dart';
+import 'package:dopi/core/alerts/dialogs.dart';
+import 'package:dopi/core/constants/keys.dart';
+import 'package:dopi/core/extensions/build_context_extensions.dart';
+import 'package:dopi/core/providers/battery_optimization_provider.dart';
+import 'package:dopi/features/tutorial/models/tutorial_model.dart';
+import 'package:dopi/features/tutorial/repository/tutorial_repository.dart';
+import 'package:dopi/features/tutorial/widgets/tutorial_view_widget.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final tutorialControllerProvider =

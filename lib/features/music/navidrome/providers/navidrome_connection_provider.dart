@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:dope/core/providers/shared_preferences_with_cache_provider.dart';
-import 'package:dope/features/music/navidrome/models/navidrome_connection.dart';
+import 'package:dopi/core/providers/shared_preferences_with_cache_provider.dart';
+import 'package:dopi/features/music/navidrome/models/navidrome_connection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
