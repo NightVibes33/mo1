@@ -4,6 +4,12 @@ import 'package:dopi/core/extensions/build_context_extensions.dart';
 import 'package:dopi/core/models/music_metadata.dart';
 import 'package:dopi/core/utils/metadata_artwork.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+const _appleMusicSourceIcon =
+    'assets/images/source_icons/apple_music.svg';
+const _navidromeSourceIcon = 'assets/images/source_icons/navidrome.svg';
+const _jellyfinSourceIcon = 'assets/images/source_icons/jellyfin.svg';
 
 class _SourceLogoBadge extends StatelessWidget {
   final MusicSourceType sourceType;
@@ -16,152 +22,87 @@ class _SourceLogoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final selectedOverlay = isSelected ? 0.18 : 0.0;
+    final isDarkTheme =
+        CupertinoTheme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isSelected
+        ? CupertinoColors.white.withOpacity(0.16)
+        : isDarkTheme
+        ? CupertinoColors.white.withOpacity(0.08)
+        : CupertinoColors.black.withOpacity(0.05);
+    final borderColor = isSelected
+        ? CupertinoColors.white.withOpacity(0.45)
+        : isDarkTheme
+        ? CupertinoColors.white.withOpacity(0.14)
+        : CupertinoColors.black.withOpacity(0.10);
+
     return Container(
       width: 30,
       height: 20,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(7),
-        gradient: _sourceGradient(sourceType, selectedOverlay),
-        border: Border.all(
-          color: CupertinoColors.white.withOpacity(isSelected ? 0.55 : 0.18),
-          width: 0.8,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: CupertinoColors.black.withOpacity(isSelected ? 0.12 : 0.22),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(6),
+        color: backgroundColor,
+        border: Border.all(color: borderColor, width: 0.8),
       ),
-      child: _SourceLogoIcon(sourceType: sourceType),
+      child: _SourceLogoIcon(
+        sourceType: sourceType,
+        isSelected: isSelected,
+      ),
     );
-  }
-
-  LinearGradient _sourceGradient(
-    MusicSourceType sourceType,
-    double selectedOverlay,
-  ) {
-    switch (sourceType) {
-      case MusicSourceType.appleMusic:
-        return LinearGradient(
-          colors: [
-            Color.lerp(const Color(0xFFFF2D55), CupertinoColors.white, selectedOverlay)!,
-            Color.lerp(const Color(0xFFAF52DE), CupertinoColors.white, selectedOverlay)!,
-            Color.lerp(const Color(0xFFFF9500), CupertinoColors.white, selectedOverlay)!,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        );
-      case MusicSourceType.navidrome:
-        return LinearGradient(
-          colors: [
-            Color.lerp(const Color(0xFF00C2FF), CupertinoColors.white, selectedOverlay)!,
-            Color.lerp(const Color(0xFF007AFF), CupertinoColors.white, selectedOverlay)!,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        );
-      case MusicSourceType.jellyfin:
-        return LinearGradient(
-          colors: [
-            Color.lerp(const Color(0xFFAA5CFF), CupertinoColors.white, selectedOverlay)!,
-            Color.lerp(const Color(0xFF6D36FF), CupertinoColors.white, selectedOverlay)!,
-            Color.lerp(const Color(0xFF00A4DC), CupertinoColors.white, selectedOverlay)!,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        );
-      case MusicSourceType.remote:
-        return LinearGradient(
-          colors: [
-            Color.lerp(const Color(0xFF34C759), CupertinoColors.white, selectedOverlay)!,
-            Color.lerp(const Color(0xFF007AFF), CupertinoColors.white, selectedOverlay)!,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        );
-      case MusicSourceType.local:
-        return LinearGradient(
-          colors: [
-            Color.lerp(const Color(0xFF3A3A3C), CupertinoColors.white, selectedOverlay)!,
-            Color.lerp(const Color(0xFF8E8E93), CupertinoColors.white, selectedOverlay)!,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        );
-    }
   }
 }
 
 class _SourceLogoIcon extends StatelessWidget {
   final MusicSourceType sourceType;
+  final bool isSelected;
 
-  const _SourceLogoIcon({required this.sourceType});
+  const _SourceLogoIcon({
+    required this.sourceType,
+    required this.isSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
     switch (sourceType) {
       case MusicSourceType.appleMusic:
-        return const Icon(CupertinoIcons.music_note_2, size: 13, color: CupertinoColors.white);
+        return SvgPicture.asset(
+          _appleMusicSourceIcon,
+          width: 16,
+          height: 16,
+          excludeFromSemantics: true,
+        );
       case MusicSourceType.navidrome:
-        return CustomPaint(size: const Size(18, 12), painter: _NavidromeMarkPainter());
+        return SvgPicture.asset(
+          _navidromeSourceIcon,
+          width: 17,
+          height: 17,
+          excludeFromSemantics: true,
+        );
       case MusicSourceType.jellyfin:
-        return CustomPaint(size: const Size(15, 15), painter: _JellyfinMarkPainter());
+        return SvgPicture.asset(
+          _jellyfinSourceIcon,
+          width: 16,
+          height: 16,
+          excludeFromSemantics: true,
+        );
       case MusicSourceType.remote:
-        return const Icon(CupertinoIcons.globe, size: 13, color: CupertinoColors.white);
+        return Icon(
+          CupertinoIcons.globe,
+          size: 14,
+          color: isSelected
+              ? context.appInverseTextColor
+              : context.appSecondaryTextColor,
+        );
       case MusicSourceType.local:
-        return const Icon(CupertinoIcons.doc_text_fill, size: 13, color: CupertinoColors.white);
+        return Icon(
+          CupertinoIcons.music_note_2,
+          size: 14,
+          color: isSelected
+              ? context.appInverseTextColor
+              : context.appSecondaryTextColor,
+        );
     }
   }
-}
-
-class _NavidromeMarkPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = CupertinoColors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.7
-      ..strokeCap = StrokeCap.round;
-    final centerY = size.height / 2;
-    for (var index = 0; index < 3; index++) {
-      final x = 2.0 + index * 6;
-      final path = Path()
-        ..moveTo(x, centerY)
-        ..quadraticBezierTo(x + 1.5, 1.2, x + 3, centerY)
-        ..quadraticBezierTo(x + 4.5, size.height - 1.2, x + 6, centerY);
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _JellyfinMarkPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final outer = Paint()..color = CupertinoColors.white.withOpacity(0.95);
-    final inner = Paint()..color = CupertinoColors.black.withOpacity(0.22);
-    final outerPath = Path()
-      ..moveTo(size.width / 2, 0)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    final innerPath = Path()
-      ..moveTo(size.width / 2, size.height * 0.34)
-      ..lineTo(size.width * 0.69, size.height * 0.74)
-      ..lineTo(size.width * 0.31, size.height * 0.74)
-      ..close();
-    canvas.drawPath(outerPath, outer);
-    canvas.drawPath(innerPath, inner);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _ExplicitBadge extends StatelessWidget {
