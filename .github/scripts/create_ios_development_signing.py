@@ -3,7 +3,6 @@ import base64
 import json
 import os
 import re
-import secrets
 import time
 import urllib.error
 import urllib.parse
@@ -21,13 +20,13 @@ KEY_ID = os.environ["APP_STORE_CONNECT_KEY_ID"].strip()
 ISSUER_ID = os.environ["APP_STORE_CONNECT_ISSUER_ID"].strip()
 TEAM_ID = os.environ["APPLE_TEAM_ID"].strip()
 DEVICE_UDID = os.environ["DEVICE_UDID"].strip()
+P12_PASSWORD = os.environ["P12_PASSWORD"]
 PRIVATE_KEY = os.environ["APP_STORE_CONNECT_API_KEY_P8"].strip()
 
 OUTPUT = Path("output")
 OUTPUT.mkdir(parents=True, exist_ok=True)
 
 P12_PATH = OUTPUT / "apple-development.p12"
-PASSWORD_PATH = OUTPUT / "p12-password.txt"
 CERT_ID_PATH = OUTPUT / "certificate-id.txt"
 PROFILE_PATH = OUTPUT / "development.mobileprovision"
 INFO_PATH = OUTPUT / "signing-info.json"
@@ -117,6 +116,10 @@ def validate_inputs():
         raise SystemExit("Device UDID has an unexpected format")
     if not re.fullmatch(r"[A-Z0-9]{10}", TEAM_ID, re.IGNORECASE):
         raise SystemExit("APPLE_TEAM_ID has an unexpected format")
+    if not P12_PASSWORD:
+        raise SystemExit("P12 password must not be empty")
+    if len(P12_PASSWORD) > 256:
+        raise SystemExit("P12 password is too long")
 
 
 def get_or_register_device():
@@ -247,21 +250,18 @@ def create_development_identity():
 
     cert_der = base64.b64decode(created["attributes"]["certificateContent"])
     certificate = x509.load_der_x509_certificate(cert_der)
-    password = secrets.token_urlsafe(24)
 
     p12_bytes = pkcs12.serialize_key_and_certificates(
         name=b"Apple Development",
         key=key,
         cert=certificate,
         cas=None,
-        encryption_algorithm=serialization.BestAvailableEncryption(password.encode()),
+        encryption_algorithm=serialization.BestAvailableEncryption(P12_PASSWORD.encode("utf-8")),
     )
 
     P12_PATH.write_bytes(p12_bytes)
-    PASSWORD_PATH.write_text(password + "\n")
     CERT_ID_PATH.write_text(created["id"] + "\n")
     os.chmod(P12_PATH, 0o600)
-    os.chmod(PASSWORD_PATH, 0o600)
     return created
 
 
