@@ -1,0 +1,183 @@
+name: Generate iOS Development Signing Assets
+
+run-name: Generate iOS development signing assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      device_udid:
+        description: "iPhone/iPad UDID"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-development-signing
+  cancel-in-progress: false
+
+env:
+  SIGNING_RELEASE_TAG: ios-development-signing
+  DEV_BUNDLE_IDENTIFIER: ${{ vars.DEV_PROFILE_BUNDLE_ID || 'app.mo1.player.39A8Q3T3TR' }}
+
+jobs:
+  generate:
+    name: Generate development P12 + mobileprovision
+    runs-on: macos-26-intel
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Protect and validate UDID
+        shell: bash
+        env:
+          DEVICE_UDID: ${{ inputs.device_udid }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::${DEVICE_UDID}"
+          if [[ ! "${DEVICE_UDID}" =~ ^[A-Za-z0-9-]{20,64}$ ]]; then
+            echo "::error::The supplied device UDID has an unexpected format."
+            exit 1
+          fi
+
+      - name: Validate Apple API secrets
+        shell: bash
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in \
+            APP_STORE_CONNECT_API_KEY_P8 \
+            APP_STORE_CONNECT_KEY_ID \
+            APP_STORE_CONNECT_ISSUER_ID \
+            APPLE_TEAM_ID
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: ${name}"
+              missing=1
+            fi
+          done
+          exit "${missing}"
+
+      - name: Prepare Python
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv .signing-venv
+          .signing-venv/bin/python -m pip install --quiet --upgrade pip
+          .signing-venv/bin/python -m pip install --quiet PyJWT cryptography
+
+      - name: Open private draft release storage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "${SIGNING_RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release create "${SIGNING_RELEASE_TAG}" \
+              --draft \
+              --title "iOS Development Signing Assets" \
+              --notes "Private draft release used by the mo1 signing generator. Do not publish this release."
+          fi
+
+          rm -rf identity
+          mkdir -p identity
+          gh release download "${SIGNING_RELEASE_TAG}" --dir identity || true
+
+          if [ -s identity/apple-development.p12 ] && \
+             [ -s identity/p12-password.txt ] && \
+             [ -s identity/certificate-id.txt ]; then
+            echo "EXISTING_CERTIFICATE_ID=$(tr -d '\r\n' < identity/certificate-id.txt)" >> "${GITHUB_ENV}"
+            echo "EXISTING_P12_PATH=${GITHUB_WORKSPACE}/identity/apple-development.p12" >> "${GITHUB_ENV}"
+            echo "EXISTING_PASSWORD_PATH=${GITHUB_WORKSPACE}/identity/p12-password.txt" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Generate development signing assets
+        shell: bash
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DEVICE_UDID: ${{ inputs.device_udid }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::${DEVICE_UDID}"
+          rm -rf output
+          .signing-venv/bin/python .github/scripts/create_ios_development_signing.py
+
+      - name: Verify generated P12 and profile
+        shell: bash
+        env:
+          DEVICE_UDID: ${{ inputs.device_udid }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::${DEVICE_UDID}"
+
+          P12_PASSWORD="$(tr -d '\r\n' < output/p12-password.txt)"
+          openssl pkcs12 \
+            -in output/apple-development.p12 \
+            -passin "pass:${P12_PASSWORD}" \
+            -noout
+
+          security cms -D -i output/development.mobileprovision > "${RUNNER_TEMP}/profile.plist"
+
+          PROFILE_PLIST="${RUNNER_TEMP}/profile.plist" DEVICE_UDID="${DEVICE_UDID}" python3 - <<'PY'
+          import os
+          import plistlib
+          from pathlib import Path
+
+          profile = plistlib.loads(Path(os.environ["PROFILE_PLIST"]).read_bytes())
+          expected = os.environ["DEVICE_UDID"]
+          devices = profile.get("ProvisionedDevices", [])
+          if expected not in devices:
+              raise SystemExit("Generated profile does not contain the requested UDID")
+          entitlements = profile.get("Entitlements", {})
+          if not entitlements.get("get-task-allow", False):
+              raise SystemExit("Generated profile is not a development profile (get-task-allow is false)")
+          print("Verified development provisioning profile.")
+          PY
+
+      - name: Save to private draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release upload "${SIGNING_RELEASE_TAG}" \
+            output/apple-development.p12 \
+            output/p12-password.txt \
+            output/certificate-id.txt \
+            output/development.mobileprovision \
+            output/signing-info.json \
+            --clobber
+
+          gh release edit "${SIGNING_RELEASE_TAG}" \
+            --draft \
+            --title "iOS Development Signing Assets" \
+            --notes "Private draft release used by the mo1 signing generator. Do not publish this release."
+
+          {
+            echo "## iOS development signing assets generated"
+            echo
+            echo "Download these files from the **iOS Development Signing Assets** draft release:"
+            echo "- \`apple-development.p12\`"
+            echo "- \`development.mobileprovision\`"
+            echo "- \`p12-password.txt\`"
+            echo "- \`signing-info.json\`"
+            echo
+            echo "The Apple Development certificate is reused on later runs while it remains valid; each run creates a fresh development profile for the supplied device."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Remove local signing material
+        if: always()
+        shell: bash
+        run: |
+          rm -rf output identity .signing-venv
