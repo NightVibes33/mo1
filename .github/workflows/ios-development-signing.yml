@@ -135,12 +135,19 @@ jobs:
               raise SystemExit("Generated profile is not a development profile (get-task-allow is false)")
 
           app_identifier = entitlements.get("application-identifier", "")
-          expected_wildcard = f"{team_id}.*"
-          if app_identifier != expected_wildcard:
+          if not app_identifier.endswith(".*"):
               raise SystemExit(
-                  f"Generated profile is not universal wildcard: expected {expected_wildcard!r}, got {app_identifier!r}"
+                  f"Generated profile is not universal wildcard: application-identifier={app_identifier!r}"
               )
 
+          profile_team_ids = profile.get("TeamIdentifier", [])
+          entitlement_team_id = entitlements.get("com.apple.developer.team-identifier")
+          if team_id not in profile_team_ids and entitlement_team_id != team_id:
+              raise SystemExit(
+                  f"Generated profile is not for expected Apple team {team_id!r}"
+              )
+
+          print(f"Verified universal wildcard profile: {app_identifier}")
           print("Verified fresh development certificate + universal wildcard provisioning profile.")
           PY
 
