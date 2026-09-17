@@ -1,0 +1,76 @@
+name: One-shot Apple Certificate Count
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/certificate-count-diagnostic.yml'
+
+jobs:
+  count:
+    name: Count Apple development certificates
+    runs-on: macos-26-intel
+    timeout-minutes: 10
+    steps:
+      - name: Query App Store Connect certificates
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet PyJWT cryptography
+          python3 - <<'PY'
+          import base64, json, os, time, urllib.request, urllib.parse
+          import jwt
+
+          key = os.environ['APP_STORE_CONNECT_API_KEY_P8'].strip().replace('\\n', '\n')
+          if 'BEGIN' not in key:
+              compact = ''.join(key.split())
+              key = base64.b64decode(compact + '=' * (-len(compact) % 4)).decode()
+
+          now = int(time.time())
+          token = jwt.encode(
+              {'iss': os.environ['APP_STORE_CONNECT_ISSUER_ID'].strip(), 'iat': now, 'exp': now + 900, 'aud': 'appstoreconnect-v1'},
+              key,
+              algorithm='ES256',
+              headers={'kid': os.environ['APP_STORE_CONNECT_KEY_ID'].strip(), 'typ': 'JWT'},
+          )
+
+          def get(path):
+              req = urllib.request.Request(
+                  'https://api.appstoreconnect.apple.com' + path,
+                  headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'},
+              )
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  return json.load(r)
+
+          rows = []
+          path = '/v1/certificates?limit=200'
+          while path:
+              payload = get(path)
+              rows.extend(payload.get('data', []))
+              nxt = payload.get('links', {}).get('next')
+              if nxt:
+                  p = urllib.parse.urlsplit(nxt)
+                  path = p.path + (('?' + p.query) if p.query else '')
+              else:
+                  path = None
+
+          development_types = {'DEVELOPMENT', 'IOS_DEVELOPMENT'}
+          dev = [r for r in rows if r.get('attributes', {}).get('certificateType') in development_types]
+
+          print(f'TOTAL_CERTIFICATES={len(rows)}')
+          print(f'DEVELOPMENT_CERTIFICATES={len(dev)}')
+          print('--- DEVELOPMENT CERTIFICATES ---')
+          for i, row in enumerate(dev, 1):
+              a = row.get('attributes', {})
+              print(f"#{i} id={row.get('id')} type={a.get('certificateType')} name={a.get('displayName')} expiration={a.get('expirationDate')} serial={a.get('serialNumber')}")
+          print('--- ALL CERTIFICATE TYPES ---')
+          counts = {}
+          for row in rows:
+              t = row.get('attributes', {}).get('certificateType', 'UNKNOWN')
+              counts[t] = counts.get(t, 0) + 1
+          for t in sorted(counts):
+              print(f'{t}={counts[t]}')
+          PY
