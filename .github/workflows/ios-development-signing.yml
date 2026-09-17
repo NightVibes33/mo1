@@ -31,14 +31,11 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ios-signing-${{ github.actor }}
   cancel-in-progress: false
-
-env:
-  SIGNING_RELEASE_TAG: ios-development-signing
 
 jobs:
   generate:
@@ -126,19 +123,6 @@ jobs:
           python3 -m venv .signing-venv
           .signing-venv/bin/python -m pip install --quiet --upgrade pip
           .signing-venv/bin/python -m pip install --quiet PyJWT cryptography
-
-      - name: Open private draft release storage
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          if ! gh release view "${SIGNING_RELEASE_TAG}" >/dev/null 2>&1; then
-            gh release create "${SIGNING_RELEASE_TAG}" \
-              --draft \
-              --title "iOS Signing Assets" \
-              --notes "Private draft release used by the mo1 iOS signing generator. Do not publish this release."
-          fi
 
       - name: Generate fresh certificate and provisioning profile
         shell: bash
@@ -245,36 +229,29 @@ jobs:
           print(f"Verified get-task-allow: {get_task_allow}")
           PY
 
-      - name: Package signing assets as ZIP
+      - name: Package signing assets as ZIP on runner
         shell: bash
         env:
           SIGNING_MODE: ${{ inputs.signing_mode }}
-          DEVICE_UDID: ${{ inputs.device_udid }}
           BUNDLE_IDENTIFIER: ${{ inputs.bundle_identifier }}
           P12_PASSWORD: ${{ inputs.p12_password }}
         run: |
           set -euo pipefail
           echo "::add-mask::${P12_PASSWORD}"
-          MODE_SAFE="${SIGNING_MODE//_/-}"
-          SUFFIX="${GITHUB_RUN_ID}"
-          PACKAGE_NAME="ios-signing-${MODE_SAFE}-${SUFFIX}"
-          PACKAGE_DIR="release-assets/${PACKAGE_NAME}"
-          ZIP_PATH="release-assets/${PACKAGE_NAME}.zip"
 
           rm -rf release-assets
-          mkdir -p "${PACKAGE_DIR}"
+          mkdir -p release-assets/package
 
-          cp output/signing-certificate.p12 "${PACKAGE_DIR}/signing-certificate.p12"
-          cp output/profile.mobileprovision "${PACKAGE_DIR}/profile.mobileprovision"
-          cp output/certificate-id.txt "${PACKAGE_DIR}/certificate-id.txt"
-          cp output/signing-info.json "${PACKAGE_DIR}/signing-info.json"
+          cp output/signing-certificate.p12 release-assets/package/signing-certificate.p12
+          cp output/profile.mobileprovision release-assets/package/profile.mobileprovision
+          cp output/certificate-id.txt release-assets/package/certificate-id.txt
+          cp output/signing-info.json release-assets/package/signing-info.json
 
-          cat > "${PACKAGE_DIR}/README.txt" <<EOF
+          cat > release-assets/package/README.txt <<EOF
           iOS signing package
 
           Signing mode: ${SIGNING_MODE}
           Bundle identifier: ${BUNDLE_IDENTIFIER:-*}
-          Device UDID required by this mode: $([[ "${SIGNING_MODE}" == app_store_* ]] && echo no || echo yes)
 
           Contents:
           - signing-certificate.p12
@@ -283,56 +260,36 @@ jobs:
           - signing-info.json
 
           The .p12 is protected by the password entered when this GitHub Actions workflow was started.
+          This ZIP was created directly on the GitHub-hosted macOS runner for this workflow run.
           EOF
 
           (
-            cd "${PACKAGE_DIR}"
-            /usr/bin/zip -qry "../${PACKAGE_NAME}.zip" .
+            cd release-assets/package
+            /usr/bin/zip -qry ../ios-signing.zip .
           )
 
-          test -s "${ZIP_PATH}"
-          /usr/bin/unzip -l "${ZIP_PATH}"
-          shasum -a 256 "${ZIP_PATH}" | tee "${ZIP_PATH}.sha256"
-
-      - name: Upload ZIP to private draft release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SIGNING_MODE: ${{ inputs.signing_mode }}
-          BUNDLE_IDENTIFIER: ${{ inputs.bundle_identifier }}
-        run: |
-          set -euo pipefail
-          MODE_SAFE="${SIGNING_MODE//_/-}"
-          SUFFIX="${GITHUB_RUN_ID}"
-          PACKAGE_NAME="ios-signing-${MODE_SAFE}-${SUFFIX}"
-          ZIP_PATH="release-assets/${PACKAGE_NAME}.zip"
-          SHA_PATH="${ZIP_PATH}.sha256"
-
-          gh release upload "${SIGNING_RELEASE_TAG}" \
-            "${ZIP_PATH}" \
-            "${SHA_PATH}"
-
-          gh release edit "${SIGNING_RELEASE_TAG}" \
-            --draft \
-            --title "iOS Signing Assets" \
-            --notes "Private draft release used by the mo1 signing generator. Each run creates a fresh certificate/profile pair in the selected iOS signing mode. Do not publish this release."
+          test -s release-assets/ios-signing.zip
+          /usr/bin/unzip -t release-assets/ios-signing.zip
+          shasum -a 256 release-assets/ios-signing.zip | tee release-assets/ios-signing.zip.sha256
 
           {
-            echo "## iOS signing ZIP generated"
+            echo "## iOS signing ZIP generated on this runner"
             echo
             echo "- **Mode:** \`${SIGNING_MODE}\`"
             echo "- **Bundle ID:** \`${BUNDLE_IDENTIFIER:-*}\`"
-            echo "- **ZIP:** \`${PACKAGE_NAME}.zip\`"
+            echo "- **Runner ZIP:** \`ios-signing.zip\`"
             echo
-            echo "Inside the ZIP:"
-            echo "- \`signing-certificate.p12\`"
-            echo "- \`profile.mobileprovision\`"
-            echo "- \`certificate-id.txt\`"
-            echo "- \`signing-info.json\`"
-            echo "- \`README.txt\`"
-            echo
-            echo "The .p12 uses the password entered in the workflow form."
+            echo "Download the artifact attached to this Actions run."
           } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload runner ZIP as Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-signing-${{ inputs.signing_mode }}-${{ github.run_id }}
+          path: release-assets/ios-signing.zip
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
 
       - name: Remove local signing material
         if: always()
