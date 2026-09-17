@@ -203,7 +203,7 @@ jobs:
 
           (
             cd "${PACKAGE_DIR}"
-            /usr/bin/zip -qry "../../ios-development-signing-${SUFFIX}.zip" .
+            /usr/bin/zip -qry "../ios-development-signing-${SUFFIX}.zip" .
           )
 
           test -s "${ZIP_PATH}"
