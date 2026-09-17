@@ -9,6 +9,10 @@ on:
         description: "iPhone/iPad UDID"
         required: true
         type: string
+      p12_password:
+        description: "Password to protect the generated .p12"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -22,7 +26,7 @@ env:
 
 jobs:
   generate:
-    name: Generate fresh wildcard P12 + mobileprovision
+    name: Generate fresh wildcard P12 + mobileprovision ZIP
     runs-on: macos-26-intel
     timeout-minutes: 25
 
@@ -30,15 +34,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Protect and validate UDID
+      - name: Protect and validate inputs
         shell: bash
         env:
           DEVICE_UDID: ${{ inputs.device_udid }}
+          P12_PASSWORD: ${{ inputs.p12_password }}
         run: |
           set -euo pipefail
           echo "::add-mask::${DEVICE_UDID}"
+          echo "::add-mask::${P12_PASSWORD}"
+
           if [[ ! "${DEVICE_UDID}" =~ ^[A-Za-z0-9-]{20,64}$ ]]; then
             echo "::error::The supplied device UDID has an unexpected format."
+            exit 1
+          fi
+
+          if [ -z "${P12_PASSWORD}" ]; then
+            echo "::error::P12 password must not be empty."
+            exit 1
+          fi
+
+          if [ "${#P12_PASSWORD}" -gt 256 ]; then
+            echo "::error::P12 password is too long."
             exit 1
           fi
 
@@ -94,9 +111,11 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           DEVICE_UDID: ${{ inputs.device_udid }}
+          P12_PASSWORD: ${{ inputs.p12_password }}
         run: |
           set -euo pipefail
           echo "::add-mask::${DEVICE_UDID}"
+          echo "::add-mask::${P12_PASSWORD}"
           rm -rf output
           .signing-venv/bin/python .github/scripts/create_ios_development_signing.py
 
@@ -104,12 +123,13 @@ jobs:
         shell: bash
         env:
           DEVICE_UDID: ${{ inputs.device_udid }}
+          P12_PASSWORD: ${{ inputs.p12_password }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
           echo "::add-mask::${DEVICE_UDID}"
+          echo "::add-mask::${P12_PASSWORD}"
 
-          P12_PASSWORD="$(tr -d '\r\n' < output/p12-password.txt)"
           openssl pkcs12 \
             -in output/apple-development.p12 \
             -passin "pass:${P12_PASSWORD}" \
@@ -151,45 +171,80 @@ jobs:
           print("Verified fresh development certificate + universal wildcard provisioning profile.")
           PY
 
-      - name: Preserve this run as unique private draft-release assets
+      - name: Package signing assets as ZIP
+        shell: bash
+        env:
+          P12_PASSWORD: ${{ inputs.p12_password }}
+        run: |
+          set -euo pipefail
+          echo "::add-mask::${P12_PASSWORD}"
+          SUFFIX="${GITHUB_RUN_ID}"
+          PACKAGE_DIR="release-assets/ios-development-signing-${SUFFIX}"
+          ZIP_PATH="release-assets/ios-development-signing-${SUFFIX}.zip"
+
+          rm -rf release-assets
+          mkdir -p "${PACKAGE_DIR}"
+
+          cp output/apple-development.p12 "${PACKAGE_DIR}/apple-development.p12"
+          cp output/development.mobileprovision "${PACKAGE_DIR}/development.mobileprovision"
+          cp output/certificate-id.txt "${PACKAGE_DIR}/certificate-id.txt"
+          cp output/signing-info.json "${PACKAGE_DIR}/signing-info.json"
+
+          cat > "${PACKAGE_DIR}/README.txt" <<'EOF'
+          Contents:
+          - apple-development.p12
+          - development.mobileprovision
+          - certificate-id.txt
+          - signing-info.json
+
+          The .p12 is protected by the password entered when this GitHub Actions workflow was started.
+          The provisioning profile is a wildcard iOS development profile for the supplied device UDID.
+          EOF
+
+          (
+            cd "${PACKAGE_DIR}"
+            /usr/bin/zip -qry "../../ios-development-signing-${SUFFIX}.zip" .
+          )
+
+          test -s "${ZIP_PATH}"
+          /usr/bin/unzip -l "${ZIP_PATH}"
+          shasum -a 256 "${ZIP_PATH}" | tee "${ZIP_PATH}.sha256"
+
+      - name: Upload ZIP to private draft release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           SUFFIX="${GITHUB_RUN_ID}"
-          mkdir -p release-assets
-
-          cp output/apple-development.p12 "release-assets/apple-development-${SUFFIX}.p12"
-          cp output/p12-password.txt "release-assets/p12-password-${SUFFIX}.txt"
-          cp output/certificate-id.txt "release-assets/certificate-id-${SUFFIX}.txt"
-          cp output/development.mobileprovision "release-assets/development-wildcard-${SUFFIX}.mobileprovision"
-          cp output/signing-info.json "release-assets/signing-info-${SUFFIX}.json"
+          ZIP_PATH="release-assets/ios-development-signing-${SUFFIX}.zip"
+          SHA_PATH="${ZIP_PATH}.sha256"
 
           gh release upload "${SIGNING_RELEASE_TAG}" \
-            "release-assets/apple-development-${SUFFIX}.p12" \
-            "release-assets/p12-password-${SUFFIX}.txt" \
-            "release-assets/certificate-id-${SUFFIX}.txt" \
-            "release-assets/development-wildcard-${SUFFIX}.mobileprovision" \
-            "release-assets/signing-info-${SUFFIX}.json"
+            "${ZIP_PATH}" \
+            "${SHA_PATH}"
 
           gh release edit "${SIGNING_RELEASE_TAG}" \
             --draft \
             --title "iOS Development Signing Assets" \
-            --notes "Private draft release used by the mo1 signing generator. Each workflow run creates a brand-new Apple Development certificate and a wildcard iOS development profile. Do not publish this release."
+            --notes "Private draft release used by the mo1 signing generator. Each workflow run creates a brand-new Apple Development certificate and wildcard iOS development profile, packaged as a ZIP. Do not publish this release."
 
           {
-            echo "## Fresh wildcard iOS signing assets generated"
+            echo "## Fresh wildcard iOS signing ZIP generated"
             echo
             echo "This run created a **new Apple Development certificate** and a **wildcard development profile** for the supplied device."
             echo
-            echo "Download these files from the **iOS Development Signing Assets** draft release:"
-            echo "- \`apple-development-${SUFFIX}.p12\`"
-            echo "- \`development-wildcard-${SUFFIX}.mobileprovision\`"
-            echo "- \`p12-password-${SUFFIX}.txt\`"
-            echo "- \`signing-info-${SUFFIX}.json\`"
+            echo "Download this single file from the **iOS Development Signing Assets** draft release:"
+            echo "- \`ios-development-signing-${SUFFIX}.zip\`"
             echo
-            echo "The wildcard profile authorizes ordinary apps across bundle IDs on this team. Apps that require Apple capabilities restricted to explicit App IDs need their own explicit provisioning profile."
+            echo "Inside the ZIP:"
+            echo "- \`apple-development.p12\`"
+            echo "- \`development.mobileprovision\`"
+            echo "- \`certificate-id.txt\`"
+            echo "- \`signing-info.json\`"
+            echo "- \`README.txt\`"
+            echo
+            echo "The .p12 uses the password you entered in the workflow form."
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Remove local signing material
