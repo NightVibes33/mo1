@@ -19,8 +19,10 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -euo pipefail
-          python3 -m pip install --quiet PyJWT cryptography
-          python3 - <<'PY'
+          python3 -m venv .certdiag-venv
+          .certdiag-venv/bin/python -m pip install --quiet --upgrade pip
+          .certdiag-venv/bin/python -m pip install --quiet PyJWT cryptography
+          .certdiag-venv/bin/python - <<'PY'
           import base64, json, os, time, urllib.request, urllib.parse
           import jwt
 
@@ -74,3 +76,7 @@ jobs:
           for t in sorted(counts):
               print(f'{t}={counts[t]}')
           PY
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf .certdiag-venv
