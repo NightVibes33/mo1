@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 import base64
-import datetime as dt
 import json
 import os
 import re
 import secrets
-import shutil
 import time
 import urllib.error
 import urllib.parse
@@ -23,9 +21,6 @@ KEY_ID = os.environ["APP_STORE_CONNECT_KEY_ID"].strip()
 ISSUER_ID = os.environ["APP_STORE_CONNECT_ISSUER_ID"].strip()
 TEAM_ID = os.environ["APPLE_TEAM_ID"].strip()
 DEVICE_UDID = os.environ["DEVICE_UDID"].strip()
-BUNDLE_IDENTIFIER = os.environ.get(
-    "DEV_BUNDLE_IDENTIFIER", "app.mo1.player.39A8Q3T3TR"
-).strip()
 PRIVATE_KEY = os.environ["APP_STORE_CONNECT_API_KEY_P8"].strip()
 
 OUTPUT = Path("output")
@@ -36,10 +31,6 @@ PASSWORD_PATH = OUTPUT / "p12-password.txt"
 CERT_ID_PATH = OUTPUT / "certificate-id.txt"
 PROFILE_PATH = OUTPUT / "development.mobileprovision"
 INFO_PATH = OUTPUT / "signing-info.json"
-
-EXISTING_CERTIFICATE_ID = os.environ.get("EXISTING_CERTIFICATE_ID", "").strip()
-EXISTING_P12_PATH = os.environ.get("EXISTING_P12_PATH", "").strip()
-EXISTING_PASSWORD_PATH = os.environ.get("EXISTING_PASSWORD_PATH", "").strip()
 
 
 class APIError(RuntimeError):
@@ -124,8 +115,8 @@ def query(path, params):
 def validate_inputs():
     if not re.fullmatch(r"[A-Za-z0-9-]{20,64}", DEVICE_UDID):
         raise SystemExit("Device UDID has an unexpected format")
-    if not BUNDLE_IDENTIFIER or "." not in BUNDLE_IDENTIFIER:
-        raise SystemExit("DEV_BUNDLE_IDENTIFIER is invalid")
+    if not re.fullmatch(r"[A-Z0-9]{10}", TEAM_ID, re.IGNORECASE):
+        raise SystemExit("APPLE_TEAM_ID has an unexpected format")
 
 
 def get_or_register_device():
@@ -179,67 +170,53 @@ def get_or_register_device():
     return created["data"], True
 
 
-def find_bundle_id():
-    rows = all_rows(
-        query(
-            "/v1/bundleIds",
-            {
-                "filter[identifier]": BUNDLE_IDENTIFIER,
-                "limit": "200",
+def find_universal_wildcard_bundle_id():
+    rows = all_rows("/v1/bundleIds?limit=200")
+    exact = []
+    for row in rows:
+        attrs = row.get("attributes", {})
+        identifier = (attrs.get("identifier") or "").strip()
+        platform = attrs.get("platform")
+        if identifier == "*" and platform in ("IOS", "UNIVERSAL", None):
+            exact.append(row)
+
+    if exact:
+        exact.sort(key=lambda row: 0 if row.get("attributes", {}).get("platform") == "IOS" else 1)
+        return exact[0], False
+
+    payload = {
+        "data": {
+            "type": "bundleIds",
+            "attributes": {
+                "identifier": "*",
+                "name": "GitHub Universal Development Wildcard",
+                "platform": "IOS",
             },
-        )
-    )
-    if not rows:
-        raise SystemExit(
-            f"Bundle ID {BUNDLE_IDENTIFIER!r} is not registered in the Apple Developer account"
-        )
-    return rows[0]
-
-
-def existing_identity_is_usable():
-    if not (
-        EXISTING_CERTIFICATE_ID
-        and EXISTING_P12_PATH
-        and EXISTING_PASSWORD_PATH
-        and Path(EXISTING_P12_PATH).is_file()
-        and Path(EXISTING_PASSWORD_PATH).is_file()
-    ):
-        return None
+        }
+    }
     try:
-        response = request("GET", f"/v1/certificates/{EXISTING_CERTIFICATE_ID}")
+        created = request("POST", "/v1/bundleIds", payload)["data"]
+        return created, True
     except APIError as exc:
-        if exc.status in (404, 410):
-            return None
-        raise
-
-    cert = response.get("data", {})
-    attrs = cert.get("attributes", {})
-    if attrs.get("certificateType") != "IOS_DEVELOPMENT":
-        return None
-    if attrs.get("activated") is False:
-        return None
-
-    expiration = attrs.get("expirationDate")
-    if expiration:
-        try:
-            expires = dt.datetime.fromisoformat(expiration.replace("Z", "+00:00"))
-            if expires <= dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=1):
-                return None
-        except ValueError:
-            pass
-
-    shutil.copy2(EXISTING_P12_PATH, P12_PATH)
-    shutil.copy2(EXISTING_PASSWORD_PATH, PASSWORD_PATH)
-    CERT_ID_PATH.write_text(EXISTING_CERTIFICATE_ID + "\n")
-    os.chmod(PASSWORD_PATH, 0o600)
-    return cert
+        if exc.status == 409:
+            rows = all_rows("/v1/bundleIds?limit=200")
+            for row in rows:
+                attrs = row.get("attributes", {})
+                if (attrs.get("identifier") or "").strip() == "*":
+                    return row, False
+        raise SystemExit(
+            "No all-app wildcard App ID ('*') is available and Apple would not create it. "
+            "Create a wildcard App ID with bundle ID '*' once in Certificates, Identifiers & Profiles, "
+            "then rerun this workflow."
+        ) from exc
 
 
 def create_development_identity():
     from cryptography.hazmat.primitives.asymmetric import rsa
 
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    common_name = f"GitHub iOS Development {os.environ.get('GITHUB_RUN_ID', int(time.time()))}"
+    run_id = os.environ.get("GITHUB_RUN_ID", str(int(time.time())))
+    common_name = f"GitHub iOS Development {run_id}"
     csr = (
         x509.CertificateSigningRequestBuilder()
         .subject_name(
@@ -289,7 +266,8 @@ def create_development_identity():
 
 
 def create_profile(bundle_resource_id, certificate_id, device_id):
-    profile_name = f"GitHub Development {int(time.time())}"
+    run_id = os.environ.get("GITHUB_RUN_ID", str(int(time.time())))
+    profile_name = f"GitHub Wildcard Development {run_id}"
     created = request(
         "POST",
         "/v1/profiles",
@@ -321,47 +299,50 @@ def create_profile(bundle_resource_id, certificate_id, device_id):
 def main():
     validate_inputs()
     device, registered_now = get_or_register_device()
-    bundle = find_bundle_id()
+    wildcard_bundle, wildcard_created_now = find_universal_wildcard_bundle_id()
 
-    certificate = existing_identity_is_usable()
-    identity_created_now = certificate is None
-    if identity_created_now:
-        try:
-            certificate = create_development_identity()
-        except APIError as exc:
-            if exc.status in (403, 409):
-                raise SystemExit(
-                    "Apple refused creation of a new iOS development certificate. "
-                    "Check the API key role/access and your active development-certificate limit."
-                ) from exc
-            raise
+    try:
+        certificate = create_development_identity()
+    except APIError as exc:
+        if exc.status in (403, 409):
+            raise SystemExit(
+                "Apple refused creation of the new iOS development certificate. Every run intentionally "
+                "creates a fresh certificate; remove/revoke an old development certificate if your Apple "
+                "Developer account has reached its active certificate limit, then rerun."
+            ) from exc
+        raise
 
-    profile = create_profile(bundle["id"], certificate["id"], device["id"])
+    profile = create_profile(wildcard_bundle["id"], certificate["id"], device["id"])
 
     cert_attrs = certificate.get("attributes", {})
     profile_attrs = profile.get("attributes", {})
+    wildcard_attrs = wildcard_bundle.get("attributes", {})
     info = {
-        "bundleIdentifier": BUNDLE_IDENTIFIER,
+        "wildcardBundleIdentifier": wildcard_attrs.get("identifier", "*"),
+        "wildcardBundleResourceId": wildcard_bundle["id"],
+        "wildcardCreatedByThisRun": wildcard_created_now,
+        "signingScope": "wildcard-development-all-apps",
         "certificateId": certificate["id"],
         "certificateType": cert_attrs.get("certificateType", "IOS_DEVELOPMENT"),
         "certificateExpirationDate": cert_attrs.get("expirationDate"),
         "deviceId": device["id"],
         "deviceName": device.get("attributes", {}).get("name"),
         "deviceRegisteredByThisRun": registered_now,
-        "identityCreatedByThisRun": identity_created_now,
+        "identityCreatedByThisRun": True,
         "profileId": profile["id"],
         "profileName": profile_attrs.get("name"),
         "profileType": profile_attrs.get("profileType", "IOS_APP_DEVELOPMENT"),
         "profileExpirationDate": profile_attrs.get("expirationDate"),
+        "notes": "Wildcard development signing works for apps whose entitlements are allowed by a wildcard App ID. Capabilities that require an explicit App ID need a matching explicit profile.",
     }
     INFO_PATH.write_text(json.dumps(info, indent=2) + "\n")
 
-    print("Development signing assets generated successfully.")
-    print(f"Bundle ID: {BUNDLE_IDENTIFIER}")
+    print("Fresh wildcard development signing assets generated successfully.")
+    print("Wildcard App ID: *")
     print(f"Certificate ID: {certificate['id']}")
     print(f"Profile ID: {profile['id']}")
     print(f"Registered device this run: {registered_now}")
-    print(f"Created certificate this run: {identity_created_now}")
+    print("Created certificate this run: True")
 
 
 if __name__ == "__main__":
