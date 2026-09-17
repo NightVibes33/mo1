@@ -231,36 +231,23 @@ jobs:
 
       - name: Package signing assets as ZIP on runner
         shell: bash
-        env:
-          SIGNING_MODE: ${{ inputs.signing_mode }}
-          BUNDLE_IDENTIFIER: ${{ inputs.bundle_identifier }}
-          P12_PASSWORD: ${{ inputs.p12_password }}
         run: |
           set -euo pipefail
-          echo "::add-mask::${P12_PASSWORD}"
 
           rm -rf release-assets
           mkdir -p release-assets/package
 
           cp output/signing-certificate.p12 release-assets/package/signing-certificate.p12
           cp output/profile.mobileprovision release-assets/package/profile.mobileprovision
-          cp output/certificate-id.txt release-assets/package/certificate-id.txt
-          cp output/signing-info.json release-assets/package/signing-info.json
 
-          cat > release-assets/package/README.txt <<EOF
+          cat > release-assets/package/README.txt <<'EOF'
           iOS signing package
 
-          Signing mode: ${SIGNING_MODE}
-          Bundle identifier: ${BUNDLE_IDENTIFIER:-*}
-
-          Contents:
+          Files:
           - signing-certificate.p12
           - profile.mobileprovision
-          - certificate-id.txt
-          - signing-info.json
 
-          The .p12 is protected by the password entered when this GitHub Actions workflow was started.
-          This ZIP was created directly on the GitHub-hosted macOS runner for this workflow run.
+          P12 password: use the password entered when this workflow was started.
           EOF
 
           (
@@ -270,15 +257,11 @@ jobs:
 
           test -s release-assets/ios-signing.zip
           /usr/bin/unzip -t release-assets/ios-signing.zip
-          shasum -a 256 release-assets/ios-signing.zip | tee release-assets/ios-signing.zip.sha256
 
           {
             echo "## iOS signing ZIP generated on this runner"
             echo
-            echo "- **Mode:** \`${SIGNING_MODE}\`"
-            echo "- **Bundle ID:** \`${BUNDLE_IDENTIFIER:-*}\`"
-            echo "- **Runner ZIP:** \`ios-signing.zip\`"
-            echo
+            echo "The ZIP contains only the P12, mobileprovision, and README."
             echo "Download the artifact attached to this Actions run."
           } >> "${GITHUB_STEP_SUMMARY}"
 
