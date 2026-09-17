@@ -1,6 +1,6 @@
 name: Generate iOS Development Signing Assets
 
-run-name: Generate iOS development signing assets
+run-name: Generate fresh wildcard iOS development signing assets
 
 on:
   workflow_dispatch:
@@ -19,11 +19,10 @@ concurrency:
 
 env:
   SIGNING_RELEASE_TAG: ios-development-signing
-  DEV_BUNDLE_IDENTIFIER: ${{ vars.DEV_PROFILE_BUNDLE_ID || 'app.mo1.player.39A8Q3T3TR' }}
 
 jobs:
   generate:
-    name: Generate development P12 + mobileprovision
+    name: Generate fresh wildcard P12 + mobileprovision
     runs-on: macos-26-intel
     timeout-minutes: 25
 
@@ -87,19 +86,7 @@ jobs:
               --notes "Private draft release used by the mo1 signing generator. Do not publish this release."
           fi
 
-          rm -rf identity
-          mkdir -p identity
-          gh release download "${SIGNING_RELEASE_TAG}" --dir identity || true
-
-          if [ -s identity/apple-development.p12 ] && \
-             [ -s identity/p12-password.txt ] && \
-             [ -s identity/certificate-id.txt ]; then
-            echo "EXISTING_CERTIFICATE_ID=$(tr -d '\r\n' < identity/certificate-id.txt)" >> "${GITHUB_ENV}"
-            echo "EXISTING_P12_PATH=${GITHUB_WORKSPACE}/identity/apple-development.p12" >> "${GITHUB_ENV}"
-            echo "EXISTING_PASSWORD_PATH=${GITHUB_WORKSPACE}/identity/p12-password.txt" >> "${GITHUB_ENV}"
-          fi
-
-      - name: Generate development signing assets
+      - name: Generate a brand-new development identity and wildcard profile
         shell: bash
         env:
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
@@ -113,10 +100,11 @@ jobs:
           rm -rf output
           .signing-venv/bin/python .github/scripts/create_ios_development_signing.py
 
-      - name: Verify generated P12 and profile
+      - name: Verify generated P12 and wildcard profile
         shell: bash
         env:
           DEVICE_UDID: ${{ inputs.device_udid }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
           echo "::add-mask::${DEVICE_UDID}"
@@ -129,55 +117,76 @@ jobs:
 
           security cms -D -i output/development.mobileprovision > "${RUNNER_TEMP}/profile.plist"
 
-          PROFILE_PLIST="${RUNNER_TEMP}/profile.plist" DEVICE_UDID="${DEVICE_UDID}" python3 - <<'PY'
+          PROFILE_PLIST="${RUNNER_TEMP}/profile.plist" DEVICE_UDID="${DEVICE_UDID}" APPLE_TEAM_ID="${APPLE_TEAM_ID}" python3 - <<'PY'
           import os
           import plistlib
           from pathlib import Path
 
           profile = plistlib.loads(Path(os.environ["PROFILE_PLIST"]).read_bytes())
-          expected = os.environ["DEVICE_UDID"]
+          expected_udid = os.environ["DEVICE_UDID"]
+          team_id = os.environ["APPLE_TEAM_ID"]
+
           devices = profile.get("ProvisionedDevices", [])
-          if expected not in devices:
+          if expected_udid not in devices:
               raise SystemExit("Generated profile does not contain the requested UDID")
+
           entitlements = profile.get("Entitlements", {})
           if not entitlements.get("get-task-allow", False):
               raise SystemExit("Generated profile is not a development profile (get-task-allow is false)")
-          print("Verified development provisioning profile.")
+
+          app_identifier = entitlements.get("application-identifier", "")
+          expected_wildcard = f"{team_id}.*"
+          if app_identifier != expected_wildcard:
+              raise SystemExit(
+                  f"Generated profile is not universal wildcard: expected {expected_wildcard!r}, got {app_identifier!r}"
+              )
+
+          print("Verified fresh development certificate + universal wildcard provisioning profile.")
           PY
 
-      - name: Save to private draft release
+      - name: Preserve this run as unique private draft-release assets
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          SUFFIX="${GITHUB_RUN_ID}"
+          mkdir -p release-assets
+
+          cp output/apple-development.p12 "release-assets/apple-development-${SUFFIX}.p12"
+          cp output/p12-password.txt "release-assets/p12-password-${SUFFIX}.txt"
+          cp output/certificate-id.txt "release-assets/certificate-id-${SUFFIX}.txt"
+          cp output/development.mobileprovision "release-assets/development-wildcard-${SUFFIX}.mobileprovision"
+          cp output/signing-info.json "release-assets/signing-info-${SUFFIX}.json"
+
           gh release upload "${SIGNING_RELEASE_TAG}" \
-            output/apple-development.p12 \
-            output/p12-password.txt \
-            output/certificate-id.txt \
-            output/development.mobileprovision \
-            output/signing-info.json \
-            --clobber
+            "release-assets/apple-development-${SUFFIX}.p12" \
+            "release-assets/p12-password-${SUFFIX}.txt" \
+            "release-assets/certificate-id-${SUFFIX}.txt" \
+            "release-assets/development-wildcard-${SUFFIX}.mobileprovision" \
+            "release-assets/signing-info-${SUFFIX}.json"
 
           gh release edit "${SIGNING_RELEASE_TAG}" \
             --draft \
             --title "iOS Development Signing Assets" \
-            --notes "Private draft release used by the mo1 signing generator. Do not publish this release."
+            --notes "Private draft release used by the mo1 signing generator. Each workflow run creates a brand-new Apple Development certificate and a wildcard iOS development profile. Do not publish this release."
 
           {
-            echo "## iOS development signing assets generated"
+            echo "## Fresh wildcard iOS signing assets generated"
+            echo
+            echo "This run created a **new Apple Development certificate** and a **wildcard development profile** for the supplied device."
             echo
             echo "Download these files from the **iOS Development Signing Assets** draft release:"
-            echo "- \`apple-development.p12\`"
-            echo "- \`development.mobileprovision\`"
-            echo "- \`p12-password.txt\`"
-            echo "- \`signing-info.json\`"
+            echo "- \`apple-development-${SUFFIX}.p12\`"
+            echo "- \`development-wildcard-${SUFFIX}.mobileprovision\`"
+            echo "- \`p12-password-${SUFFIX}.txt\`"
+            echo "- \`signing-info-${SUFFIX}.json\`"
             echo
-            echo "The Apple Development certificate is reused on later runs while it remains valid; each run creates a fresh development profile for the supplied device."
+            echo "The wildcard profile authorizes ordinary apps across bundle IDs on this team. Apps that require Apple capabilities restricted to explicit App IDs need their own explicit provisioning profile."
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Remove local signing material
         if: always()
         shell: bash
         run: |
-          rm -rf output identity .signing-venv
+          rm -rf output release-assets .signing-venv
