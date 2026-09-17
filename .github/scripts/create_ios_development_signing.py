@@ -151,7 +151,7 @@ def get_or_register_device():
             except APIError as exc:
                 raise SystemExit(
                     "The supplied device exists but is disabled and Apple would not re-enable it. "
-                    "Enable it in Certificates, Identifiers & Profiles, then rerun."
+                    f"Apple API response: {exc}"
                 ) from exc
         return device, False
 
@@ -209,8 +209,7 @@ def find_universal_wildcard_bundle_id():
                     return row, False
         raise SystemExit(
             "No all-app wildcard App ID ('*') is available and Apple would not create it. "
-            "Create a wildcard App ID with bundle ID '*' once in Certificates, Identifiers & Profiles, "
-            "then rerun this workflow."
+            f"Apple API response: {exc}"
         ) from exc
 
 
@@ -219,7 +218,7 @@ def create_development_identity():
 
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     run_id = os.environ.get("GITHUB_RUN_ID", str(int(time.time())))
-    common_name = f"GitHub iOS Development {run_id}"
+    common_name = f"GitHub Apple Development {run_id}"
     csr = (
         x509.CertificateSigningRequestBuilder()
         .subject_name(
@@ -234,6 +233,8 @@ def create_development_identity():
     )
     csr_pem = csr.public_bytes(serialization.Encoding.PEM).decode("ascii")
 
+    # DEVELOPMENT is Apple's current unified "Apple Development" certificate.
+    # IOS_DEVELOPMENT is the legacy iOS Development certificate for Xcode 11 and earlier.
     created = request(
         "POST",
         "/v1/certificates",
@@ -241,7 +242,7 @@ def create_development_identity():
             "data": {
                 "type": "certificates",
                 "attributes": {
-                    "certificateType": "IOS_DEVELOPMENT",
+                    "certificateType": "DEVELOPMENT",
                     "csrContent": csr_pem,
                 },
             }
@@ -304,15 +305,28 @@ def main():
     try:
         certificate = create_development_identity()
     except APIError as exc:
-        if exc.status in (403, 409):
+        if exc.status == 403:
             raise SystemExit(
-                "Apple refused creation of the new iOS development certificate. Every run intentionally "
-                "creates a fresh certificate; remove/revoke an old development certificate if your Apple "
-                "Developer account has reached its active certificate limit, then rerun."
+                "Apple refused creation of the new Apple Development certificate. "
+                f"Apple API response: {exc}. "
+                "If the response says the operation is forbidden, verify that the App Store Connect API "
+                "key/account has Certificates, Identifiers & Profiles access."
+            ) from exc
+        if exc.status == 409:
+            raise SystemExit(
+                "Apple rejected creation of the new Apple Development certificate because of a conflict. "
+                f"Apple API response: {exc}. "
+                "If Apple reports an active certificate limit, revoke an old development certificate and rerun."
             ) from exc
         raise
 
-    profile = create_profile(wildcard_bundle["id"], certificate["id"], device["id"])
+    try:
+        profile = create_profile(wildcard_bundle["id"], certificate["id"], device["id"])
+    except APIError as exc:
+        raise SystemExit(
+            "The Apple Development certificate was created, but Apple refused the wildcard development profile. "
+            f"Apple API response: {exc}"
+        ) from exc
 
     cert_attrs = certificate.get("attributes", {})
     profile_attrs = profile.get("attributes", {})
@@ -323,7 +337,7 @@ def main():
         "wildcardCreatedByThisRun": wildcard_created_now,
         "signingScope": "wildcard-development-all-apps",
         "certificateId": certificate["id"],
-        "certificateType": cert_attrs.get("certificateType", "IOS_DEVELOPMENT"),
+        "certificateType": cert_attrs.get("certificateType", "DEVELOPMENT"),
         "certificateExpirationDate": cert_attrs.get("expirationDate"),
         "deviceId": device["id"],
         "deviceName": device.get("attributes", {}).get("name"),
@@ -340,6 +354,7 @@ def main():
     print("Fresh wildcard development signing assets generated successfully.")
     print("Wildcard App ID: *")
     print(f"Certificate ID: {certificate['id']}")
+    print(f"Certificate type: {cert_attrs.get('certificateType', 'DEVELOPMENT')}")
     print(f"Profile ID: {profile['id']}")
     print(f"Registered device this run: {registered_now}")
     print("Created certificate this run: True")
