@@ -6,6 +6,7 @@ on:
       - tf-get-task-allow-probe-20260928
     paths:
       - '.github/workflows/testflight-get-task-allow-probe.yml'
+      - '.github/scripts/patch-appstore-probe.py'
   workflow_dispatch:
 
 permissions:
