@@ -1,4 +1,4 @@
-name: Check TestFlight build 100030
+name: Check TestFlight build 100039
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 18
     env:
       TARGET_BUNDLE_ID: com.nightvibes.prism.39A8Q3T3TR
-      TARGET_BUILD: "100030"
+      TARGET_BUILD: "100039"
     steps:
       - name: Check App Store Connect build processing
         env:
