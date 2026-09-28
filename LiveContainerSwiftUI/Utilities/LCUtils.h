@@ -11,8 +11,31 @@ typedef NS_ENUM(NSInteger, Store){
 };
 
 void refreshFile(NSString* execPath);
-int dyld_get_program_sdk_version(void);
-uint32_t dyld_get_sdk_version(const struct mach_header* mh);
+
+static inline uint32_t LCAppStoreSDKVersion(const struct mach_header* mh) {
+    if (!mh) return 0;
+    const uint8_t *cursor = (const uint8_t *)mh;
+    uint32_t ncmds = mh->ncmds;
+    if (mh->magic == MH_MAGIC_64 || mh->magic == MH_CIGAM_64) {
+        cursor += sizeof(struct mach_header_64);
+    } else {
+        cursor += sizeof(struct mach_header);
+    }
+    for (uint32_t i = 0; i < ncmds; ++i) {
+        const struct load_command *lc = (const struct load_command *)cursor;
+        if (lc->cmd == LC_BUILD_VERSION && lc->cmdsize >= sizeof(struct build_version_command)) {
+            return ((const struct build_version_command *)lc)->sdk;
+        }
+        if (lc->cmd == LC_VERSION_MIN_IPHONEOS && lc->cmdsize >= sizeof(struct version_min_command)) {
+            return ((const struct version_min_command *)lc)->sdk;
+        }
+        if (lc->cmdsize < sizeof(struct load_command)) break;
+        cursor += lc->cmdsize;
+    }
+    return 0x000B0000;
+}
+
+#define dyld_get_sdk_version LCAppStoreSDKVersion
 
 @interface PKZipArchiver : NSObject
 
