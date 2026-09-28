@@ -4,8 +4,19 @@
 #include <os/lock.h>
 #define PrivClass(name) ((Class)objc_lookUpClass(#name))
 
-const char **_CFGetProgname(void);
-const char **_CFGetProcessPath(void);
+static inline const char **LCAppStoreGetProgname(void) {
+    static const char *value = NULL;
+    return &value;
+}
+
+static inline const char **LCAppStoreGetProcessPath(void) {
+    static const char *value = NULL;
+    if (!value) value = NSBundle.mainBundle.executablePath.fileSystemRepresentation;
+    return &value;
+}
+
+#define _CFGetProgname LCAppStoreGetProgname
+#define _CFGetProcessPath LCAppStoreGetProcessPath
 int _NSGetExecutablePath(char* buf, uint32_t* bufsize);
 int csops_audittoken(pid_t pid, unsigned int ops, void * useraddr, size_t usersize, audit_token_t * token);
 #define CS_DEBUGGED 0x10000000
