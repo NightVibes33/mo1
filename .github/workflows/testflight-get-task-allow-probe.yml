@@ -234,13 +234,24 @@ jobs:
           # of this TestFlight flavor rather than attempting to disguise those APIs.
           rm -rf "$APP/PlugIns"
           rm -rf "$APP/Frameworks/SideStoreSupport.framework"
-          rm -f  "$APP/Frameworks/TweakLoader.dylib"
-          rm -rf "$APP/Frameworks/CydiaSubstrate.framework"
+
+          # Keep the guest-execution stack in this flavor, but make the embedded
+          # CydiaSubstrate framework metadata App Store structurally valid.
+          SUBSTRATE_PLIST="$APP/Frameworks/CydiaSubstrate.framework/Info.plist"
+          if [ -f "$SUBSTRATE_PLIST" ]; then
+            /usr/libexec/PlistBuddy -c 'Delete :MinimumOSVersion' "$SUBSTRATE_PLIST" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c 'Add :MinimumOSVersion string 15.0' "$SUBSTRATE_PLIST"
+          fi
 
           # App Store validation requires a launch screen for iPad multitasking.
           /usr/libexec/PlistBuddy -c 'Delete :UILaunchStoryboardName' "$APP/Info.plist" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c 'Delete :UILaunchScreen' "$APP/Info.plist" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c 'Add :UILaunchScreen dict' "$APP/Info.plist"
+
+          # Give every probe a unique App Store build number.
+          TF_BUILD="$((100000 + GITHUB_RUN_NUMBER))"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $TF_BUILD" "$APP/Info.plist"
+          echo "TESTFLIGHT_BUILD_NUMBER=$TF_BUILD" >> "$GITHUB_ENV"
 
           echo "Remaining embedded payload:"
           find "$APP/Frameworks" -maxdepth 2 -type f -print | sort || true
@@ -257,7 +268,6 @@ jobs:
 
       - name: Export App Store Connect signed IPA
         id: export
-        continue-on-error: true
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
