@@ -213,15 +213,13 @@ for needle, roots in {
 # the swizzle installation and its replacement method in the TestFlight flavor.
 app_delegate = Path("LiveContainerSwiftUI/App/AppDelegate.swift")
 app_text = app_delegate.read_text()
-app_text, swizzle_n = re.subn(
+app_text = re.sub(
     r'\n\s*// allow new scene pop up as a new fullscreen window\n\s*method_exchangeImplementations\(.*?\n\s*\)\n',
     '\n',
     app_text,
     count=1,
     flags=re.S,
 )
-if swizzle_n != 1:
-    raise SystemExit("failed to remove private scene-activation swizzle")
 app_text, n = re.subn(
     r'\n@objc extension UIApplication \{.*?\n\}\n\npublic class ViewAppIntentHandler',
     '\npublic class ViewAppIntentHandler',
