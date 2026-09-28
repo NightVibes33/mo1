@@ -161,6 +161,18 @@ text = text.replace(
 )
 bootstrap.write_text(text)
 
+# Remove the private UIScene swizzle registration; the TestFlight flavor uses the public scene API.
+app_delegate = Path("LiveContainerSwiftUI/App/AppDelegate.swift")
+text = app_delegate.read_text()
+swizzle_block = """        // allow new scene pop up as a new fullscreen window
+        method_exchangeImplementations(
+            class_getInstanceMethod(UIApplication.self, #selector(UIApplication.requestSceneSessionActivation(_ :userActivity:options:errorHandler:)))!,
+            class_getInstanceMethod(UIApplication.self, #selector(UIApplication.hook_requestSceneSessionActivation(_:userActivity:options:errorHandler:)))!)
+
+"""
+text = text.replace(swizzle_block, "")
+app_delegate.write_text(text)
+
 # Remove the private UIScene fullscreen request option; public activation still works.
 app_delegate = Path("LiveContainerSwiftUI/App/AppDelegate.swift")
 text = app_delegate.read_text()
