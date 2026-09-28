@@ -14,7 +14,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 5
     env:
       TARGET_BUNDLE_ID: com.nightvibes.prism.39A8Q3T3TR
       TARGET_BUILD: "100039"
@@ -64,7 +64,7 @@ jobs:
           app_id = apps[0]["id"]
           print("ASC app id:", app_id)
 
-          for attempt in range(1, 46):
+          for attempt in range(1, 2):
               q = urllib.parse.urlencode({
                   "filter[app]": app_id,
                   "sort": "-uploadedDate",
@@ -86,7 +86,6 @@ jobs:
                       break
               else:
                   print(f"Attempt {attempt}: build {BUILD} not visible yet")
-              if attempt == 45:
-                  raise SystemExit("Build did not become visible/VALID within this check window")
-              time.sleep(20)
+              if attempt == 1:
+                  raise SystemExit("Build 100039 is not visible/VALID yet")
           PY
