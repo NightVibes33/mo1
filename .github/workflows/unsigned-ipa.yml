@@ -1,0 +1,522 @@
+name: Build Fresh 32-bit LiveContainer
+
+on:
+  push:
+    branches:
+      - main
+      - migrate-liveexec-nightly
+      - fresh-32bit-upstream-2026-08-30
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build LiveContainer + current LiveExec32 runtime
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      LC_UPSTREAM_SHA: e55609bab48a2b0551ddb5c0574497826e39680f
+      LIVEEXEC32_SHA: 3f0390e1b2725a2d3c9ab6f3976650a5a295ffba
+      LIVEEXEC32_BUILD_REVISION: '91'
+      LIVEEXEC32_LOAD_PATH: Frameworks/LiveExec32Shared.framework/LiveExec32Shared
+      LIVEEXEC32_ENTRY_SYMBOL: LC32RunGuest
+      DERIVED_DATA: build/DerivedData
+      OUTPUT_IPA: LiveContainer-32bit-fresh-unsigned.ipa
+
+    steps:
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.2'
+
+      - name: Checkout LiveContainer
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Verify integration base
+        run: |
+          set -euxo pipefail
+          grep -q 'LCSelected32BitEmulator' LiveContainer/LCBootstrap.m
+          grep -q 'LC32BitTranslationLayer' LiveContainerSwiftUI/Models/LCAppInfo.m
+          grep -q 'seedBundled32BitEmulator' LiveContainerSwiftUI/App/LiveContainerSwiftUIApp.swift
+          grep -q "bundled32BitEmulatorCommit = \"$LIVEEXEC32_SHA\"" LiveContainerSwiftUI/App/LiveContainerSwiftUIApp.swift
+          grep -q "bundled32BitEmulatorRevision = \"$LIVEEXEC32_BUILD_REVISION\"" LiveContainerSwiftUI/App/LiveContainerSwiftUIApp.swift
+
+      - name: Patch LiveContainer 32-bit framework loader
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('LiveContainer/LCBootstrap.m')
+          source = path.read_text()
+
+          replacements = [
+              (
+                  '''    const char *appExecPath = appBundle.executablePath.fileSystemRepresentation;
+              *path = appExecPath;
+              overwriteExecPath(appExecPath);''',
+                  '''    const char *appExecPath = appBundle.executablePath.fileSystemRepresentation;
+              NSString *emulatorLauncherPath = nil;
+              NSString *emulatorEntrySymbol = nil;
+              *path = appExecPath;
+              overwriteExecPath(appExecPath);'''
+              ),
+              (
+                  '''        // maybe need to save selected32bitLayerBundle to static variable?
+                  appExecPath = strdup(selected32bitLayerBundle.executablePath.UTF8String);
+                  overwriteExecPath(appExecPath);''',
+                  '''        emulatorLauncherPath = selected32bitLayerBundle.executablePath;
+                  NSString *emulatorLoadPath = selected32bitLayerBundle.infoDictionary[@"LC32BitEmulatorLoadPath"];
+                  emulatorEntrySymbol = selected32bitLayerBundle.infoDictionary[@"LC32BitEmulatorEntrySymbol"];
+                  if(emulatorLoadPath.length > 0 && emulatorEntrySymbol.length > 0) {
+                      NSString *resolvedLoadPath = [selected32bitLayerBundle.bundlePath stringByAppendingPathComponent:emulatorLoadPath];
+                      if(![fm fileExistsAtPath:resolvedLoadPath]) {
+                          appError = [NSString stringWithFormat:@"32-bit emulator load image is missing: %@", resolvedLoadPath];
+                          NSLog(@"[LCBootstrap] %@", appError);
+                          *path = oldPath;
+                          return appError;
+                      }
+                      appExecPath = strdup(resolvedLoadPath.fileSystemRepresentation);
+                      overwriteExecPath(emulatorLauncherPath.fileSystemRepresentation);
+                  } else {
+                      appExecPath = strdup(selected32bitLayerBundle.executablePath.fileSystemRepresentation);
+                      overwriteExecPath(appExecPath);
+                  }'''
+              ),
+              (
+                  '''    void (^dlopenBlock)(void) = ^{
+                  appHandle = dlopen_nolock(appExecPath, RTLD_LAZY|RTLD_GLOBAL|RTLD_FIRST);
+              };''',
+                  '''    int appDlopenFlags = (is32bit && emulatorEntrySymbol.length > 0)
+                  ? (RTLD_NOW | RTLD_GLOBAL)
+                  : (RTLD_LAZY | RTLD_GLOBAL | RTLD_FIRST);
+              void (^dlopenBlock)(void) = ^{
+                  appHandle = dlopen_nolock(appExecPath, appDlopenFlags);
+              };'''
+              ),
+              (
+                  '''    // Find main()
+              appMain = getAppEntryPoint(appHandle);
+              if (!appMain) {
+                  appError = @"Could not find the main entry point";
+                  NSLog(@"[LCBootstrap] %@", appError);
+                  *path = oldPath;
+                  return appError;
+              }''',
+                  '''    // Find the emulator's exported entry point, or the normal app main().
+              if(is32bit && emulatorEntrySymbol.length > 0) {
+                  dlerror();
+                  appMain = (int (*)(int, char **, char **))dlsym(appHandle, emulatorEntrySymbol.UTF8String);
+                  const char *entryError = dlerror();
+                  if(entryError != NULL) {
+                      appError = [NSString stringWithFormat:@"Could not resolve 32-bit emulator entry point %@: %s", emulatorEntrySymbol, entryError];
+                      NSLog(@"[LCBootstrap] %@", appError);
+                      *path = oldPath;
+                      return appError;
+                  }
+              } else {
+                  appMain = getAppEntryPoint(appHandle);
+              }
+              if (!appMain) {
+                  appError = @"Could not find the main entry point";
+                  NSLog(@"[LCBootstrap] %@", appError);
+                  *path = oldPath;
+                  return appError;
+              }'''
+              ),
+              (
+                  '''    } else {
+                  char *argv32[] = {(char*)appExecPath, (char*)*path, NULL};
+                  ret = appMain(sizeof(argv32)/sizeof(*argv32) - 1, argv32, environ);
+              }''',
+                  '''    } else {
+                  const char *emulatorArgv0 = emulatorLauncherPath.length > 0
+                      ? emulatorLauncherPath.fileSystemRepresentation
+                      : appExecPath;
+                  char *argv32[] = {(char*)emulatorArgv0, (char*)*path, NULL};
+                  ret = appMain(sizeof(argv32)/sizeof(*argv32) - 1, argv32, environ);
+              }'''
+              ),
+          ]
+
+          for old, new in replacements:
+              if old not in source:
+                  raise SystemExit(f'expected loader source block not found:\n{old}')
+              source = source.replace(old, new, 1)
+
+          path.write_text(source)
+          PY
+
+          grep -q 'LC32BitEmulatorLoadPath' LiveContainer/LCBootstrap.m
+          grep -q 'LC32BitEmulatorEntrySymbol' LiveContainer/LCBootstrap.m
+          grep -q 'dlsym(appHandle, emulatorEntrySymbol.UTF8String)' LiveContainer/LCBootstrap.m
+          grep -q 'emulatorLauncherPath.fileSystemRepresentation' LiveContainer/LCBootstrap.m
+
+      - name: Checkout LiveExec32 dev runtime
+        uses: actions/checkout@v6
+        with:
+          repository: LiveContainer/LiveExec32
+          ref: ${{ env.LIVEEXEC32_SHA }}
+          path: build/LiveExec32
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Restore patched LiveExec32 package
+        id: liveexec-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: build/liveexec-package
+          key: lc32-package-v1-${{ runner.os }}-${{ env.LIVEEXEC32_SHA }}-${{ hashFiles('.github/scripts/patch-liveexec32-*.py', '.github/scripts/build-guest-libiconv.sh') }}
+
+      - name: Restore extracted guest ramdisk
+        id: ramdisk-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: build/LiveExec32/tmp/ipsw/ramdisk.dmg
+          key: lc32-ramdisk-v1-3564d16366b053503107288be6cb335b2283cf14838ab64a88017c17a2a6a1bc
+
+      - name: Install LiveExec32 build dependencies
+        shell: bash
+        run: |
+          set -euxo pipefail
+          brew install make boost ldid
+
+          THEOS="$RUNNER_TEMP/theos"
+          THEOS_COMMIT=5280bd038207e14f8bd76f5417aa2fe641c03228
+          git init "$THEOS"
+          git -C "$THEOS" remote add origin https://github.com/theos/theos.git
+          git -C "$THEOS" fetch --depth 1 origin "$THEOS_COMMIT"
+          git -C "$THEOS" checkout --detach FETCH_HEAD
+          git -C "$THEOS" submodule update --init --recursive --depth 1
+
+          SDK_ARCHIVE="$RUNNER_TEMP/iPhoneOS16.5.sdk.tar.xz"
+          curl --fail --location --retry 3 --output "$SDK_ARCHIVE" \
+            https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS16.5.sdk.tar.xz
+          echo "5e0fd3f01266cce4ce012d4a99b38eb56578fca40d09edc81cd83dee958202fb  $SDK_ARCHIVE" | shasum -a 256 -c -
+          mkdir -p "$THEOS/sdks"
+          tar -xJf "$SDK_ARCHIVE" -C "$THEOS/sdks"
+          test -f "$THEOS/sdks/iPhoneOS16.5.sdk/SDKSettings.plist"
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+
+          PZB_ARCHIVE="$RUNNER_TEMP/pzb.zip"
+          PZB_ROOT="$RUNNER_TEMP/pzb"
+          TOOLS_DIR="$RUNNER_TEMP/lc32-tools"
+          curl --fail --location --retry 3 --output "$PZB_ARCHIVE" \
+            https://github.com/tihmstar/partialZipBrowser/releases/download/44/buildroot_macos-latest.zip
+          echo "f72452e5c9c1248b8c4b4967a357b03addbe98d61ba8bad286ef0146dfdccdd2  $PZB_ARCHIVE" | shasum -a 256 -c -
+          mkdir -p "$PZB_ROOT" "$TOOLS_DIR"
+          unzip -q "$PZB_ARCHIVE" -d "$PZB_ROOT"
+          install -m 0755 "$PZB_ROOT/buildroot_macos-latest/usr/local/bin/pzb" "$TOOLS_DIR/pzb"
+          echo "$TOOLS_DIR" >> "$GITHUB_PATH"
+
+      - name: Build current LiveExec32 app and guest root filesystem
+        if: steps.liveexec-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          # Nightly baseline: build upstream without legacy overlay scripts.
+          # The resulting 40-IPA report is used to select only non-overlapping
+          # compatibility additions for the migrated branch.
+          test -f build/LiveExec32/GuestFrameworks/CoreVideo/CoreVideo.m
+          test -f build/LiveExec32/GuestFrameworks/CoreMedia/CoreMediaSampleBuffer.m
+          test -f build/LiveExec32/test/audio_converter.c
+
+          # Generate nightly shims first so additive patches can skip every
+          # symbol now supplied upstream.
+          gmake -C build/LiveExec32/GuestMakefile generate-shims
+          python3 .github/scripts/patch-liveexec32-missing-images.py
+          python3 .github/scripts/patch-liveexec32-accelerate.py
+          python3 .github/scripts/patch-liveexec32-coremedia.py
+          python3 .github/scripts/patch-liveexec32-corpus-object-constants.py
+          python3 .github/scripts/patch-liveexec32-quartzcore.py
+          python3 .github/scripts/patch-liveexec32-target-coregraphics.py
+          python3 .github/scripts/patch-liveexec32-audiotoolbox-corpus.py
+          grep -q 'OSStatus NewAUGraph' build/LiveExec32/GuestFrameworks/AudioToolbox/AudioToolbox.m
+          grep -q 'DispatchCorpusAudioFileStreamOpen' build/LiveExec32/HostFrameworks/AudioToolbox/AudioToolbox.mm
+          python3 .github/scripts/patch-liveexec32-host-argument.py
+          python3 .github/scripts/patch-liveexec32-openal-session.py
+          python3 .github/scripts/patch-liveexec32-noexecute-diagnostics.py
+          python3 .github/scripts/patch-liveexec32-memory-fault-context.py
+
+          gmake -C build/LiveExec32/GuestMakefile
+          (cd build/LiveExec32 && bash GuestMakefile/pack-ramdisk.sh)
+
+          # Preserve exact legacy private-framework load paths. The guest
+          # implementations are the same armv7 compatibility images built
+          # above; no host filesystem path or ARM32 pointer is exposed.
+          GUEST_ROOT=build/LiveExec32/Resources/RootFS
+          for framework in CoreSurface GraphicsServices PlugInKit WebKit; do
+            source="$GUEST_ROOT/System/Library/Frameworks/$framework.framework"
+            destination="$GUEST_ROOT/System/Library/PrivateFrameworks/$framework.framework"
+            if [ ! -f "$source/$framework" ]; then
+              echo "Nightly baseline does not provide $framework; leaving it for the import audit"
+              continue
+            fi
+            mkdir -p "$destination"
+            cp "$source/$framework" "$destination/$framework"
+            cp "$source/Info.plist" "$destination/Info.plist"
+            chmod 0755 "$destination/$framework"
+          done
+
+          # The iOS resolver dylib contributes one legacy routine used by an
+          # embedded Workflow framework. LC32 contains the real ARM32 routine;
+          # this compatibility image preserves the historical load path.
+          cp "$GUEST_ROOT/System/Library/Frameworks/LC32.framework/LC32" \
+            "$GUEST_ROOT/usr/lib/libresolv.9.dylib"
+          chmod 0755 "$GUEST_ROOT/usr/lib/libresolv.9.dylib"
+
+          bash .github/scripts/build-guest-libiconv.sh build/LiveExec32/Resources/RootFS
+          gmake -C build/LiveExec32 package
+
+          LIVEEXEC_IPA=$(find build/LiveExec32/packages -maxdepth 1 -type f -name '*.ipa' -print -quit)
+          test -n "$LIVEEXEC_IPA"
+          rm -rf build/liveexec-package
+          mkdir -p build/liveexec-package
+          unzip -q "$LIVEEXEC_IPA" -d build/liveexec-package
+          LIVEEXEC_APP=$(find build/liveexec-package/Payload -maxdepth 1 -type d -name 'LiveExec32.app' -print -quit)
+          test -n "$LIVEEXEC_APP"
+          test -f "$LIVEEXEC_APP/LiveExec32"
+          test -f "$LIVEEXEC_APP/Info.plist"
+
+          LIVEEXEC_SHARED="$LIVEEXEC_APP/$LIVEEXEC32_LOAD_PATH"
+          test -f "$LIVEEXEC_SHARED"
+          test -d "$LIVEEXEC_APP/RootFS"
+          test -f "$LIVEEXEC_APP/RootFS/System/Library/Frameworks/CoreVideo.framework/CoreVideo"
+          test -f "$LIVEEXEC_APP/RootFS/usr/lib/libresolv.9.dylib"
+          test -f "$LIVEEXEC_APP/RootFS/usr/lib/libiconv.2.dylib"
+          test -f "$LIVEEXEC_APP/RootFS/usr/lib/libcharset.1.dylib"
+          test -f "$LIVEEXEC_APP/RootFS/usr/lib/libstdc++.6.dylib"
+          file "$LIVEEXEC_APP/RootFS/usr/lib/libstdc++.6.dylib" | grep Mach-O
+          file "$LIVEEXEC_APP/LiveExec32"
+          file "$LIVEEXEC_SHARED"
+          otool -hv "$LIVEEXEC_SHARED" | grep -q DYLIB
+          nm -gU "$LIVEEXEC_SHARED" | grep '_LC32RunGuest'
+
+          /usr/libexec/PlistBuddy -c 'Delete :LC32BitTranslationLayer' "$LIVEEXEC_APP/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c 'Add :LC32BitTranslationLayer bool true' "$LIVEEXEC_APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Delete :LCBundledSourceCommit' "$LIVEEXEC_APP/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :LCBundledSourceCommit string $LIVEEXEC32_SHA" "$LIVEEXEC_APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Delete :LCBundledBuildRevision' "$LIVEEXEC_APP/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :LCBundledBuildRevision string $LIVEEXEC32_BUILD_REVISION" "$LIVEEXEC_APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Delete :LC32BitEmulatorLoadPath' "$LIVEEXEC_APP/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :LC32BitEmulatorLoadPath string $LIVEEXEC32_LOAD_PATH" "$LIVEEXEC_APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Delete :LC32BitEmulatorEntrySymbol' "$LIVEEXEC_APP/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :LC32BitEmulatorEntrySymbol string $LIVEEXEC32_ENTRY_SYMBOL" "$LIVEEXEC_APP/Info.plist"
+
+          echo "LIVEEXEC_APP=$LIVEEXEC_APP" >> "$GITHUB_ENV"
+          echo "LIVEEXEC_SHARED=$LIVEEXEC_SHARED" >> "$GITHUB_ENV"
+
+      - name: Restore cached LiveExec32 environment
+        if: steps.liveexec-cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          LIVEEXEC_APP=$(find build/liveexec-package/Payload -maxdepth 1 -type d -name 'LiveExec32.app' -print -quit)
+          test -n "$LIVEEXEC_APP"
+          LIVEEXEC_SHARED="$LIVEEXEC_APP/$LIVEEXEC32_LOAD_PATH"
+          test -f "$LIVEEXEC_APP/LiveExec32"
+          test -f "$LIVEEXEC_SHARED"
+          test -d "$LIVEEXEC_APP/RootFS"
+          /usr/libexec/PlistBuddy -c 'Delete :LCBundledBuildRevision' "$LIVEEXEC_APP/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :LCBundledBuildRevision string $LIVEEXEC32_BUILD_REVISION" "$LIVEEXEC_APP/Info.plist"
+          echo "LIVEEXEC_APP=$LIVEEXEC_APP" >> "$GITHUB_ENV"
+          echo "LIVEEXEC_SHARED=$LIVEEXEC_SHARED" >> "$GITHUB_ENV"
+
+      - name: Save patched LiveExec32 package
+        if: steps.liveexec-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: build/liveexec-package
+          key: ${{ steps.liveexec-cache.outputs.cache-primary-key }}
+
+      - name: Save extracted guest ramdisk
+        if: steps.ramdisk-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: build/LiveExec32/tmp/ipsw/ramdisk.dmg
+          key: lc32-ramdisk-v1-3564d16366b053503107288be6cb335b2283cf14838ab64a88017c17a2a6a1bc
+
+      - name: Restore LiveContainer DerivedData
+        id: derived-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.DERIVED_DATA }}
+          key: livecontainer-derived-v1-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            livecontainer-derived-v1-${{ runner.os }}-
+
+      - name: Build LiveContainer without signing
+        id: build_host
+        continue-on-error: true
+        run: |
+          set +e
+          mkdir -p build
+          xcodebuild build \
+            -project LiveContainer.xcodeproj \
+            -scheme LiveContainer \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED_DATA" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            > build/xcodebuild.log 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          grep -nE '(^|[[:space:]])error:|fatal error:|BUILD FAILED|The following build commands failed|ld: ' build/xcodebuild.log | tail -200 || true
+          if [ "$status" -ne 0 ]; then
+            echo '--- xcodebuild tail ---'
+            tail -120 build/xcodebuild.log
+          fi
+          exit "$status"
+
+      - name: Upload xcodebuild diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: LiveContainer-xcodebuild-log
+          path: build/xcodebuild.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Save LiveContainer DerivedData
+        if: steps.build_host.outcome == 'success' && steps.derived-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.DERIVED_DATA }}
+          key: ${{ steps.derived-cache.outputs.cache-primary-key }}
+
+      - name: Stop after host build failure
+        if: steps.build_host.outcome == 'failure'
+        run: exit 1
+
+      - name: Package combined unsigned IPA
+        run: |
+          set -euxo pipefail
+          APP_PATH=$(find "$DERIVED_DATA/Build/Products/Release-iphoneos" -maxdepth 2 -type d -name 'LiveContainer.app' -print -quit)
+          test -n "$APP_PATH"
+          test -d "$APP_PATH"
+          test -n "${LIVEEXEC_APP:-}"
+          test -d "$LIVEEXEC_APP"
+
+          rm -rf Payload "$OUTPUT_IPA"
+          mkdir -p Payload
+          ditto "$APP_PATH" Payload/LiveContainer.app
+          rm -rf Payload/LiveContainer.app/LiveExec32.app
+          ditto "$LIVEEXEC_APP" Payload/LiveContainer.app/LiveExec32.app
+
+          find Payload -type d -name '_CodeSignature' -prune -exec rm -rf {} + || true
+          find Payload -type f -name 'embedded.mobileprovision' -delete || true
+          chmod +x Payload/LiveContainer.app/LiveContainer
+          chmod +x Payload/LiveContainer.app/LiveExec32.app/LiveExec32
+          chmod +x "Payload/LiveContainer.app/LiveExec32.app/$LIVEEXEC32_LOAD_PATH"
+          ditto -c -k --sequesterRsrc --keepParent Payload "$OUTPUT_IPA"
+
+      - name: Verify combined IPA contract
+        run: |
+          set -euxo pipefail
+          rm -rf ipa-check
+          unzip -q "$OUTPUT_IPA" -d ipa-check
+
+          HOST=ipa-check/Payload/LiveContainer.app
+          EMU="$HOST/LiveExec32.app"
+          SHARED="$EMU/$LIVEEXEC32_LOAD_PATH"
+          test -f "$HOST/LiveContainer"
+          test -f "$EMU/LiveExec32"
+          test -f "$EMU/Info.plist"
+          test -d "$HOST/PlugIns/LiveProcess.appex"
+          test -f "$SHARED"
+          test -d "$EMU/RootFS"
+          test -f "$EMU/RootFS/usr/lib/libiconv.2.dylib"
+          test -f "$EMU/RootFS/usr/lib/libcharset.1.dylib"
+          test -f "$EMU/RootFS/usr/lib/libstdc++.6.dylib"
+          file "$EMU/RootFS/usr/lib/libstdc++.6.dylib" | grep Mach-O
+          test ! -e "$HOST/embedded.mobileprovision"
+          test ! -d "$HOST/_CodeSignature"
+
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$HOST/Info.plist")" = "com.kdt.livecontainer"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :LC32BitTranslationLayer' "$EMU/Info.plist")" = "true"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :LCBundledSourceCommit' "$EMU/Info.plist")" = "$LIVEEXEC32_SHA"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :LCBundledBuildRevision' "$EMU/Info.plist")" = "$LIVEEXEC32_BUILD_REVISION"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :LC32BitEmulatorLoadPath' "$EMU/Info.plist")" = "$LIVEEXEC32_LOAD_PATH"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :LC32BitEmulatorEntrySymbol' "$EMU/Info.plist")" = "$LIVEEXEC32_ENTRY_SYMBOL"
+
+          file "$EMU/LiveExec32" | grep -q 'executable arm64'
+          otool -hv "$SHARED" | grep -q DYLIB
+          nm -gU "$SHARED" | grep '_LC32RunGuest'
+          grep -q 'LC32BitEmulatorLoadPath' LiveContainer/LCBootstrap.m
+          grep -q 'dlsym(appHandle, emulatorEntrySymbol.UTF8String)' LiveContainer/LCBootstrap.m
+
+          echo "Host architectures: $(lipo -archs "$HOST/LiveContainer")"
+          echo "LiveExec32 launcher: $(file "$EMU/LiveExec32")"
+          echo "LiveExec32 shared runtime: $(file "$SHARED")"
+          ls -lh "$OUTPUT_IPA"
+
+      - name: Audit all 40 IPA import traces against packaged RootFS
+        run: |
+          set -euxo pipefail
+          python3 .github/scripts/check-ipa-import-contract.py \
+            --contract .github/corpus/ios-32bit-40-import-contract.json \
+            --rootfs ipa-check/Payload/LiveContainer.app/LiveExec32.app/RootFS \
+            --json-output build/ipa-import-coverage.json \
+            --markdown-output build/ipa-import-coverage.md \
+            --allow-gaps
+          cat build/ipa-import-coverage.md
+
+      - name: Upload 40-app import coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: LiveExec32-40-app-import-coverage
+          path: |
+            build/ipa-import-coverage.json
+            build/ipa-import-coverage.md
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload unsigned IPA
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: LiveContainer-32bit-fresh-unsigned
+          path: ${{ env.OUTPUT_IPA }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce nightly migration coverage budget
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report_path = Path("build/ipa-import-coverage.json")
+          if not report_path.is_file():
+              raise SystemExit("coverage report was not produced")
+          report = json.loads(report_path.read_text())
+          failures = []
+          if report.get("missing_libraries"):
+              failures.append(f"{len(report['missing_libraries'])} missing libraries")
+          # The pinned upstream nightly starts at 403 required gaps. Revision
+          # 81 establishes the current 302-gap migration budget after adding
+          # real bridges for the target games. Keep CI regression-sensitive
+          # while compatibility coverage is reduced in subsequent revisions.
+          missing_required = len(report.get("missing_required", []))
+          if missing_required > 302:
+              failures.append(f"{missing_required} missing required exports (budget: 302)")
+          if report.get("image_errors"):
+              failures.append(f"{len(report['image_errors'])} image inspection errors")
+          if failures:
+              raise SystemExit("40-app compatibility gate failed: " + ", ".join(failures))
+          print(f"40-app nightly migration gate passed: {missing_required}/302 required-export budget, no missing libraries or image errors")
+          PY
