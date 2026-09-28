@@ -306,6 +306,34 @@ jobs:
           find "$APP/Frameworks" -maxdepth 2 -type f -print | sort || true
           find "$APP/PlugIns" -maxdepth 2 -type f -print 2>/dev/null | sort || true
 
+      - name: Populate Swift runtime support
+        run: |
+          set -euo pipefail
+
+          ARCHIVE="build/TestFlightProbe.xcarchive"
+          APP="$ARCHIVE/Products/Applications/LiveContainer.app"
+          FRAMEWORKS="$APP/Frameworks"
+          SUPPORT_ROOT="$ARCHIVE/SwiftSupport"
+          rm -rf "$SUPPORT_ROOT"
+          mkdir -p "$SUPPORT_ROOT"
+          mkdir -p "$FRAMEWORKS"
+
+          echo "Scanning archived Mach-O payload for Swift runtime dependencies..."
+          xcrun swift-stdlib-tool             --print             --platform iphoneos             --scan-executable "$APP/LiveContainer"             --scan-folder "$FRAMEWORKS"             2>&1 | tee probe-logs/swift-stdlib-print.log
+
+          echo "Embedding exact Swift runtime dependencies and creating SwiftSupport..."
+          xcrun swift-stdlib-tool             --copy             --verbose             --platform iphoneos             --scan-executable "$APP/LiveContainer"             --scan-folder "$FRAMEWORKS"             --destination "$FRAMEWORKS"             --unsigned-destination "$SUPPORT_ROOT"             2>&1 | tee probe-logs/swift-stdlib-copy.log
+
+          echo "Archive SwiftSupport:"
+          find "$SUPPORT_ROOT" -type f -print | sort | tee probe-logs/archive-swift-support.txt
+
+          test -d "$SUPPORT_ROOT/iphoneos"
+          test -n "$(find "$SUPPORT_ROOT/iphoneos" -maxdepth 1 -type f -name 'libswift*.dylib' -print -quit)"
+
+          echo "Embedded app Swift dylibs:"
+          find "$FRAMEWORKS" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort | tee probe-logs/app-swift-dylibs.txt
+          test -n "$(find "$FRAMEWORKS" -maxdepth 1 -type f -name 'libswift*.dylib' -print -quit)"
+
       - name: Write App Store Connect key
         env:
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
@@ -398,14 +426,15 @@ jobs:
           print("CydiaSubstrate exported deployment target is iOS 15+")
           PY
 
-          # With every shipped Swift-using binary at iOS 15+, Xcode 27 should
-          # use the system Swift runtime. Do not manufacture SwiftSupport.
-          if [ -d build/inspect/SwiftSupport ]; then
-            echo "Xcode exported SwiftSupport:"
-            find build/inspect/SwiftSupport -type f -print | sort
-          else
-            echo "No SwiftSupport directory exported, expected for iOS 15+ system Swift runtime."
-          fi
+          # Fail closed: Apple rejects this app with ITMS-90426 unless the
+          # final IPA includes the SwiftSupport payload generated from the archive.
+          test -d build/inspect/SwiftSupport/iphoneos
+          test -n "$(find build/inspect/SwiftSupport/iphoneos -maxdepth 1 -type f -name 'libswift*.dylib' -print -quit)"
+          echo "Exported SwiftSupport:"
+          find build/inspect/SwiftSupport/iphoneos -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort | tee probe-logs/exported-swift-support.txt
+
+          echo "IPA top-level SwiftSupport verification:"
+          /usr/bin/unzip -l "$IPA_PATH" | grep 'SwiftSupport/iphoneos/libswift' | tee probe-logs/ipa-swift-support.txt
 
           codesign -d --entitlements :- "$APP_PATH" > probe-logs/signed-entitlements.plist 2> probe-logs/codesign.txt || true
           security cms -D -i "$APP_PATH/embedded.mobileprovision" > probe-logs/profile.plist
