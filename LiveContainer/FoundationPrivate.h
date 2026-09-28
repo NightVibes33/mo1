@@ -25,9 +25,32 @@
 - (void)_hostWillResignActiveNote:(NSNotification *)note;
 @end
 
-void* SecTaskCreateFromSelf(CFAllocatorRef allocator);
+// App Store/TestFlight-safe entitlement shims for this temporary branch.
+// Keep the original source-level API shape while avoiding references to private SecTask symbols.
+static inline void *LCAppStoreTaskCreateFromSelf(CFAllocatorRef allocator) {
+    (void)allocator;
+    return (void *)0x1;
+}
+
+static inline CFTypeRef LCAppStoreTaskCopyValueForEntitlement(void *task, CFStringRef key, CFErrorRef *error) {
+    (void)task;
+    if (error) *error = NULL;
+    NSString *keyString = (__bridge NSString *)key;
+    if ([keyString isEqualToString:@"application-identifier"]) {
+        NSString *bundleID = NSBundle.mainBundle.bundleIdentifier ?: @"com.nightvibes.prism.39A8Q3T3TR";
+        NSString *value = [@"AAAAAAAAAA." stringByAppendingString:bundleID];
+        return CFRetain((__bridge CFTypeRef)value);
+    }
+    if ([keyString isEqualToString:@"get-task-allow"]) {
+        return CFRetain((__bridge CFTypeRef)@NO);
+    }
+    return NULL;
+}
+
+#define SecTaskCreateFromSelf LCAppStoreTaskCreateFromSelf
+#define SecTaskCopyValueForEntitlement LCAppStoreTaskCopyValueForEntitlement
+
 NSString *SecTaskCopyTeamIdentifier(void *task, NSError **error);
-CFTypeRef SecTaskCopyValueForEntitlement(void *task, CFStringRef key, CFErrorRef *error);
 
 
 @interface _CFXPreferences2 : NSObject
