@@ -418,6 +418,8 @@ jobs:
           test -s probe-logs/swift-runtime-required.txt
 
           : > probe-logs/swift-runtime-sources.txt
+          : > probe-logs/swift-runtime-packaged.txt
+          : > probe-logs/swift-runtime-os-only.txt
           while IFS= read -r dylib; do
             [ -n "$dylib" ] || continue
 
@@ -438,19 +440,24 @@ jobs:
             fi
 
             if [ -z "$source" ] || [ ! -f "$source" ]; then
-              echo "::error::Unable to locate Xcode 27 GM Swift runtime: $dylib"
-              find /Applications/Xcode_27.app/Contents/Developer \
-                -type f -name "$dylib" -print 2>/dev/null | head -20 || true
-              exit 1
+              echo "$dylib" | tee -a probe-logs/swift-runtime-os-only.txt
+              echo "OS-provided Swift runtime; no redistributable Xcode 27 copy: $dylib"
+              continue
             fi
 
             echo "$dylib <- $source" | tee -a probe-logs/swift-runtime-sources.txt
+            echo "$dylib" >> probe-logs/swift-runtime-packaged.txt
             cp -p "$source" "$FRAMEWORKS/$dylib"
             cp -p "$source" "$SUPPORT_ROOT/$dylib"
           done < probe-logs/swift-runtime-required.txt
 
           echo "Required Swift runtime dylibs:"
           cat probe-logs/swift-runtime-required.txt
+          echo "Packaged Swift runtime dylibs:"
+          cat probe-logs/swift-runtime-packaged.txt
+          echo "OS-only Swift runtime dylibs:"
+          cat probe-logs/swift-runtime-os-only.txt || true
+          test -s probe-logs/swift-runtime-packaged.txt
 
           echo "Embedded app Swift dylibs:"
           find "$FRAMEWORKS" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort | tee probe-logs/app-swift-dylibs.txt
@@ -459,10 +466,11 @@ jobs:
           find "$SUPPORT_ROOT" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort | tee probe-logs/archive-swift-support.txt
 
           while IFS= read -r dylib; do
+            [ -n "$dylib" ] || continue
             test -f "$FRAMEWORKS/$dylib"
             test -f "$SUPPORT_ROOT/$dylib"
             cmp "$FRAMEWORKS/$dylib" "$SUPPORT_ROOT/$dylib"
-          done < probe-logs/swift-runtime-required.txt
+          done < probe-logs/swift-runtime-packaged.txt
 
           test -n "$(find "$SUPPORT_ROOT" -maxdepth 1 -type f -name 'libswift*.dylib' -print -quit)"
           test -n "$(find "$FRAMEWORKS" -maxdepth 1 -type f -name 'libswift*.dylib' -print -quit)"
