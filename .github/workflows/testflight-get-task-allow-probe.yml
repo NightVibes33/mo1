@@ -212,10 +212,13 @@ jobs:
           xcodebuild -scheme ellekit -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$ELLEKIT_DD" IPHONEOS_DEPLOYMENT_TARGET=15.0 ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build 2>&1 | tee "$GITHUB_WORKSPACE/probe-logs/ellekit-build.log"
           popd >/dev/null
 
-          ELLEKIT_BIN="$(find "$ELLEKIT_DD/Build/Products" -type f -name 'libellekit.dylib' -print -quit)"
-          test -n "$ELLEKIT_BIN"
+          ELLEKIT_BIN="$ELLEKIT_DD/Build/Products/Release-iphoneos/libellekit.dylib"
+          test -f "$ELLEKIT_BIN"
+          case "$ELLEKIT_BIN" in
+            *.dSYM/*) echo "::error::Selected dSYM instead of ElleKit product"; exit 1 ;;
+          esac
 
-          echo "Built ElleKit: $ELLEKIT_BIN"
+          echo "Built ElleKit product: $ELLEKIT_BIN"
           /usr/bin/file "$ELLEKIT_BIN"
           /usr/bin/otool -l "$ELLEKIT_BIN" | tee probe-logs/ellekit-load-commands.txt
           /usr/bin/otool -L "$ELLEKIT_BIN" | tee probe-logs/ellekit-linked-libraries.txt
