@@ -1,0 +1,105 @@
+name: Inspect Build Upload 100030
+
+on:
+  push:
+    branches:
+      - tf-get-task-allow-probe-20260928
+    paths:
+      - '.github/workflows/build-upload-status-100030.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_BUNDLE_ID: com.nightvibes.prism.39A8Q3T3TR
+      TARGET_BUILD: "100030"
+
+    steps:
+      - name: Query App Store Connect Build Upload
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/asc-build-upload
+          /tmp/asc-build-upload/bin/python -m pip install --quiet PyJWT cryptography
+          /tmp/asc-build-upload/bin/python - <<'PY'
+          import base64, json, os, time, urllib.parse, urllib.request, urllib.error
+          import jwt
+
+          BASE = "https://api.appstoreconnect.apple.com"
+          KEY_ID = os.environ["APP_STORE_CONNECT_KEY_ID"].strip()
+          ISSUER = os.environ["APP_STORE_CONNECT_ISSUER_ID"].strip()
+          raw = os.environ["APP_STORE_CONNECT_API_KEY_P8"].replace("\\n", "\n").strip()
+          if "BEGIN PRIVATE KEY" not in raw and "BEGIN EC PRIVATE KEY" not in raw:
+              compact = "".join(raw.split())
+              raw = base64.b64decode(compact + "=" * (-len(compact) % 4)).decode()
+
+          bundle = os.environ["TARGET_BUNDLE_ID"]
+          build = os.environ["TARGET_BUILD"]
+
+          def token():
+              now = int(time.time())
+              return jwt.encode(
+                  {"iss": ISSUER, "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
+                  raw, algorithm="ES256", headers={"kid": KEY_ID, "typ": "JWT"}
+              )
+
+          def get(path):
+              req = urllib.request.Request(
+                  BASE + path,
+                  headers={"Authorization": "Bearer " + token(), "Accept": "application/json"}
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as response:
+                      return json.loads(response.read())
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode("utf-8", "replace")
+                  raise SystemExit(f"GET {path} -> HTTP {exc.code}: {body[:4000]}")
+
+          q = urllib.parse.urlencode({"filter[bundleId]": bundle, "limit": "10"})
+          apps = get("/v1/apps?" + q).get("data", [])
+          if not apps:
+              raise SystemExit("App record not found")
+          app_id = apps[0]["id"]
+          print("ASC app id:", app_id)
+
+          q = urllib.parse.urlencode({
+              "filter[cfBundleVersion]": build,
+              "filter[platform]": "IOS",
+              "fields[buildUploads]": "cfBundleShortVersionString,cfBundleVersion,createdDate,state,platform,uploadedDate",
+              "sort": "-uploadedDate",
+              "limit": "20",
+          })
+          payload = get(f"/v1/apps/{app_id}/buildUploads?" + q)
+          rows = payload.get("data", [])
+
+          print("Build upload matches:", len(rows))
+          if not rows:
+              raise SystemExit("No BuildUpload resource found for build " + build)
+
+          for row in rows:
+              print("UPLOAD_ID=" + row["id"])
+              print(json.dumps(row.get("attributes", {}), indent=2, sort_keys=True))
+
+          latest = rows[0]
+          state = latest.get("attributes", {}).get("state")
+          if isinstance(state, dict):
+              status = state.get("status") or state.get("state")
+          else:
+              status = state
+          print("BUILD_UPLOAD_STATUS=" + str(status))
+
+          if status == "FAILED":
+              raise SystemExit("Build upload finished FAILED")
+          if status == "COMPLETE":
+              print("Build upload is COMPLETE")
+              raise SystemExit(0)
+          raise SystemExit("Build upload is still " + str(status))
+          PY
