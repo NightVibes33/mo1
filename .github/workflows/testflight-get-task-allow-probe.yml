@@ -338,8 +338,8 @@ jobs:
           while IFS= read -r candidate; do
             if /usr/bin/file "$candidate" | grep -q 'Mach-O'; then
               /usr/bin/otool -L "$candidate" 2>/dev/null \
-                | awk '/libswift[^/ ]*\\.dylib/ {print $1}' \
-                | sed 's#^.*/##' >> probe-logs/swift-runtime-deps.txt || true
+                | /usr/bin/grep -oE 'libswift[^[:space:]/]+\\.dylib' \
+                >> probe-logs/swift-runtime-deps.txt || true
             fi
           done < <(find "$APP_PATH" -type f -print)
 
