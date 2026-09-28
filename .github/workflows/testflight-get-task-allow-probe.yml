@@ -33,6 +33,7 @@ jobs:
 
           rsync -a --delete \
             --exclude '.git' \
+            --exclude '.github/workflows/**' \
             "${RUNNER_TEMP}/livecontainer-src/" \
             ./
 
