@@ -157,7 +157,7 @@ bootstrap = Path("LiveContainer/LCBootstrap.m")
 text = bootstrap.read_text()
 text = text.replace(
     "*mainBundleAddr = (__bridge void *)NSBundle.mainBundle._cfBundle;",
-    "*mainBundleAddr = (__bridge void *)CFBundleGetMainBundle();",
+    "*mainBundleAddr = (void *)CFBundleGetMainBundle();",
 )
 bootstrap.write_text(text)
 
