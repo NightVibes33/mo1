@@ -123,22 +123,29 @@ jobs:
                   body = exc.read().decode("utf-8", "replace")
                   raise SystemExit(f"{method} {path} -> HTTP {exc.code}: {body[:2000]}")
 
-          q = urllib.parse.urlencode({"filter[identifier]": bundle_id, "limit": "10"})
-          rows = request("GET", "/v1/bundleIds?" + q).get("data", [])
-          if not rows:
-              created = request("POST", "/v1/bundleIds", {
-                  "data": {
-                      "type": "bundleIds",
-                      "attributes": {
-                          "identifier": bundle_id,
-                          "name": "LiveContainer NightVibes Test",
-                          "platform": "IOS"
+          bundle_ids = [
+              bundle_id,
+              bundle_id + ".LiveProcess",
+              bundle_id + ".LaunchAppExtension",
+              bundle_id + ".ShareExtension",
+          ]
+          for identifier in bundle_ids:
+              q = urllib.parse.urlencode({"filter[identifier]": identifier, "limit": "10"})
+              rows = request("GET", "/v1/bundleIds?" + q).get("data", [])
+              if not rows:
+                  created = request("POST", "/v1/bundleIds", {
+                      "data": {
+                          "type": "bundleIds",
+                          "attributes": {
+                              "identifier": identifier,
+                              "name": ("LiveContainer NV33 " + identifier.split(".")[-1])[:100],
+                              "platform": "IOS"
+                          }
                       }
-                  }
-              })["data"]
-              print("Created Bundle ID:", bundle_id, created["id"])
-          else:
-              print("Bundle ID already exists:", bundle_id, rows[0]["id"])
+                  })["data"]
+                  print("Created Bundle ID:", identifier, created["id"])
+              else:
+                  print("Bundle ID already exists:", identifier, rows[0]["id"])
 
           q = urllib.parse.urlencode({"filter[bundleId]": bundle_id, "limit": "10"})
           apps = request("GET", "/v1/apps?" + q).get("data", [])
