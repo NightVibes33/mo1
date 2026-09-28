@@ -17,7 +17,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 90
     env:
-      PROBE_BUNDLE_ID: com.nightvibes33.livecontainer
+      PROBE_BUNDLE_ID: com.nightvibes.prism.39A8Q3T3TR
       PROBE_VERSION: 0.0.1
       PROBE_BUILD: ${{ github.run_number }}
 
