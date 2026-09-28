@@ -4,7 +4,7 @@ import re
 root = Path(".")
 
 # Replace direct Security private entitlement lookups with a local compatibility shim.
-for base in (Path("LiveContainer"), Path("LiveContainerSwiftUI")):
+for base in (Path("LiveContainer"), Path("LiveContainerSwiftUI"), Path("TweakLoader")):
     for path in base.rglob("*"):
         if path.suffix not in {".m", ".mm", ".h", ".swift"}:
             continue
@@ -142,7 +142,7 @@ for needle in (
     "dyld_get_sdk_version(",
 ):
     matches = []
-    for base in (Path("LiveContainer"), Path("LiveContainerSwiftUI")):
+    for base in (Path("LiveContainer"), Path("LiveContainerSwiftUI"), Path("TweakLoader")):
         for path in base.rglob("*"):
             if path.suffix in {".m", ".mm", ".h", ".swift"}:
                 if needle in path.read_text(errors="surrogateescape"):
