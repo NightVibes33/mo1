@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/testflight-get-task-allow-probe.yml'
       - '.github/scripts/patch-appstore-probe.py'
+      - 'LiveContainerSwiftUI/Views/Settings/LCJITLessDiagnoseView.swift'
   workflow_dispatch:
 
 permissions:
