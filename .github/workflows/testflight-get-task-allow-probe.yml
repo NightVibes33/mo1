@@ -191,6 +191,11 @@ jobs:
 
           plutil -p entitlements.xml
 
+      - name: Patch App Store public API compatibility
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/patch-appstore-probe.py
+
       - name: Build unsigned LiveContainer archive
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -217,6 +222,28 @@ jobs:
 
           test -d build/TestFlightProbe.xcarchive/Products/Applications/LiveContainer.app
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/TestFlightProbe.xcarchive/Products/Applications/LiveContainer.app/Info.plist
+
+      - name: Remove App Store-invalid optional components
+        run: |
+          set -euo pipefail
+          APP="build/TestFlightProbe.xcarchive/Products/Applications/LiveContainer.app"
+
+          # These are optional LiveContainer integration/multitask/tweak components that
+          # currently depend on private extension points or private APIs. Keep them out
+          # of this TestFlight flavor rather than attempting to disguise those APIs.
+          rm -rf "$APP/PlugIns"
+          rm -rf "$APP/Frameworks/SideStoreSupport.framework"
+          rm -f  "$APP/Frameworks/TweakLoader.dylib"
+          rm -rf "$APP/Frameworks/CydiaSubstrate.framework"
+
+          # App Store validation requires a launch screen for iPad multitasking.
+          /usr/libexec/PlistBuddy -c 'Delete :UILaunchStoryboardName' "$APP/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c 'Delete :UILaunchScreen' "$APP/Info.plist" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c 'Add :UILaunchScreen dict' "$APP/Info.plist"
+
+          echo "Remaining embedded payload:"
+          find "$APP/Frameworks" -maxdepth 2 -type f -print | sort || true
+          find "$APP/PlugIns" -maxdepth 2 -type f -print 2>/dev/null | sort || true
 
       - name: Write App Store Connect key
         env:
@@ -319,7 +346,6 @@ jobs:
       - name: Validate with App Store Connect
         id: validate
         if: ${{ steps.export.outcome == 'success' && env.ASC_APP_RECORD_EXISTS == 'true' }}
-        continue-on-error: true
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -330,7 +356,6 @@ jobs:
       - name: Upload to TestFlight
         id: upload
         if: ${{ steps.export.outcome == 'success' && env.ASC_APP_RECORD_EXISTS == 'true' }}
-        continue-on-error: true
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
