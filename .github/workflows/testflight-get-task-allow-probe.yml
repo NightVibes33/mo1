@@ -374,24 +374,18 @@ jobs:
           ARCHIVE="build/TestFlightProbe.xcarchive"
           APP="$ARCHIVE/Products/Applications/LiveContainer.app"
           FRAMEWORKS="$APP/Frameworks"
-          SUPPORT_ROOT="$ARCHIVE/SwiftSupport"
+          SUPPORT_ROOT="$ARCHIVE/SwiftSupport/iphoneos"
+          TOOLCHAIN_SWIFT="/Applications/Xcode_27.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos"
 
           test -f "$APP/LiveContainer"
           test -f "$FRAMEWORKS/CydiaSubstrate.framework/CydiaSubstrate"
           test -f "$FRAMEWORKS/TweakLoader.dylib"
+          test -d "$TOOLCHAIN_SWIFT"
 
-          rm -rf "$SUPPORT_ROOT"
+          rm -rf "$ARCHIVE/SwiftSupport"
           mkdir -p "$SUPPORT_ROOT" "$FRAMEWORKS"
 
-          echo "Swift runtime dependencies detected in archived payload:"
-          xcrun swift-stdlib-tool \
-            --print \
-            --platform iphoneos \
-            --scan-executable "$APP/LiveContainer" \
-            --scan-folder "$FRAMEWORKS" \
-            2>&1 | tee probe-logs/swift-stdlib-print.log
-
-          echo "Embedding exact Swift runtime dylibs and creating archive SwiftSupport..."
+          # First let Xcode's own tool resolve anything it considers back-deployable.
           xcrun swift-stdlib-tool \
             --copy \
             --verbose \
@@ -399,17 +393,54 @@ jobs:
             --scan-executable "$APP/LiveContainer" \
             --scan-folder "$FRAMEWORKS" \
             --destination "$FRAMEWORKS" \
-            --unsigned-destination "$SUPPORT_ROOT" \
-            2>&1 | tee probe-logs/swift-stdlib-copy.log
+            --unsigned-destination "$ARCHIVE/SwiftSupport" \
+            2>&1 | tee probe-logs/swift-stdlib-copy.log || true
 
-          echo "Archive SwiftSupport:"
-          find "$SUPPORT_ROOT" -type f -print | sort | tee probe-logs/archive-swift-support.txt
+          # ElleKit is deliberately rebuilt with iOS 15. Xcode therefore treats its
+          # Swift runtime as OS-provided and may copy nothing, while App Store Connect
+          # still requires SwiftSupport for this embedded Swift compatibility framework.
+          # Scan every Mach-O in the final archive and copy only the exact /usr/lib/swift
+          # dylibs that those binaries reference, using the current Xcode 27 GM toolchain.
+          : > probe-logs/swift-runtime-required.txt
+          {
+            printf '%s\n' "$APP/LiveContainer"
+            find "$FRAMEWORKS" -type f -print
+          } | while IFS= read -r candidate; do
+            [ -f "$candidate" ] || continue
+            if /usr/bin/file "$candidate" | grep -q 'Mach-O'; then
+              /usr/bin/otool -L "$candidate" 2>/dev/null || true
+            fi
+          done | awk '/\/usr\/lib\/swift\/libswift[^ ]*\.dylib/ {print $1}' \
+            | sed 's#.*/##' \
+            | sort -u \
+            | tee probe-logs/swift-runtime-required.txt
 
-          test -d "$SUPPORT_ROOT/iphoneos"
-          test -n "$(find "$SUPPORT_ROOT/iphoneos" -maxdepth 1 -type f -name 'libswift*.dylib' -print -quit)"
+          test -s probe-logs/swift-runtime-required.txt
+
+          while IFS= read -r dylib; do
+            [ -n "$dylib" ] || continue
+            source="$TOOLCHAIN_SWIFT/$dylib"
+            test -f "$source"
+            cp -p "$source" "$FRAMEWORKS/$dylib"
+            cp -p "$source" "$SUPPORT_ROOT/$dylib"
+          done < probe-logs/swift-runtime-required.txt
+
+          echo "Required Swift runtime dylibs:"
+          cat probe-logs/swift-runtime-required.txt
 
           echo "Embedded app Swift dylibs:"
           find "$FRAMEWORKS" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort | tee probe-logs/app-swift-dylibs.txt
+
+          echo "Archive SwiftSupport:"
+          find "$SUPPORT_ROOT" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort | tee probe-logs/archive-swift-support.txt
+
+          while IFS= read -r dylib; do
+            test -f "$FRAMEWORKS/$dylib"
+            test -f "$SUPPORT_ROOT/$dylib"
+            cmp "$FRAMEWORKS/$dylib" "$SUPPORT_ROOT/$dylib"
+          done < probe-logs/swift-runtime-required.txt
+
+          test -n "$(find "$SUPPORT_ROOT" -maxdepth 1 -type f -name 'libswift*.dylib' -print -quit)"
           test -n "$(find "$FRAMEWORKS" -maxdepth 1 -type f -name 'libswift*.dylib' -print -quit)"
 
       - name: Write App Store Connect key
