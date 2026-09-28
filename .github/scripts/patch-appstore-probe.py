@@ -194,37 +194,6 @@ text = re.sub(
 )
 lcutils_h.write_text(text)
 
-lcutils_m = Path("LiveContainerSwiftUI/Utilities/LCUtils.m")
-text = lcutils_m.read_text()
-old_zip = '''    dlopen("/System/Library/PrivateFrameworks/PassKitCore.framework/PassKitCore", RTLD_GLOBAL);
-    NSData *zipData = [[NSClassFromString(@"PKZipArchiver") new] zippedDataForURL:tmpPayloadPath.URLByDeletingLastPathComponent];
-    if (!zipData) return nil;
-
-    [manager removeItemAtURL:tmpPayloadPath error:error];
-    if (*error) return nil;
-    
-    if([manager fileExistsAtPath:tmpIPAPath.path]) {
-        [manager removeItemAtURL:tmpIPAPath error:error];
-        if (*error) return nil;
-    }
-
-    [zipData writeToURL:tmpIPAPath options:0 error:error];
-    if (*error) return nil;
-
-    return tmpIPAPath;'''
-new_zip = '''    [manager removeItemAtURL:tmpPayloadPath error:nil];
-    if (error) {
-        *error = [NSError errorWithDomain:@"archiveIPAWithBundleName"
-                                     code:-2
-                                 userInfo:@{NSLocalizedDescriptionKey:
-                                     @"Creating cloned LiveContainer IPAs is unavailable in this TestFlight build."}];
-    }
-    return nil;'''
-if old_zip not in text:
-    raise SystemExit("private PKZipArchiver block not found")
-text = text.replace(old_zip, new_zip, 1)
-lcutils_m.write_text(text)
-
 # Replace private PassKitCore PKZipArchiver with the project's bundled libarchive.
 lcutils = Path("LiveContainerSwiftUI/Utilities/LCUtils.m")
 text = lcutils.read_text()
