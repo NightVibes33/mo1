@@ -81,14 +81,13 @@ multi_h.write_text(text)
 # Replace private dyld SDK helpers with local public compatibility helpers.
 lcutils_h = Path("LiveContainerSwiftUI/Utilities/LCUtils.h")
 text = lcutils_h.read_text()
-anchor = "void refreshFile(NSString* execPath);"
-decls = """void refreshFile(NSString* execPath);
-uint32_t LCAppStoreProgramSDKVersion(void);
+old_decls = """int dyld_get_program_sdk_version(void);
+uint32_t dyld_get_sdk_version(const struct mach_header* mh);"""
+new_decls = """uint32_t LCAppStoreProgramSDKVersion(void);
 uint32_t LCAppStoreSDKVersion(const struct mach_header* mh);"""
-if anchor in text:
-    text = text.replace(anchor, decls, 1)
-else:
-    raise SystemExit("LCUtils.h insertion anchor missing")
+if old_decls not in text:
+    raise SystemExit("LCUtils.h private SDK declarations missing")
+text = text.replace(old_decls, new_decls, 1)
 lcutils_h.write_text(text)
 
 lcutils_m = Path("LiveContainerSwiftUI/Utilities/LCUtils.m")
@@ -125,7 +124,7 @@ if impl.strip() not in text:
 lcutils_m.write_text(text)
 
 for path in Path("LiveContainerSwiftUI").rglob("*"):
-    if path.suffix not in {".m", ".mm", ".h", ".swift"}:
+    if path.suffix not in {".m", ".mm", ".h", ".swift"} or path == lcutils_h:
         continue
     text = path.read_text(errors="surrogateescape")
     new = text.replace("dyld_get_program_sdk_version()", "LCAppStoreProgramSDKVersion()")
