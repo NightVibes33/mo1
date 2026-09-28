@@ -1,7 +1,9 @@
 name: Xcode - Build
 
-on: 
+on:
   push:
+    branches-ignore:
+      - tf-get-task-allow-probe-20260928
   pull_request:
   workflow_dispatch:
     inputs: 
