@@ -1,13 +1,372 @@
-name: TestFlight get-task-allow probe (staged)
+name: TestFlight get-task-allow probe
 
 on:
+  push:
+    branches:
+      - tf-get-task-allow-probe-20260928
+    paths:
+      - '.github/workflows/testflight-get-task-allow-probe.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  staged:
-    runs-on: ubuntu-latest
+  probe:
+    name: LiveContainer TestFlight get-task-allow
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      PROBE_BUNDLE_ID: com.nightvibes33.livecontainer
+      PROBE_VERSION: 0.0.1
+      PROBE_BUILD: ${{ github.run_number }}
+
     steps:
-      - run: echo "LiveContainer TestFlight probe is being staged on this temporary branch."
+      - name: Checkout LiveContainer mirror
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Verify mirrored LiveContainer source
+        run: |
+          set -euo pipefail
+          test "$(cat .livecontainer-source-sha)" = "681df870dbcd90236af50c997fc91d40e2fb9458"
+          test -f LiveContainer/LCBootstrap.m
+          test -f LiveContainer.xcodeproj/project.pbxproj
+          grep -q 'LCSelected32BitEmulator' LiveContainer/LCBootstrap.m
+          git submodule status
+
+      - name: Validate Apple secrets
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in APP_STORE_CONNECT_API_KEY_P8 APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID APPLE_TEAM_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Select Xcode 26
+        run: |
+          set -euo pipefail
+          XCODE_PATH="$(find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' | sort -V | tail -1 || true)"
+          if [ -z "${XCODE_PATH}" ]; then
+            XCODE_PATH="$(find /Applications -maxdepth 1 -type d -name 'Xcode*.app' | sort -V | tail -1 || true)"
+          fi
+          test -n "${XCODE_PATH}"
+          sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Create or locate App Store Connect app
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          python3 -m venv .probe-venv
+          .probe-venv/bin/python -m pip install --quiet --upgrade pip
+          .probe-venv/bin/python -m pip install --quiet PyJWT cryptography
+          .probe-venv/bin/python - <<'PY'
+          import base64
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          import jwt
+
+          BASE = "https://api.appstoreconnect.apple.com"
+          KEY_ID = os.environ["APP_STORE_CONNECT_KEY_ID"].strip()
+          ISSUER_ID = os.environ["APP_STORE_CONNECT_ISSUER_ID"].strip()
+          raw_key = os.environ["APP_STORE_CONNECT_API_KEY_P8"].strip()
+          bundle_id = os.environ["PROBE_BUNDLE_ID"]
+
+          def normalize_key(value):
+              value = value.replace("\\n", "\n").strip()
+              if "BEGIN PRIVATE KEY" in value or "BEGIN EC PRIVATE KEY" in value:
+                  return value
+              compact = "".join(value.split())
+              return base64.b64decode(compact + "=" * (-len(compact) % 4)).decode()
+
+          PRIVATE_KEY = normalize_key(raw_key)
+
+          def make_token():
+              now = int(time.time())
+              return jwt.encode(
+                  {"iss": ISSUER_ID, "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
+                  PRIVATE_KEY,
+                  algorithm="ES256",
+                  headers={"kid": KEY_ID, "typ": "JWT"},
+              )
+
+          def request(method, path, payload=None):
+              data = json.dumps(payload).encode() if payload is not None else None
+              headers = {"Authorization": "Bearer " + make_token(), "Accept": "application/json"}
+              if data is not None:
+                  headers["Content-Type"] = "application/json"
+              req = urllib.request.Request(BASE + path, data=data, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as response:
+                      raw = response.read()
+                      return json.loads(raw) if raw else {}
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode("utf-8", "replace")
+                  raise SystemExit(f"{method} {path} -> HTTP {exc.code}: {body[:2000]}")
+
+          q = urllib.parse.urlencode({"filter[identifier]": bundle_id, "limit": "10"})
+          rows = request("GET", "/v1/bundleIds?" + q).get("data", [])
+          if not rows:
+              created = request("POST", "/v1/bundleIds", {
+                  "data": {
+                      "type": "bundleIds",
+                      "attributes": {
+                          "identifier": bundle_id,
+                          "name": "LiveContainer NightVibes Test",
+                          "platform": "IOS"
+                      }
+                  }
+              })["data"]
+              print("Created Bundle ID:", bundle_id, created["id"])
+          else:
+              print("Bundle ID already exists:", bundle_id, rows[0]["id"])
+
+          q = urllib.parse.urlencode({"filter[bundleId]": bundle_id, "limit": "10"})
+          apps = request("GET", "/v1/apps?" + q).get("data", [])
+          if not apps:
+              app = request("POST", "/v1/apps", {
+                  "data": {
+                      "type": "apps",
+                      "attributes": {
+                          "bundleId": bundle_id,
+                          "name": "LiveContainer NV33 Probe",
+                          "primaryLocale": "en-US",
+                          "sku": "livecontainer-nv33-gta-probe"
+                      }
+                  }
+              })["data"]
+              print("Created App Store Connect app record.")
+          else:
+              app = apps[0]
+              print("App Store Connect app record already exists.")
+
+          attrs = app.get("attributes", {})
+          app_id = app["id"]
+          apple_id = attrs.get("appleId") or app_id
+          print("ASC app id:", app_id)
+          print("Apple id:", apple_id)
+
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"ASC_APP_ID={app_id}\n")
+              f.write(f"ASC_APP_APPLE_ID={apple_id}\n")
+          PY
+
+      - name: Prepare App Store signing probe entitlements
+        run: |
+          set -euo pipefail
+          cat > entitlements.xml <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>get-task-allow</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+          for entitlement in LiveProcess/LiveProcess.entitlements LaunchAppExtension/LaunchAppExtension.entitlements ShareExtension/ShareExtension.entitlements
+          do
+            cat > "$entitlement" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict/></plist>
+          EOF
+          done
+
+          plutil -p entitlements.xml
+
+      - name: Build unsigned LiveContainer archive
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          rm -rf build/TestFlightProbe.xcarchive build/testflight-export probe-logs
+          mkdir -p build probe-logs
+
+          xcodebuild archive \
+            -project LiveContainer.xcodeproj \
+            -scheme LiveContainer \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/TestFlightProbe.xcarchive \
+            DEVELOPMENT_TEAM="${APPLE_TEAM_ID}" \
+            LIVECONTAINER_BUNDLE_IDENTIFIER="${PROBE_BUNDLE_ID}" \
+            CURRENT_PROJECT_VERSION="${PROBE_BUILD}" \
+            MARKETING_VERSION="${PROBE_VERSION}" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            2>&1 | tee probe-logs/archive.log
+
+          test -d build/TestFlightProbe.xcarchive/Products/Applications/LiveContainer.app
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/TestFlightProbe.xcarchive/Products/Applications/LiveContainer.app/Info.plist
+
+      - name: Write App Store Connect key
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          set -euo pipefail
+          mkdir -p private_keys
+          printf '%s' "${APP_STORE_CONNECT_API_KEY_P8}" > "${PWD}/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+
+      - name: Export App Store Connect signed IPA
+        id: export
+        continue-on-error: true
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -uo pipefail
+          mkdir -p build/testflight-export
+
+          cat > build/ExportOptions.probe.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>teamID</key>
+            <string>${APPLE_TEAM_ID}</string>
+            <key>manageAppVersionAndBuildNumber</key>
+            <false/>
+          </dict>
+          </plist>
+          EOF
+
+          set +e
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/TestFlightProbe.xcarchive \
+            -exportOptionsPlist build/ExportOptions.probe.plist \
+            -exportPath build/testflight-export \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${PWD}/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8" \
+            -authenticationKeyID "${APP_STORE_CONNECT_KEY_ID}" \
+            -authenticationKeyIssuerID "${APP_STORE_CONNECT_ISSUER_ID}" \
+            2>&1 | tee probe-logs/export.log
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Inspect signed IPA
+        if: ${{ steps.export.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          IPA_PATH="$(find build/testflight-export -maxdepth 1 -name '*.ipa' -print -quit)"
+          test -n "$IPA_PATH"
+          echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
+
+          rm -rf build/inspect
+          mkdir -p build/inspect
+          unzip -q "$IPA_PATH" -d build/inspect
+          APP_PATH="$(find build/inspect/Payload -maxdepth 1 -type d -name '*.app' -print -quit)"
+          test -n "$APP_PATH"
+
+          codesign -d --entitlements :- "$APP_PATH" > probe-logs/signed-entitlements.plist 2> probe-logs/codesign.txt || true
+          security cms -D -i "$APP_PATH/embedded.mobileprovision" > probe-logs/profile.plist
+
+          python3 - <<'PY'
+          import plistlib
+          from pathlib import Path
+
+          signed = {}
+          signed_path = Path("probe-logs/signed-entitlements.plist")
+          if signed_path.exists() and signed_path.stat().st_size:
+              try:
+                  signed = plistlib.loads(signed_path.read_bytes())
+              except Exception as exc:
+                  print("Could not parse signed entitlements:", exc)
+
+          profile = plistlib.loads(Path("probe-logs/profile.plist").read_bytes())
+          profile_ent = profile.get("Entitlements", {})
+
+          signed_gta = signed.get("get-task-allow")
+          profile_gta = profile_ent.get("get-task-allow")
+          print("SIGNED get-task-allow =", signed_gta)
+          print("PROFILE get-task-allow =", profile_gta)
+          print("SIGNED application-identifier =", signed.get("application-identifier"))
+          print("PROFILE application-identifier =", profile_ent.get("application-identifier"))
+
+          Path("probe-logs/result.txt").write_text(
+              f"signed_get_task_allow={signed_gta!r}\n"
+              f"profile_get_task_allow={profile_gta!r}\n"
+          )
+          PY
+
+      - name: Validate with App Store Connect
+        id: validate
+        if: ${{ steps.export.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcrun altool --validate-app -f "${IPA_PATH}" --type ios --apiKey "${APP_STORE_CONNECT_KEY_ID}" --apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}" 2>&1 | tee probe-logs/validation.log
+
+      - name: Upload to TestFlight
+        id: upload
+        if: ${{ steps.export.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          xcrun altool --upload-app -f "${IPA_PATH}" --type ios --apple-id "${ASC_APP_APPLE_ID}" --apiKey "${APP_STORE_CONNECT_KEY_ID}" --apiIssuer "${APP_STORE_CONNECT_ISSUER_ID}" 2>&1 | tee probe-logs/upload.log
+
+      - name: Write result summary
+        if: always()
+        run: |
+          {
+            echo "# LiveContainer TestFlight get-task-allow probe"
+            echo
+            echo "Source: migrate-liveexec-nightly@681df870dbcd90236af50c997fc91d40e2fb9458"
+            echo "Bundle ID: ${PROBE_BUNDLE_ID}"
+            echo "Export: ${{ steps.export.outcome }}"
+            echo "Validation: ${{ steps.validate.outcome }}"
+            echo "Upload: ${{ steps.upload.outcome }}"
+            if [ -f probe-logs/result.txt ]; then
+              echo
+              cat probe-logs/result.txt
+            fi
+          } | tee -a "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload probe evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: livecontainer-testflight-get-task-allow-${{ github.run_number }}
+          path: |
+            probe-logs
+            build/testflight-export/*.ipa
+            build/ExportOptions.probe.plist
+          if-no-files-found: warn
+          retention-days: 30
