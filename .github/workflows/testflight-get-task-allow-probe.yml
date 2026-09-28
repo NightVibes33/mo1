@@ -198,6 +198,69 @@ jobs:
           set -euo pipefail
           python3 .github/scripts/patch-appstore-probe.py
 
+      - name: Build current ElleKit for iOS
+        run: |
+          set -euo pipefail
+          ELLEKIT_SRC="${RUNNER_TEMP}/ellekit"
+          ELLEKIT_DD="${RUNNER_TEMP}/ellekit-derived"
+          rm -rf "$ELLEKIT_SRC" "$ELLEKIT_DD"
+
+          git clone --depth 1 https://github.com/tealbathingsuit/ellekit.git "$ELLEKIT_SRC"
+
+          xcodebuild             -scheme ellekit             -configuration Release             -sdk iphoneos             -destination 'generic/platform=iOS'             -derivedDataPath "$ELLEKIT_DD"             IPHONEOS_DEPLOYMENT_TARGET=15.0             ARCHS=arm64             ONLY_ACTIVE_ARCH=NO             CODE_SIGNING_ALLOWED=NO             CODE_SIGNING_REQUIRED=NO             CODE_SIGN_IDENTITY=""             build             2>&1 | tee probe-logs/ellekit-build.log
+
+          ELLEKIT_BIN="$(find "$ELLEKIT_DD/Build/Products" -type f -name 'libellekit.dylib' -print -quit)"
+          test -n "$ELLEKIT_BIN"
+
+          echo "Built ElleKit: $ELLEKIT_BIN"
+          /usr/bin/file "$ELLEKIT_BIN"
+          /usr/bin/otool -l "$ELLEKIT_BIN" | tee probe-logs/ellekit-load-commands.txt
+          /usr/bin/otool -L "$ELLEKIT_BIN" | tee probe-logs/ellekit-linked-libraries.txt
+
+          python3 - "$ELLEKIT_BIN" <<'PY'
+          import pathlib, struct, sys
+          data = pathlib.Path(sys.argv[1]).read_bytes()
+          if len(data) < 32 or struct.unpack_from("<I", data, 0)[0] != 0xFEEDFACF:
+              raise SystemExit("rebuilt ElleKit is not a little-endian arm64 Mach-O")
+
+          _, _, _, _, ncmds, _, _, _ = struct.unpack_from("<IiiIIIII", data, 0)
+          off = 32
+          platform = None
+          minos = None
+          legacy_min = False
+          for _ in range(ncmds):
+              cmd, cmdsize = struct.unpack_from("<II", data, off)
+              if cmdsize < 8 or off + cmdsize > len(data):
+                  raise SystemExit("malformed ElleKit Mach-O load commands")
+              if cmd == 0x32 and cmdsize >= 24:  # LC_BUILD_VERSION
+                  platform = struct.unpack_from("<I", data, off + 8)[0]
+                  minos = struct.unpack_from("<I", data, off + 12)[0]
+              elif cmd == 0x25:  # LC_VERSION_MIN_IPHONEOS
+                  legacy_min = True
+              off += cmdsize
+
+          print("LC_BUILD_VERSION platform =", platform)
+          print("LC_BUILD_VERSION minos =", hex(minos or 0))
+          print("legacy LC_VERSION_MIN_IPHONEOS =", legacy_min)
+          if platform != 2:
+              raise SystemExit(f"ElleKit is not built for PLATFORM_IOS: {platform}")
+          if not minos or minos < 0x000F0000:
+              raise SystemExit(f"ElleKit minimum iOS is below 15.0: {minos}")
+          PY
+
+          DEST="Resources/Frameworks/CydiaSubstrate.framework/CydiaSubstrate"
+          cp "$ELLEKIT_BIN" "$DEST"
+          chmod 0755 "$DEST"
+
+          PLIST="Resources/Frameworks/CydiaSubstrate.framework/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Delete :MinimumOSVersion' "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c 'Add :MinimumOSVersion string 15.0' "$PLIST"
+          /usr/libexec/PlistBuddy -c 'Delete :CFBundleSupportedPlatforms' "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleSupportedPlatforms array' "$PLIST"
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleSupportedPlatforms:0 string iPhoneOS' "$PLIST"
+
+          echo "Replaced bundled CydiaSubstrate compatibility binary with current iOS ElleKit."
+
       - name: Build unsigned LiveContainer archive
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -236,12 +299,11 @@ jobs:
           rm -rf "$APP/PlugIns"
           rm -rf "$APP/Frameworks/SideStoreSupport.framework"
 
-          # The upstream tweak-injection stack is not App Store compatible:
-          # CydiaSubstrate carries legacy Swift back-deployment links and fails
-          # Apple's platform validation. Keep it in normal LiveContainer builds,
-          # but exclude it from this TestFlight/App Store flavor.
-          rm -rf "$APP/Frameworks/CydiaSubstrate.framework"
-          rm -f "$APP/Frameworks/TweakLoader.dylib"
+          # Preserve LiveContainer's tweak-injection path. The bundled legacy
+          # ElleKit binary was replaced from source before archive, so both
+          # CydiaSubstrate compatibility and TweakLoader remain in this flavor.
+          test -f "$APP/Frameworks/CydiaSubstrate.framework/CydiaSubstrate"
+          test -f "$APP/Frameworks/TweakLoader.dylib"
 
           # App Store validation requires a launch screen for iPad multitasking.
           /usr/libexec/PlistBuddy -c 'Delete :UILaunchStoryboardName' "$APP/Info.plist" 2>/dev/null || true
@@ -325,29 +387,42 @@ jobs:
           APP_PATH="$(find build/inspect/Payload -maxdepth 1 -type d -name '*.app' -print -quit)"
           test -n "$APP_PATH"
 
-          # The TestFlight flavor must not ship legacy Swift back-deployment
-          # references. Those are what caused ITMS-90426 for the prior builds.
-          test ! -e "$APP_PATH/Frameworks/CydiaSubstrate.framework"
-          test ! -e "$APP_PATH/Frameworks/TweakLoader.dylib"
+          # Preserve and verify the current guest tweak runtime.
+          SUBSTRATE_BIN="$APP_PATH/Frameworks/CydiaSubstrate.framework/CydiaSubstrate"
+          TWEAK_LOADER="$APP_PATH/Frameworks/TweakLoader.dylib"
+          test -f "$SUBSTRATE_BIN"
+          test -f "$TWEAK_LOADER"
 
-          echo "Auditing shipped Mach-O files for @rpath/libswift back-deployment links..."
-          found_legacy_swift=0
-          while IFS= read -r candidate; do
-            if /usr/bin/file "$candidate" | grep -q 'Mach-O'; then
-              if /usr/bin/otool -L "$candidate" 2>/dev/null | grep -q '@rpath/libswift'; then
-                echo "::error::Legacy Swift runtime reference in $candidate"
-                /usr/bin/otool -L "$candidate"
-                found_legacy_swift=1
-              fi
-            fi
-          done < <(find "$APP_PATH" -type f -print)
-          test "$found_legacy_swift" -eq 0
+          /usr/bin/otool -l "$SUBSTRATE_BIN" | tee probe-logs/exported-ellekit-load-commands.txt
+          /usr/bin/otool -L "$SUBSTRATE_BIN" | tee probe-logs/exported-ellekit-linked-libraries.txt
+
+          python3 - "$SUBSTRATE_BIN" <<'PY'
+          import pathlib, struct, sys
+          data = pathlib.Path(sys.argv[1]).read_bytes()
+          if len(data) < 32 or struct.unpack_from("<I", data, 0)[0] != 0xFEEDFACF:
+              raise SystemExit("exported ElleKit is not a little-endian arm64 Mach-O")
+          _, _, _, _, ncmds, _, _, _ = struct.unpack_from("<IiiIIIII", data, 0)
+          off = 32
+          platform = None
+          minos = None
+          for _ in range(ncmds):
+              cmd, cmdsize = struct.unpack_from("<II", data, off)
+              if cmd == 0x32 and cmdsize >= 24:
+                  platform = struct.unpack_from("<I", data, off + 8)[0]
+                  minos = struct.unpack_from("<I", data, off + 12)[0]
+              off += cmdsize
+          print("Exported ElleKit platform =", platform, "minos =", hex(minos or 0))
+          if platform != 2:
+              raise SystemExit(f"exported ElleKit platform is not iOS: {platform}")
+          if not minos or minos < 0x000F0000:
+              raise SystemExit(f"exported ElleKit deployment target is too old: {minos}")
+          PY
 
           if [ -d build/inspect/SwiftSupport ]; then
             echo "Xcode exported SwiftSupport:"
             find build/inspect/SwiftSupport -type f -print | sort
           else
-            echo "No SwiftSupport required after removing legacy Swift back-deployment payload."
+            echo "No SwiftSupport directory exported by Xcode 27."
           fi
 
           codesign -d --entitlements :- "$APP_PATH" > probe-logs/signed-entitlements.plist 2> probe-logs/codesign.txt || true
