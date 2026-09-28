@@ -206,8 +206,11 @@ jobs:
           rm -rf "$ELLEKIT_SRC" "$ELLEKIT_DD"
 
           git clone --depth 1 https://github.com/tealbathingsuit/ellekit.git "$ELLEKIT_SRC"
+          mkdir -p probe-logs
 
-          xcodebuild             -scheme ellekit             -configuration Release             -sdk iphoneos             -destination 'generic/platform=iOS'             -derivedDataPath "$ELLEKIT_DD"             IPHONEOS_DEPLOYMENT_TARGET=15.0             ARCHS=arm64             ONLY_ACTIVE_ARCH=NO             CODE_SIGNING_ALLOWED=NO             CODE_SIGNING_REQUIRED=NO             CODE_SIGN_IDENTITY=""             build             2>&1 | tee probe-logs/ellekit-build.log
+          pushd "$ELLEKIT_SRC" >/dev/null
+          xcodebuild -scheme ellekit -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$ELLEKIT_DD" IPHONEOS_DEPLOYMENT_TARGET=15.0 ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build 2>&1 | tee "$GITHUB_WORKSPACE/probe-logs/ellekit-build.log"
+          popd >/dev/null
 
           ELLEKIT_BIN="$(find "$ELLEKIT_DD/Build/Products" -type f -name 'libellekit.dylib' -print -quit)"
           test -n "$ELLEKIT_BIN"
