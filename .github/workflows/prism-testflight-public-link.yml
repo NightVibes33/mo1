@@ -23,7 +23,6 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           DOPI_APP_BUNDLE_ID: com.nightvibes.prism.39A8Q3T3TR
-          DOPI_TARGET_BUILD_VERSION: "100021"
           DOPI_BETA_GROUP_NAME: LiveContainer Public Beta
           DOPI_APP_LOCALE: en-US
           DOPI_BETA_APP_DESCRIPTION: LiveContainer TestFlight beta for testing user-provided iOS application archives in the compatibility environment.
