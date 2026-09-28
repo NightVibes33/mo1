@@ -246,6 +246,52 @@ jobs:
             /usr/libexec/PlistBuddy -c 'Add :MinimumOSVersion string 15.0' "$SUBSTRATE_PLIST"
           fi
 
+          # The bundled ElleKit/CydiaSubstrate binary was built for iOS 11 and
+          # therefore advertises legacy @rpath/libswift*.dylib back-deployment
+          # requirements. The host cannot run below iOS 15, so align the Mach-O
+          # deployment target with the actual app target before App Store export.
+          SUBSTRATE_BIN="$APP/Frameworks/CydiaSubstrate.framework/CydiaSubstrate"
+          test -f "$SUBSTRATE_BIN"
+          python3 - "$SUBSTRATE_BIN" <<'PY'
+          import pathlib, struct, sys
+
+          path = pathlib.Path(sys.argv[1])
+          data = bytearray(path.read_bytes())
+          if len(data) < 32 or struct.unpack_from("<I", data, 0)[0] != 0xFEEDFACF:
+              raise SystemExit("CydiaSubstrate is not a little-endian 64-bit Mach-O")
+
+          _, _, _, _, ncmds, _, _, _ = struct.unpack_from("<IiiIIIII", data, 0)
+          target = 0x000F0000  # iOS 15.0.0
+          off = 32
+          found = False
+
+          def version(v):
+              return f"{v >> 16}.{(v >> 8) & 0xff}.{v & 0xff}"
+
+          for _ in range(ncmds):
+              cmd, cmdsize = struct.unpack_from("<II", data, off)
+              if cmdsize < 8 or off + cmdsize > len(data):
+                  raise SystemExit("Malformed Mach-O load command")
+              if cmd == 0x25:  # LC_VERSION_MIN_IPHONEOS
+                  old = struct.unpack_from("<I", data, off + 8)[0]
+                  print(f"LC_VERSION_MIN_IPHONEOS {version(old)} -> 15.0.0")
+                  struct.pack_into("<I", data, off + 8, target)
+                  found = True
+              elif cmd == 0x32 and cmdsize >= 24:  # LC_BUILD_VERSION
+                  platform = struct.unpack_from("<I", data, off + 8)[0]
+                  if platform == 2:  # PLATFORM_IOS
+                      old = struct.unpack_from("<I", data, off + 12)[0]
+                      print(f"LC_BUILD_VERSION minos {version(old)} -> 15.0.0")
+                      struct.pack_into("<I", data, off + 12, target)
+                      found = True
+              off += cmdsize
+
+          if not found:
+              raise SystemExit("No iOS deployment-version load command found")
+          path.write_bytes(data)
+          PY
+          rm -rf "$APP/Frameworks/CydiaSubstrate.framework/_CodeSignature"
+
           # App Store validation requires a launch screen for iPad multitasking.
           /usr/libexec/PlistBuddy -c 'Delete :UILaunchStoryboardName' "$APP/Info.plist" 2>/dev/null || true
           /usr/libexec/PlistBuddy -c 'Delete :UILaunchScreen' "$APP/Info.plist" 2>/dev/null || true
@@ -259,51 +305,6 @@ jobs:
           echo "Remaining embedded payload:"
           find "$APP/Frameworks" -maxdepth 2 -type f -print | sort || true
           find "$APP/PlugIns" -maxdepth 2 -type f -print 2>/dev/null | sort || true
-
-      - name: Embed Swift runtime compatibility libraries
-        run: |
-          set -euo pipefail
-          APP="build/TestFlightProbe.xcarchive/Products/Applications/LiveContainer.app"
-          FRAMEWORKS="$APP/Frameworks"
-          RUNTIME_DIR="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos"
-          ARCHIVE_SUPPORT="build/TestFlightProbe.xcarchive/SwiftSupport/iphoneos"
-
-          test -d "$FRAMEWORKS"
-          test -d "$RUNTIME_DIR"
-          mkdir -p "$ARCHIVE_SUPPORT"
-
-          swift_libs=(
-            libswiftCore.dylib
-            libswiftCoreFoundation.dylib
-            libswiftDarwin.dylib
-            libswiftDispatch.dylib
-            libswiftObjectiveC.dylib
-            libswiftos.dylib
-            libswiftFoundation.dylib
-          )
-
-          SWIFT_LIB_ROOT="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib"
-          : > probe-logs/swift-runtime-forced.txt
-
-          for dylib in "${swift_libs[@]}"; do
-            source="$(find "$SWIFT_LIB_ROOT" -type f -path "*/iphoneos/$dylib" -print -quit)"
-            if [ -z "$source" ]; then
-              echo "::error::Xcode 27 GM runtime missing required library: $dylib"
-              exit 1
-            fi
-            echo "$dylib <- $source" | tee -a probe-logs/swift-runtime-forced.txt
-            cp -p "$source" "$FRAMEWORKS/$dylib"
-            cp -p "$source" "$ARCHIVE_SUPPORT/$dylib"
-          done
-
-          echo "Forced app Swift runtimes:"
-          find "$FRAMEWORKS" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort
-
-          echo "Archive SwiftSupport staging:"
-          find "$ARCHIVE_SUPPORT" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort
-
-          test -f "$FRAMEWORKS/libswiftCore.dylib"
-          test -f "$ARCHIVE_SUPPORT/libswiftCore.dylib"
 
       - name: Write App Store Connect key
         env:
@@ -373,66 +374,38 @@ jobs:
           APP_PATH="$(find build/inspect/Payload -maxdepth 1 -type d -name '*.app' -print -quit)"
           test -n "$APP_PATH"
 
-          # App Store Connect requires SwiftSupport because the bundled
-          # CydiaSubstrate binary links Swift runtime dylibs through @rpath.
-          # Its LC_RPATH points at /usr/lib/swift, so Xcode's stdlib scanner does
-          # not copy them automatically. Add the matching Xcode 27 GM runtime
-          # copies explicitly to SwiftSupport/iphoneos.
-          rm -rf build/inspect/SwiftSupport
-          SWIFT_SUPPORT="build/inspect/SwiftSupport/iphoneos"
-          mkdir -p "$SWIFT_SUPPORT"
+          # Verify the exported framework keeps the iOS 15 deployment target.
+          SUBSTRATE_BIN="$APP_PATH/Frameworks/CydiaSubstrate.framework/CydiaSubstrate"
+          test -f "$SUBSTRATE_BIN"
+          /usr/bin/otool -l "$SUBSTRATE_BIN" | tee probe-logs/cydiasubstrate-load-commands.txt
+          python3 - "$SUBSTRATE_BIN" <<'PY'
+          import pathlib, struct, sys
+          data = pathlib.Path(sys.argv[1]).read_bytes()
+          if len(data) < 32 or struct.unpack_from("<I", data, 0)[0] != 0xFEEDFACF:
+              raise SystemExit("Not a 64-bit Mach-O")
+          _, _, _, _, ncmds, _, _, _ = struct.unpack_from("<IiiIIIII", data, 0)
+          off = 32
+          mins = []
+          for _ in range(ncmds):
+              cmd, cmdsize = struct.unpack_from("<II", data, off)
+              if cmd == 0x25:
+                  mins.append(struct.unpack_from("<I", data, off + 8)[0])
+              elif cmd == 0x32 and cmdsize >= 24 and struct.unpack_from("<I", data, off + 8)[0] == 2:
+                  mins.append(struct.unpack_from("<I", data, off + 12)[0])
+              off += cmdsize
+          if not mins or min(mins) < 0x000F0000:
+              raise SystemExit(f"CydiaSubstrate deployment target is still too old: {mins}")
+          print("CydiaSubstrate exported deployment target is iOS 15+")
+          PY
 
-          swift_libs=(
-            libswiftCore.dylib
-            libswiftCoreFoundation.dylib
-            libswiftDarwin.dylib
-            libswiftDispatch.dylib
-            libswiftObjectiveC.dylib
-            libswiftos.dylib
-            libswiftFoundation.dylib
-          )
-
-          SWIFT_LIB_ROOT="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib"
-          : > probe-logs/swift-support-files.txt
-
-          for dylib in "${swift_libs[@]}"; do
-            source="$(find "$SWIFT_LIB_ROOT" -type f -path "*/iphoneos/$dylib" -print -quit)"
-            if [ -z "$source" ]; then
-              echo "::error::Xcode 27 GM runtime is missing $dylib"
-              exit 1
-            fi
-            echo "$dylib <- $source"
-            cp -p "$source" "$SWIFT_SUPPORT/$dylib"
-            /usr/bin/codesign -dv "$SWIFT_SUPPORT/$dylib" 2>&1 \
-              | tee -a probe-logs/swift-support-files.txt
-          done
-
-          # Confirm CydiaSubstrate is the Swift-support trigger we are satisfying.
-          /usr/bin/otool -L "$APP_PATH/Frameworks/CydiaSubstrate.framework/CydiaSubstrate" \
-            | tee probe-logs/cydiasubstrate-dylibs.txt
-          for dylib in "${swift_libs[@]}"; do
-            grep -q "$dylib" probe-logs/cydiasubstrate-dylibs.txt
-          done
-
-          echo "SwiftSupport generated from Xcode 27 GM:"
-          find "$SWIFT_SUPPORT" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort
-
-          # Rebuild the IPA while preserving all original Xcode-exported top-level items.
-          rm -f "$IPA_PATH"
-          (
-            cd build/inspect
-            items=(Payload SwiftSupport)
-            [ -d Symbols ] && items+=(Symbols)
-            [ -d Signatures ] && items+=(Signatures)
-            /usr/bin/zip -qry "../testflight-export/LiveContainer.ipa" "${items[@]}"
-          )
-          IPA_PATH="$PWD/build/testflight-export/LiveContainer.ipa"
-          echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
-
-          /usr/bin/unzip -l "$IPA_PATH" | tee probe-logs/ipa-file-list.txt
-          for dylib in "${swift_libs[@]}"; do
-            grep -q "SwiftSupport/iphoneos/$dylib" probe-logs/ipa-file-list.txt
-          done
+          # With every shipped Swift-using binary at iOS 15+, Xcode 27 should
+          # use the system Swift runtime. Do not manufacture SwiftSupport.
+          if [ -d build/inspect/SwiftSupport ]; then
+            echo "Xcode exported SwiftSupport:"
+            find build/inspect/SwiftSupport -type f -print | sort
+          else
+            echo "No SwiftSupport directory exported, expected for iOS 15+ system Swift runtime."
+          fi
 
           codesign -d --entitlements :- "$APP_PATH" > probe-logs/signed-entitlements.plist 2> probe-logs/codesign.txt || true
           security cms -D -i "$APP_PATH/embedded.mobileprovision" > probe-logs/profile.plist
