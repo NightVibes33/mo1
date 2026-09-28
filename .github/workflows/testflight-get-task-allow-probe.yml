@@ -417,10 +417,34 @@ jobs:
 
           test -s probe-logs/swift-runtime-required.txt
 
+          : > probe-logs/swift-runtime-sources.txt
           while IFS= read -r dylib; do
             [ -n "$dylib" ] || continue
-            source="$TOOLCHAIN_SWIFT/$dylib"
-            test -f "$source"
+
+            source=""
+            for candidate in \
+              "$TOOLCHAIN_SWIFT/$dylib" \
+              "/Applications/Xcode_27.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/iphoneos/$dylib"
+            do
+              if [ -f "$candidate" ]; then
+                source="$candidate"
+                break
+              fi
+            done
+
+            if [ -z "$source" ]; then
+              source="$(find /Applications/Xcode_27.app/Contents/Developer \
+                -type f -name "$dylib" -path '*iphoneos*' -print -quit 2>/dev/null || true)"
+            fi
+
+            if [ -z "$source" ] || [ ! -f "$source" ]; then
+              echo "::error::Unable to locate Xcode 27 GM Swift runtime: $dylib"
+              find /Applications/Xcode_27.app/Contents/Developer \
+                -type f -name "$dylib" -print 2>/dev/null | head -20 || true
+              exit 1
+            fi
+
+            echo "$dylib <- $source" | tee -a probe-logs/swift-runtime-sources.txt
             cp -p "$source" "$FRAMEWORKS/$dylib"
             cp -p "$source" "$SUPPORT_ROOT/$dylib"
           done < probe-logs/swift-runtime-required.txt
