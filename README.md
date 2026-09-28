@@ -1,211 +1,211 @@
 <div align="center">
-
-# døPe
-
-![døPe App Screenshots](screenshots/combined.jpg)
-
-A retro click-wheel music player for iPhone built around personal libraries, Apple Music catalog playback, local audio imports, server libraries, metadata editing, lyrics, equalizer controls, widgets, and a classic iPod-style interface.
-
+   <img width="217" height="217" src="./screenshots/livecontainer_icon.png" alt="Logo">
 </div>
+   
 
-## What døPe Is
+<div align="center">
+  <h1><b>LiveContainer</b></h1>
+  <p><i>An app launcher that runs iOS apps without actually installing them! </i></p>
+</div>
+<h6 align="center">
 
-døPe is a Flutter music player inspired by classic iPod navigation. The app keeps the click-wheel, Cover Flow, split-screen browsing, and Now Playing flow, while adding modern library sources and editing tools.
+Crowdin Project: [![Crowdin](https://badges.crowdin.net/livecontainer/localized.svg)](https://crowdin.com/project/livecontainer) &nbsp;| &nbsp; Documentation:[liveconainer.github.io](https://livecontainer.github.io/docs/intro)
 
-The app is focused on user-owned or user-authorized music:
+# LiveContainer
 
-- Local audio imported into the app.
-- Apple Music catalog/library references for users with Apple Music access.
-- Self-hosted music through Navidrome and Jellyfin.
-- Metadata, artwork, lyrics, explicit badges, playlists, equalizer controls, and widgets around those sources.
+- LiveContainer is an app launcher (not emulator or hypervisor) that allows you to run iOS apps inside it.
+- Allows you to install unlimited apps (3 app/10 app id free developer account limit does not apply here) with only one app & app id. You can also have multiple versions of an app installed with multiple data containers.
+- (Below iOS 26) When JIT is available, codesign is entirely bypassed, no need to sign your apps before installing. Otherwise, your app will be signed with the same certificate used by LiveContainer.
 
-YouTube support was intentionally removed. døPe does not download audio from YouTube and does not ship a YouTube API key.
+> [!CAUTION]
+> **Important Notice Regarding Third-Party Builds of LiveContainer**
+>
+> We have recently noticed the appearance of certain closed-source third-party builds of LiveContainer. Please be aware that all your apps are installed within LiveContainer, which means these third-party builds **have full access to your data, including sensitive information such as keychain items and login credentials**. 
+> 
+> Furthermore, please note that we do not provide any support for issues of these third-party builds.
 
-## Current Feature Status
 
-### Music Sources
+# Installation
+**LiveContainer comes with a standalone version and a version with built-in SideStore. [Please read the install guide here](https://livecontainer.github.io/docs/installation)**
 
-- [x] Local audio import for MP3 and other supported audio files.
-- [x] Apple Music search and library-reference import.
-- [x] Apple Music catalog playback through the native iOS music player bridge.
-- [x] Navidrome connection, browsing, search, starred content, and playback.
-- [x] Jellyfin connection, browsing, and playback support.
-- [x] Mixed-source Songs list with MP3, Apple Music, Navidrome, and Jellyfin items.
-- [x] Source badges in song rows.
-- [ ] Spotify support. Not implemented because Spotify does not provide Apple-Music-style full library/playback integration for this use case.
-- [ ] YouTube metadata or playback support. Not implemented to avoid API-key exposure, quota/rate-limit issues, and App Store risk.
+If you encounter any issue please [read our FAQ here](https://livecontainer.github.io/docs/faq)
 
-### Playback
+### Standalone 
+<table>
+<tr>
+<td>
+Stable
+</td>
+<td>
+<a href="https://stikstore.app/altdirect/?url=https://github.com/LiveContainer/LiveContainer/releases/download/1.0/apps.json&exclude=livecontainer" target="_blank">
+   <img src="https://raw.githubusercontent.com/StikStore/altdirect/refs/heads/main/assets/png/AltSource_Blue.png" alt="Add AltSource" width="200"/>
+</a>
+</td>
+<td>
+<a href="https://github.com/LiveContainer/LiveContainer/releases/latest/download/LiveContainer.ipa" target="_blank">
+   <img src="https://raw.githubusercontent.com/StikStore/altdirect/refs/heads/main/assets/png/Download_Blue.png" alt="Download .ipa" width="200"/>
+</a>
+</td>
+</tr>
+<tr>
+<td>
+Nightly
+</td>
+<td>
+<a href="https://stikstore.app/altdirect/?url=https://github.com/LiveContainer/LiveContainer/releases/download/nightly/apps_nightly.json&exclude=livecontainer" target="_blank">
+   <img src="https://raw.githubusercontent.com/StikStore/altdirect/refs/heads/main/assets/png/AltSource_Blue.png" alt="Add AltSource" width="200"/>
+</a>
+</td>
+<td>
+<a href="https://github.com/LiveContainer/LiveContainer/releases/download/nightly/LiveContainer.ipa" target="_blank">
+   <img src="https://raw.githubusercontent.com/StikStore/altdirect/refs/heads/main/assets/png/Download_Blue.png" alt="Download .ipa" width="200"/>
+</a>
+</td>
+</tr>
+</table>
 
-- [x] Classic Now Playing screen.
-- [x] Background playback support.
-- [x] Lock-screen/media notification controls through the audio service stack.
-- [x] Next, previous, seek, play, and pause controls.
-- [x] Long-press seek behavior for supported local playback controls.
-- [x] Shuffle and repeat modes.
-- [x] In-app volume control path.
-- [x] Mixed-source queue coordination.
-- [x] Apple Music manual-selection start-offset correction.
-- [x] Apple Music queue next/previous bridge support.
-- [x] Playback crash/debug breadcrumbs.
-- [x] Song transition settings for supported local playback paths.
-- [x] Local audio format support through the app audio stack, including MP3, M4A/AAC, WAV, FLAC, OGG, and OPUS where platform codecs allow.
-- [ ] Apple Music Music Haptics API support. Not implemented because Apple does not expose a public third-party API to reuse Apple Music's built-in haptic tracks inside this app.
+### LiveContainer+SideStore
+|Stable|Nightly|
+|:-:|:-:|
+|<a href="https://github.com/LiveContainer/LiveContainer/releases/latest/download/LiveContainer+SideStore.ipa" target="_blank"><img src="https://raw.githubusercontent.com/StikStore/altdirect/refs/heads/main/assets/png/Download_Blue.png" alt="Download .ipa" width="200" /></a>|<a href="https://github.com/LiveContainer/LiveContainer/releases/download/nightly/LiveContainer+SideStore.ipa" target="_blank"><img src="https://raw.githubusercontent.com/StikStore/altdirect/refs/heads/main/assets/png/Download_Blue.png" alt="Download .ipa" width="200" /></a>|
 
-### Library Management
 
-- [x] Songs, Albums, Artists, Genres, Playlists, Cover Flow, and Search sections.
-- [x] Browse by artist, album, genre, playlist, and all songs.
-- [x] Search songs, artists, albums, and playlists.
-- [x] Swipe-to-delete individual songs from the Songs section.
-- [x] Playlist creation and storage.
-- [x] Song rating support.
-- [x] Imported artwork caching for offline artwork.
-- [x] Cached metadata for faster startup.
-- [x] Apple Music artwork persistence across app updates.
-- [x] Import progress/loading UI for large local imports.
-- [x] Duplicate detection for local imports.
-- [x] Date-added sorting across mixed sources.
-- [ ] Advanced duplicate merge tools. Planned.
-- [ ] Bulk library cleanup tools. Planned.
-- [ ] Custom folder scanning outside app imports. Not implemented in the current iOS-focused døPe flow; imports are app-managed.
+## Requirements
 
-### Metadata, Artwork, and Lyrics
+- iOS/iPadOS 15+
+   + Multitasking requires iOS/iPadOS 16.0+
+- AltStore 2.0+ / SideStore 0.6.0+
 
-- [x] Read embedded local-file metadata.
-- [x] Automatic MP3 metadata lookup with confidence checks.
-- [x] Manual metadata matching.
-- [x] Edit song title, artist, album, genre, year, track number, disc number, artwork, lyrics, and explicit status.
-- [x] Explicit `E` badges in song rows and Apple Music search results.
-- [x] Explicit metadata parsing from Apple Music, iTunes, Deezer-style fields, and lyric-result metadata when provided.
-- [x] Manual lyrics search and exact lyrics lookup through LRCLIB.
-- [x] Synced/plain lyric storage when found.
-- [x] Custom artwork picker.
-- [ ] Full embedded tag writing back into the original imported audio file. Not implemented; edits are stored in the app library database.
-- [ ] Multi-result metadata merge review screen. Planned.
 
-### Equalizer
+# Features & Guides
 
-- [x] Preset equalizer menu.
-- [x] Custom equalizer editor.
-- [x] Bass, mid, and treble band grouping in the custom editor.
-- [x] Live custom EQ preview path for supported playback.
-- [x] EQ support messaging in Settings.
-- [x] Native EQ player path for supported local/remote playback attempts.
-- [x] EQ debug logging and native-EQ failure fallback.
-- [ ] Apple Music EQ processing. Not implemented because Apple Music catalog audio is played by the system music player, not by the app's local audio engine.
-- [ ] Per-song EQ presets. Planned.
+### Installing Apps
+- Open LiveContainer, tap the plus icon in the upper right hand corner and select IPA files to install.
+- Choose the app you want to open in the next launch.
+- You can long-press the app to manage it.
 
-### UI and Navigation
+### [Add Apps to Home Screen](https://livecontainer.github.io/docs/guides/add-to-home-screen)
 
-- [x] Classic click-wheel interface.
-- [x] Scrollable wheel rotation.
-- [x] Touchscreen support.
-- [x] Cover Flow with reflective artwork.
-- [x] Split-screen iPod-style browsing.
-- [x] Settings toggle for split-screen behavior.
-- [x] Tutorial/onboarding flow.
-- [x] Status bar with battery indicators and charging state.
-- [x] Haptics and click-wheel sounds.
-- [x] Responsive layout work for different iPhone/iPad screen sizes.
-- [x] About/settings screens.
-- [x] Multi-language/localization infrastructure.
-- [x] Multiple visual refresh passes for the døPe-branded UI.
-- [ ] Built-in iPod-style games. Planned, not implemented.
-- [ ] Photo viewer. Planned, not implemented.
-- [ ] Video viewer. Planned, not implemented.
-- [ ] Xbox 360/Neon-style music visualizer. Planned as an original inspired visualizer only, not a copy of proprietary Xbox software.
+### [Multiple LiveContainers](https://livecontainer.github.io/docs/guides/multiple-livecontainers)
+Using multiple LiveContainers allows you to run multiples different apps simultaneously, with *almost* seamless data transfer between the LiveContainers.
 
-### Widgets and System Integration
+### [Multitasking](https://livecontainer.github.io/docs/guides/multitask)
+You can now launch multiple apps simultaneously in in-app virtual windows. These windows can be resized, scaled, and even displayed using the native Picture-in-Picture (PiP) feature. On iPads, apps can run in native window mode, displaying each app in a separate system window. And if you wish, you can choose to run apps in multitasking mode by default in settings.
 
-- [x] iOS widget extension project.
-- [x] Widget sync service for current playback/library state.
-- [x] Basic widget playback/library display data.
-- [ ] Full app clone inside an iOS widget. Not possible under iOS widget limitations; widgets cannot run the entire app UI or full player engine.
-- [ ] App Intents/Siri controls. Planned.
-- [ ] Lock Screen/Live Activity playback companion. Planned.
+To use multitasking, hold its banner and tap **"Multitask"**. You can also make Multitask the default launch mode in settings.
 
-### Diagnostics and Release Pipeline
+>[!Note]
+>1. To use multitasking, ensure you select **"Keep App Extensions"** when installing via SideStore/AltStore.  
+>2. If you want to enable JIT for multitasked apps, you’ll need a JIT enabler that supports attaching by PID. (StikDebug)
 
-- [x] Debug log export paths.
-- [x] Crash/session breadcrumb logging.
-- [x] GitHub Actions unsigned IPA builds.
-- [x] GitHub Actions Android APK builds.
-- [x] Optional TestFlight upload workflow.
-- [x] App Store metadata automation scripts.
-- [ ] Automated integration tests for every playback backend. Planned.
-- [ ] Device-farm playback validation. Planned.
+### [JIT Support](https://livecontainer.github.io/docs/guides/jit-support)
+### [Installing external tweaks](https://livecontainer.github.io/docs/guides/tweaks)
+### [Multiple Containers/External Containers](https://livecontainer.github.io/docs/guides/containers-and-external-data)
+### [Hiding Apps](https://livecontainer.github.io/docs/guides/lock-app)
 
-## Roadmap
+### Fix File Picker & Local Notification
+Some apps may experience issues with their file pickers or not be able to apply for notification permission in LiveContainer. To resolve this, enable "Fix File Picker" & "Fix Local Notifications" accordingly in the app-specific settings.
 
-### In Progress / Next
+### "Open In App" Support
+- You can simply share a URL or a file to app simply by using iOS's native share sheet. In share sheet, select LiveContainer, and LiveContainer will ask you which app you'd like to open that URL/file in.
+- What's more, you also can tap the link icon in the top-right corner of the "Apps" tab and input the URL. LiveContainer will detect the appropriate app and ask if you want to launch it.
 
-- [ ] Continue hardening mixed-source playback edge cases.
-- [ ] Improve Navidrome and Jellyfin parity where server APIs expose richer data.
-- [ ] Add more robust metadata review tools after auto-match.
-- [ ] Add App Intents/Siri shortcuts for common playback actions.
-- [ ] Improve widget actions within Apple's widget limits.
-- [ ] Add per-source diagnostics in the in-app debug viewer.
+## Compatibility
+Unfortunately, not all apps work in LiveContainer, so we have a [compatibility list](https://github.com/LiveContainer/LiveContainer/labels/compatibility) to tell if there is apps that have issues. If they aren't on this list, then it's likely going run. However, if it doesn't work, please make an [issue](https://github.com/LiveContainer/LiveContainer/issues/new/choose) about it.
 
-### Planned
+## Building
+Open Xcode, edit `DEVELOPMENT_TEAM[config=Debug]` in `xcconfigs/Global.xcconfig` to your team id and compile.
 
-- [ ] Original music visualizer inspired by classic console/player visualizers.
-- [ ] Built-in iPod-style games.
-- [ ] Photo viewer.
-- [ ] Video viewer for user-owned local videos if added later.
-- [ ] Per-song or per-source EQ profiles.
-- [ ] Better bulk import review and duplicate cleanup tools.
-- [ ] Advanced artwork management for very large libraries.
-- [ ] More tutorial depth for Apple Music, local imports, server connections, EQ, and widgets.
-- [ ] More source-specific library quality indicators for Navidrome and Jellyfin.
+## Project structure
+### Main executable
+- Core of LiveContainer
+- Contains the logic of setting up guest environment and loading guest app.
+- If no app is selected, it loads LiveContainerSwiftUI.
 
-### Not Planned Right Now
+### LiveContainerSwiftUI
+- SwiftUI rewrite of LiveContainerUI (by @hugeBlack)
+- Language file `Localizable.xcstrings` is in here for multilingual support. To help us translate LiveContainer, please visit [our crowdin project](https://crowdin.com/project/livecontainer)
 
-- [ ] YouTube audio import/download.
-- [ ] YouTube API-key-backed metadata search in the client app.
-- [ ] Spotify full-library playback integration.
-- [ ] Full Apple Music feature parity with Apple's own Music app internals.
-- [ ] Full app UI inside an iOS widget.
+### MultitaskSupport
+- Contains the implementation of multitasking feature.
+- Based on [FrontBoardAppLauncher](https://github.com/khanhduytran0/FrontBoardAppLauncher)
 
-## Tech Stack
+### SideStore
+- Supporting code for SideStore's app refreshing integration
 
-- [x] Flutter app architecture with Riverpod state management.
-- [x] `just_audio` playback stack for local/remote app-controlled audio.
-- [x] `audio_service` / background audio integration.
-- [x] Native iOS Apple Music bridge for catalog/library playback.
-- [x] Native iOS widget extension and widget sync service.
-- [x] Hive-backed library/cache persistence.
-- [x] `audio_metadata_reader` for embedded local-file metadata.
-- [x] `file_picker` for user-selected imports.
-- [x] `battery_plus` for status bar battery state.
-- [x] `vibration` for click-wheel feedback where supported.
-- [x] `permission_handler` for platform permissions.
-- [x] GitHub Actions release/build automation.
+### TweakLoader
+- A simple tweak injector, which loads CydiaSubstrate and loads tweaks.
+- Injected to every app you install in LiveContainer.
 
-## Build Notes
+### ZSign
+- The app signer shipped with LiveContainer.
+- Originally made by [zhlynn](https://github.com/zhlynn/zsign).
+- LiveContainer uses [Feather's](https://github.com/khcrysalis/Feather) version of ZSign modified by khcrysalis.
+- Changes are made to meet LiveContainer's needs.
 
-The primary release workflow is `.github/workflows/testflight.yml`.
+## How does it work?
 
-It can build:
+### Patching guest executable
+- Patch `__PAGEZERO` segment:
+  + Change `vmaddr` to `0xFFFFC000` (`0x100000000 - 0x4000`)
+  + Change `vmsize` to `0x4000`
+- Change `MH_EXECUTE` to `MH_DYLIB`.
+- Inject a load command to load `TweakLoader.dylib`
 
-- Unsigned iOS IPA artifacts.
-- Android APK artifacts.
-- Signed TestFlight IPA uploads when the required App Store Connect secrets are configured.
+### Patching `@executable_path`
+- Hook `dyld4::APIs::_NSGetExecutablePath`
+- Call `_NSGetExecutablePath`
+- Replace `config.process.mainExecutablePath`
+  - Calculate address of `config.process.mainExecutablePath` using `dyld4::APIs` instance (passed as first parameter)
+  - Use `builtin_vm_protect` or TPRO unlock to make it writable
+  - Replace the address with one we have control of
+- Put the original `dyld4::APIs::_NSGetExecutablePath` back
 
-The project is Flutter-based and includes iOS-native bridges for Apple Music playback, widgets, native EQ experiments, and platform-specific integrations.
+> Old Method
+>- Call `_NSGetExecutablePath` with an invalid buffer pointer input -> SIGSEGV
+>- Do some [magic stuff](https://github.com/khanhduytran0/LiveContainer/blob/5ef1e6a/main.m#L74-L115) to overwrite the contents of executable_path.
 
-## Privacy and Source Policy
+### Patching `NSBundle.mainBundle`
+- This property is overwritten with the guest app's bundle.
 
-- døPe is designed for music the user owns, imports, or is authorized to access.
-- Apple Music features require user authorization and Apple Music availability on the device.
-- Navidrome and Jellyfin features connect to servers configured by the user.
-- YouTube support is not included.
-- Metadata edits are stored in the app library database unless a feature explicitly says it writes tags back to files.
+### Bypassing Library Validation
+- JIT is optional to bypass codesigning. In JIT-less mode, all executables are signed so this does not apply.
+- Derived from [Restoring Dyld Memory Loading](https://blog.xpnsec.com/restoring-dyld-memory-loading)
 
-## Attribution
+### dlopening the executable
+- Call `dlopen` with the guest app's executable
+- TweakLoader loads all tweaks in the selected folder
+- Find the entry point
+- Jump to the entry point
+- The guest app's entry point calls `UIApplicationMain` and start up like any other iOS apps.
 
-This project is based on the upstream open-source Classipod player by Aditya R and is distributed under the BSD-4-Clause license included in this repository.
+### Multi-Account support & Keychain Semi-Separation
+[128 keychain access groups](./entitlements.xml) are created and LiveContainer allocates them randomly to each container of the same app. So you can create 128 container with different keychain access groups.
+
+## Limitations
+- Entitlements from the guest app are not applied to the host app. This isn't a big deal since sideloaded apps requires only basic entitlements.
+- App Permissions are globally applied.
+- Guest app containers are not sandboxed. This means one guest app can access other guest apps' data.
+- App extensions aren't supported. they cannot be registered because: LiveContainer is sandboxed, SpringBoard doesn't know what apps are installed in LiveContainer, and they take up App ID.
+- Multitasking can be achieved by using multiple LiveContainer and the multitasking feature. However, while we were able to fix physical keyboard input issue on iPadOS (https://github.com/LiveContainer/LiveContainer/issues/524), iPhone Mirroring uses different checks which still broke it (https://github.com/LiveContainer/LiveContainer/issues/793).
+- Remote push notification will not work
+- Querying custom URL schemes might not work(?)
+
+## TODO
+- Use ChOma instead of custom MachO parser
 
 ## License
+[GNU Affero General Public License v3.0](https://github.com/LiveContainer/LiveContainer/blob/main/LICENSE)
 
-See [LICENSE](LICENSE).
+## Credits
+- [xpn's blogpost: Restoring Dyld Memory Loading](https://blog.xpnsec.com/restoring-dyld-memory-loading)
+- [LinusHenze's CFastFind](https://github.com/pinauten/PatchfinderUtils/blob/master/Sources/CFastFind/CFastFind.c): [MIT license](https://github.com/pinauten/PatchfinderUtils/blob/master/LICENSE)
+- [litehook](https://github.com/opa334/litehook): [MIT license](https://github.com/opa334/litehook/blob/main/LICENSE)
+- @haxi0 & @m1337v for icon
+- @Vishram1123 for the initial shortcut implementation.
+- @hugeBlack for SwiftUI contribution
+- @Staubgeborener for automatic AltStore/SideStore source updater
+- @fkunn1326 for improved app hiding
+- @slds1 for dynamic color feature
+- @Vishram1123 for iOS 26+ JIT Script Support
+- @StephenDev0 for AltStore source support
