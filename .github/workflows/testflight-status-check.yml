@@ -1,0 +1,92 @@
+name: Check TestFlight build 100021
+
+on:
+  push:
+    branches:
+      - tf-get-task-allow-probe-20260928
+    paths:
+      - '.github/workflows/testflight-status-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TARGET_BUNDLE_ID: com.nightvibes.prism.39A8Q3T3TR
+      TARGET_BUILD: "100021"
+    steps:
+      - name: Check App Store Connect build processing
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/asc-check
+          /tmp/asc-check/bin/python -m pip install --quiet PyJWT cryptography
+          /tmp/asc-check/bin/python - <<'PY'
+          import base64, json, os, time, urllib.parse, urllib.request
+          import jwt
+
+          BASE = "https://api.appstoreconnect.apple.com"
+          KEY_ID = os.environ["APP_STORE_CONNECT_KEY_ID"].strip()
+          ISSUER = os.environ["APP_STORE_CONNECT_ISSUER_ID"].strip()
+          raw = os.environ["APP_STORE_CONNECT_API_KEY_P8"].replace("\\n", "\n").strip()
+          if "BEGIN PRIVATE KEY" not in raw and "BEGIN EC PRIVATE KEY" not in raw:
+              compact = "".join(raw.split())
+              raw = base64.b64decode(compact + "=" * (-len(compact) % 4)).decode()
+          BUNDLE = os.environ["TARGET_BUNDLE_ID"]
+          BUILD = os.environ["TARGET_BUILD"]
+
+          def token():
+              now = int(time.time())
+              return jwt.encode(
+                  {"iss": ISSUER, "iat": now, "exp": now + 900, "aud": "appstoreconnect-v1"},
+                  raw, algorithm="ES256", headers={"kid": KEY_ID, "typ": "JWT"}
+              )
+
+          def get(path):
+              req = urllib.request.Request(
+                  BASE + path,
+                  headers={"Authorization": "Bearer " + token(), "Accept": "application/json"}
+              )
+              with urllib.request.urlopen(req, timeout=60) as response:
+                  return json.loads(response.read())
+
+          q = urllib.parse.urlencode({"filter[bundleId]": BUNDLE, "limit": "10"})
+          apps = get("/v1/apps?" + q).get("data", [])
+          if not apps:
+              raise SystemExit("App Store Connect app record not found")
+          app_id = apps[0]["id"]
+          print("ASC app id:", app_id)
+
+          for attempt in range(1, 16):
+              q = urllib.parse.urlencode({
+                  "filter[app]": app_id,
+                  "sort": "-uploadedDate",
+                  "limit": "20",
+              })
+              builds = get("/v1/builds?" + q).get("data", [])
+              match = next((b for b in builds if str(b.get("attributes", {}).get("version")) == BUILD), None)
+              if match:
+                  attrs = match.get("attributes", {})
+                  state = attrs.get("processingState")
+                  print("Found build:", BUILD)
+                  print("Build resource id:", match["id"])
+                  print("Uploaded date:", attrs.get("uploadedDate"))
+                  print("Processing state:", state)
+                  print("Expired:", attrs.get("expired"))
+                  if state in {"VALID", "FAILED", "INVALID"}:
+                      if state != "VALID":
+                          raise SystemExit("Build finished processing with state " + str(state))
+                      break
+              else:
+                  print(f"Attempt {attempt}: build {BUILD} not visible yet")
+              if attempt == 15:
+                  raise SystemExit("Build did not become visible/VALID within this check window")
+              time.sleep(20)
+          PY
