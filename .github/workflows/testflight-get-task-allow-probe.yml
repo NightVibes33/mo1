@@ -255,14 +255,53 @@ jobs:
           cp "$ELLEKIT_BIN" "$DEST"
           chmod 0755 "$DEST"
 
-          PLIST="Resources/Frameworks/CydiaSubstrate.framework/Info.plist"
-          /usr/libexec/PlistBuddy -c 'Delete :MinimumOSVersion' "$PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c 'Add :MinimumOSVersion string 15.0' "$PLIST"
-          /usr/libexec/PlistBuddy -c 'Delete :CFBundleSupportedPlatforms' "$PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c 'Add :CFBundleSupportedPlatforms array' "$PLIST"
-          /usr/libexec/PlistBuddy -c 'Add :CFBundleSupportedPlatforms:0 string iPhoneOS' "$PLIST"
+          # The source product is libellekit.dylib. Once wrapped as
+          # CydiaSubstrate.framework its LC_ID_DYLIB must identify the framework,
+          # otherwise App Store Connect treats it as a loose/standalone dylib.
+          /usr/bin/install_name_tool -id "@rpath/CydiaSubstrate.framework/CydiaSubstrate" "$DEST"
 
-          echo "Replaced bundled CydiaSubstrate compatibility binary with current iOS ElleKit."
+          PLIST="Resources/Frameworks/CydiaSubstrate.framework/Info.plist"
+          cat > "$PLIST" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleDevelopmentRegion</key>
+            <string>en</string>
+            <key>CFBundleExecutable</key>
+            <string>CydiaSubstrate</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.nightvibes.prism.cydiasubstrate</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
+            <key>CFBundleName</key>
+            <string>CydiaSubstrate</string>
+            <key>CFBundlePackageType</key>
+            <string>FMWK</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>CFBundleSupportedPlatforms</key>
+            <array>
+              <string>iPhoneOS</string>
+            </array>
+            <key>MinimumOSVersion</key>
+            <string>15.0</string>
+            <key>UIRequiredDeviceCapabilities</key>
+            <array>
+              <string>arm64</string>
+            </array>
+          </dict>
+          </plist>
+          EOF
+
+          /usr/bin/otool -D "$DEST" | tee probe-logs/ellekit-install-name.txt
+          grep -q '@rpath/CydiaSubstrate.framework/CydiaSubstrate' probe-logs/ellekit-install-name.txt
+          /usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$PLIST" | grep -qx 'FMWK'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$PLIST" | grep -qx 'CydiaSubstrate'
+
+          echo "Replaced bundled CydiaSubstrate compatibility binary with current iOS ElleKit framework."
 
       - name: Build unsigned LiveContainer archive
         env:
@@ -401,6 +440,10 @@ jobs:
 
           /usr/bin/otool -l "$SUBSTRATE_BIN" | tee probe-logs/exported-ellekit-load-commands.txt
           /usr/bin/otool -L "$SUBSTRATE_BIN" | tee probe-logs/exported-ellekit-linked-libraries.txt
+          /usr/bin/otool -D "$SUBSTRATE_BIN" | tee probe-logs/exported-ellekit-install-name.txt
+          grep -q '@rpath/CydiaSubstrate.framework/CydiaSubstrate' probe-logs/exported-ellekit-install-name.txt
+          /usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$APP_PATH/Frameworks/CydiaSubstrate.framework/Info.plist" | grep -qx 'FMWK'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP_PATH/Frameworks/CydiaSubstrate.framework/Info.plist" | grep -qx 'CydiaSubstrate'
 
           python3 - "$SUBSTRATE_BIN" <<'PY'
           import pathlib, struct, sys
