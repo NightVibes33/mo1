@@ -272,31 +272,29 @@ jobs:
           test -d "$RUNTIME_DIR"
           mkdir -p "$ARCHIVE_SUPPORT"
 
+          swift_libs=(
+            libswiftCore.dylib
+            libswiftCoreFoundation.dylib
+            libswiftDarwin.dylib
+            libswiftDispatch.dylib
+            libswiftObjectiveC.dylib
+            libswiftos.dylib
+            libswiftFoundation.dylib
+          )
+
+          SWIFT_LIB_ROOT="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib"
           : > probe-logs/swift-runtime-forced.txt
-          while IFS= read -r candidate; do
-            if /usr/bin/file "$candidate" | /usr/bin/grep -q 'Mach-O'; then
-              /usr/bin/strings "$candidate" 2>/dev/null \
-                | /usr/bin/grep -oE '/usr/lib/swift/libswift[^/[:space:]]+\.dylib' \
-                | /usr/bin/sed 's#.*/##' \
-                >> probe-logs/swift-runtime-forced.txt || true
-            fi
-          done < <(find "$APP" -type f -print)
 
-          sort -u probe-logs/swift-runtime-forced.txt -o probe-logs/swift-runtime-forced.txt
-          echo "Swift runtime libraries referenced by the final archive:"
-          cat probe-logs/swift-runtime-forced.txt
-          test -s probe-logs/swift-runtime-forced.txt
-
-          while IFS= read -r dylib; do
-            [ -n "$dylib" ] || continue
-            source="$RUNTIME_DIR/$dylib"
-            if [ ! -f "$source" ]; then
-              echo "::error::Xcode 27 GM runtime missing required library: $source"
+          for dylib in "${swift_libs[@]}"; do
+            source="$(find "$SWIFT_LIB_ROOT" -type f -path "*/iphoneos/$dylib" -print -quit)"
+            if [ -z "$source" ]; then
+              echo "::error::Xcode 27 GM runtime missing required library: $dylib"
               exit 1
             fi
+            echo "$dylib <- $source" | tee -a probe-logs/swift-runtime-forced.txt
             cp -p "$source" "$FRAMEWORKS/$dylib"
             cp -p "$source" "$ARCHIVE_SUPPORT/$dylib"
-          done < probe-logs/swift-runtime-forced.txt
+          done
 
           echo "Forced app Swift runtimes:"
           find "$FRAMEWORKS" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort
