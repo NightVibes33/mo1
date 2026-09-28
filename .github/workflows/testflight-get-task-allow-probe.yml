@@ -260,6 +260,53 @@ jobs:
           find "$APP/Frameworks" -maxdepth 2 -type f -print | sort || true
           find "$APP/PlugIns" -maxdepth 2 -type f -print 2>/dev/null | sort || true
 
+      - name: Embed Swift runtime compatibility libraries
+        run: |
+          set -euo pipefail
+          APP="build/TestFlightProbe.xcarchive/Products/Applications/LiveContainer.app"
+          FRAMEWORKS="$APP/Frameworks"
+          RUNTIME_DIR="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos"
+          ARCHIVE_SUPPORT="build/TestFlightProbe.xcarchive/SwiftSupport/iphoneos"
+
+          test -d "$FRAMEWORKS"
+          test -d "$RUNTIME_DIR"
+          mkdir -p "$ARCHIVE_SUPPORT"
+
+          : > probe-logs/swift-runtime-forced.txt
+          while IFS= read -r candidate; do
+            if /usr/bin/file "$candidate" | /usr/bin/grep -q 'Mach-O'; then
+              /usr/bin/strings "$candidate" 2>/dev/null \
+                | /usr/bin/grep -oE '/usr/lib/swift/libswift[^/[:space:]]+\.dylib' \
+                | /usr/bin/sed 's#.*/##' \
+                >> probe-logs/swift-runtime-forced.txt || true
+            fi
+          done < <(find "$APP" -type f -print)
+
+          sort -u probe-logs/swift-runtime-forced.txt -o probe-logs/swift-runtime-forced.txt
+          echo "Swift runtime libraries referenced by the final archive:"
+          cat probe-logs/swift-runtime-forced.txt
+          test -s probe-logs/swift-runtime-forced.txt
+
+          while IFS= read -r dylib; do
+            [ -n "$dylib" ] || continue
+            source="$RUNTIME_DIR/$dylib"
+            if [ ! -f "$source" ]; then
+              echo "::error::Xcode 27 GM runtime missing required library: $source"
+              exit 1
+            fi
+            cp -p "$source" "$FRAMEWORKS/$dylib"
+            cp -p "$source" "$ARCHIVE_SUPPORT/$dylib"
+          done < probe-logs/swift-runtime-forced.txt
+
+          echo "Forced app Swift runtimes:"
+          find "$FRAMEWORKS" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort
+
+          echo "Archive SwiftSupport staging:"
+          find "$ARCHIVE_SUPPORT" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort
+
+          test -f "$FRAMEWORKS/libswiftCore.dylib"
+          test -f "$ARCHIVE_SUPPORT/libswiftCore.dylib"
+
       - name: Write App Store Connect key
         env:
           APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
