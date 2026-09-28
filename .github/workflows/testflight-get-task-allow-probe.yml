@@ -326,20 +326,40 @@ jobs:
           APP_PATH="$(find build/inspect/Payload -maxdepth 1 -type d -name '*.app' -print -quit)"
           test -n "$APP_PATH"
 
-          # App Store processing requires a top-level SwiftSupport directory when
-          # the app ships Swift runtime dylibs. Xcode export should create it; if
-          # it does not, reconstruct it from the exact signed runtime dylibs that
-          # are already embedded in the exported app.
+          # App Store post-processing requires SwiftSupport whenever bundled
+          # Mach-O code links Swift runtime dylibs, even when those dylibs are not
+          # already embedded in Payload/.../Frameworks. Scan the actual binaries.
           SWIFT_SUPPORT="build/inspect/SwiftSupport/iphoneos"
-          SWIFT_DYLIBS="$(find "$APP_PATH/Frameworks" -maxdepth 1 -type f -name 'libswift*.dylib' -print 2>/dev/null || true)"
-          if [ -n "$SWIFT_DYLIBS" ] && [ ! -d "$SWIFT_SUPPORT" ]; then
-            echo "SwiftSupport missing after Xcode export; reconstructing from embedded Swift runtime."
-            mkdir -p "$SWIFT_SUPPORT"
+          SWIFT_RUNTIME_DIR="$(xcrun --find swift-stdlib-tool >/dev/null 2>&1 && xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos"
+          rm -rf "build/inspect/SwiftSupport"
+          mkdir -p "$SWIFT_SUPPORT"
+
+          : > probe-logs/swift-runtime-deps.txt
+          while IFS= read -r candidate; do
+            if /usr/bin/file "$candidate" | grep -q 'Mach-O'; then
+              /usr/bin/otool -L "$candidate" 2>/dev/null \
+                | awk '/libswift[^/ ]*\\.dylib/ {print $1}' \
+                | sed 's#^.*/##' >> probe-logs/swift-runtime-deps.txt || true
+            fi
+          done < <(find "$APP_PATH" -type f -print)
+
+          sort -u probe-logs/swift-runtime-deps.txt -o probe-logs/swift-runtime-deps.txt
+          echo "Swift runtime dependencies detected:"
+          cat probe-logs/swift-runtime-deps.txt
+
+          if [ -s probe-logs/swift-runtime-deps.txt ]; then
             while IFS= read -r dylib; do
               [ -n "$dylib" ] || continue
-              cp -p "$dylib" "$SWIFT_SUPPORT/$(basename "$dylib")"
-            done <<< "$SWIFT_DYLIBS"
+              source="$SWIFT_RUNTIME_DIR/$dylib"
+              if [ ! -f "$source" ]; then
+                echo "::error::Required Xcode 27 Swift runtime dylib not found: $source"
+                exit 1
+              fi
+              cp -p "$source" "$SWIFT_SUPPORT/$dylib"
+            done < probe-logs/swift-runtime-deps.txt
 
+            # Rebuild only the distribution container. Payload signatures are
+            # untouched; SwiftSupport contains Apple-signed GM runtime dylibs.
             rm -f "$IPA_PATH"
             (
               cd build/inspect
@@ -347,21 +367,21 @@ jobs:
             )
             IPA_PATH="$PWD/build/testflight-export/LiveContainer.ipa"
             echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
-          fi
 
-          if [ -n "$SWIFT_DYLIBS" ]; then
-            test -d "$SWIFT_SUPPORT"
-            test -n "$(find "$SWIFT_SUPPORT" -maxdepth 1 -type f -name 'libswift*.dylib' -print -quit)"
             echo "SwiftSupport contents:"
             find "$SWIFT_SUPPORT" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort
           else
-            echo "No embedded libswift dylibs; SwiftSupport is not required by this payload."
+            echo "::error::Swift code is present but no Swift runtime dependency was detected."
+            exit 1
           fi
 
           /usr/bin/unzip -l "$IPA_PATH" | tee probe-logs/ipa-file-list.txt
-          if [ -n "$SWIFT_DYLIBS" ]; then
-            grep -q 'SwiftSupport/iphoneos/libswift' probe-logs/ipa-file-list.txt
-          fi
+          grep -q 'SwiftSupport/iphoneos/libswift' probe-logs/ipa-file-list.txt
+
+          while IFS= read -r dylib; do
+            [ -n "$dylib" ] || continue
+            grep -q "SwiftSupport/iphoneos/$dylib" probe-logs/ipa-file-list.txt
+          done < probe-logs/swift-runtime-deps.txt
 
           codesign -d --entitlements :- "$APP_PATH" > probe-logs/signed-entitlements.plist 2> probe-logs/codesign.txt || true
           security cms -D -i "$APP_PATH/embedded.mobileprovision" > probe-logs/profile.plist
