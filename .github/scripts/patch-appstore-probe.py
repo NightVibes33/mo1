@@ -225,6 +225,228 @@ if old_zip not in text:
 text = text.replace(old_zip, new_zip, 1)
 lcutils_m.write_text(text)
 
+# Replace private PassKitCore PKZipArchiver with the project's bundled libarchive.
+lcutils = Path("LiveContainerSwiftUI/Utilities/LCUtils.m")
+text = lcutils.read_text()
+if '#include "archive.h"' not in text:
+    text = text.replace(
+        '#import "LiveContainerSwiftUI-Swift.h"\n',
+        '#import "LiveContainerSwiftUI-Swift.h"\n#include "archive.h"\n#include "archive_entry.h"\n',
+        1,
+    )
+
+zip_helper = r'''
+static NSError *LCZipError(struct archive *archive, NSString *operation) {
+    const char *message = archive ? archive_error_string(archive) : NULL;
+    NSString *description = message ? [NSString stringWithUTF8String:message] : @"ZIP operation failed";
+    return [NSError errorWithDomain:@"LiveContainer.AppStoreZip"
+                               code:1
+                           userInfo:@{NSLocalizedDescriptionKey:
+                                          [NSString stringWithFormat:@"%@: %@", operation, description]}];
+}
+
+static BOOL LCZipDirectoryToFile(NSURL *rootURL, NSURL *zipURL, NSError **error) {
+    struct archive *writer = archive_write_new();
+    if (!writer) {
+        if (error) *error = [NSError errorWithDomain:@"LiveContainer.AppStoreZip"
+                                                code:2
+                                            userInfo:@{NSLocalizedDescriptionKey: @"Unable to create ZIP writer"}];
+        return NO;
+    }
+
+    if (archive_write_set_format_zip(writer) != ARCHIVE_OK ||
+        archive_write_zip_set_compression_deflate(writer) != ARCHIVE_OK ||
+        archive_write_open_filename(writer, zipURL.fileSystemRepresentation) != ARCHIVE_OK) {
+        if (error) *error = LCZipError(writer, @"Opening ZIP");
+        archive_write_free(writer);
+        return NO;
+    }
+
+    NSFileManager *fm = NSFileManager.defaultManager;
+    NSArray<NSURLResourceKey> *keys = @[
+        NSURLIsDirectoryKey,
+        NSURLIsSymbolicLinkKey,
+        NSURLFileSizeKey,
+        NSURLFileResourceIdentifierKey
+    ];
+
+    NSDirectoryEnumerator<NSURL *> *enumerator =
+        [fm enumeratorAtURL:rootURL
+ includingPropertiesForKeys:keys
+                    options:0
+               errorHandler:^BOOL(NSURL *url, NSError *enumerationError) {
+        if (error && !*error) *error = enumerationError;
+        return NO;
+    }];
+
+    for (NSURL *itemURL in enumerator) {
+        if (error && *error) {
+            archive_write_close(writer);
+            archive_write_free(writer);
+            return NO;
+        }
+
+        NSString *rootPath = rootURL.path;
+        NSString *itemPath = itemURL.path;
+        if (![itemPath hasPrefix:rootPath]) continue;
+
+        NSString *relativePath = [itemPath substringFromIndex:rootPath.length];
+        if ([relativePath hasPrefix:@"/"]) {
+            relativePath = [relativePath substringFromIndex:1];
+        }
+        if (relativePath.length == 0) continue;
+
+        NSNumber *isDirectory = nil;
+        NSNumber *isSymbolicLink = nil;
+        NSNumber *fileSize = nil;
+        [itemURL getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil];
+        [itemURL getResourceValue:&isSymbolicLink forKey:NSURLIsSymbolicLinkKey error:nil];
+        [itemURL getResourceValue:&fileSize forKey:NSURLFileSizeKey error:nil];
+
+        struct archive_entry *entry = archive_entry_new();
+        if (!entry) {
+            if (error) *error = [NSError errorWithDomain:@"LiveContainer.AppStoreZip"
+                                                    code:3
+                                                userInfo:@{NSLocalizedDescriptionKey: @"Unable to create ZIP entry"}];
+            archive_write_close(writer);
+            archive_write_free(writer);
+            return NO;
+        }
+
+        NSString *entryPath = relativePath;
+        if (isDirectory.boolValue && ![entryPath hasSuffix:@"/"]) {
+            entryPath = [entryPath stringByAppendingString:@"/"];
+        }
+        archive_entry_set_pathname(entry, entryPath.fileSystemRepresentation);
+
+        if (isSymbolicLink.boolValue) {
+            NSError *linkError = nil;
+            NSString *target = [fm destinationOfSymbolicLinkAtPath:itemPath error:&linkError];
+            if (!target) {
+                if (error) *error = linkError;
+                archive_entry_free(entry);
+                archive_write_close(writer);
+                archive_write_free(writer);
+                return NO;
+            }
+            archive_entry_set_filetype(entry, AE_IFLNK);
+            archive_entry_set_perm(entry, 0777);
+            archive_entry_set_size(entry, 0);
+            archive_entry_set_symlink(entry, target.fileSystemRepresentation);
+        } else if (isDirectory.boolValue) {
+            archive_entry_set_filetype(entry, AE_IFDIR);
+            archive_entry_set_perm(entry, 0755);
+            archive_entry_set_size(entry, 0);
+        } else {
+            archive_entry_set_filetype(entry, AE_IFREG);
+            archive_entry_set_perm(entry, 0644);
+            archive_entry_set_size(entry, fileSize.longLongValue);
+        }
+
+        if (archive_write_header(writer, entry) != ARCHIVE_OK) {
+            if (error) *error = LCZipError(writer, @"Writing ZIP header");
+            archive_entry_free(entry);
+            archive_write_close(writer);
+            archive_write_free(writer);
+            return NO;
+        }
+
+        if (!isDirectory.boolValue && !isSymbolicLink.boolValue) {
+            NSError *readError = nil;
+            NSFileHandle *handle = [NSFileHandle fileHandleForReadingFromURL:itemURL error:&readError];
+            if (!handle) {
+                if (error) *error = readError;
+                archive_entry_free(entry);
+                archive_write_close(writer);
+                archive_write_free(writer);
+                return NO;
+            }
+
+            while (YES) {
+                @autoreleasepool {
+                    NSData *chunk = [handle readDataOfLength:64 * 1024];
+                    if (chunk.length == 0) break;
+                    if (archive_write_data(writer, chunk.bytes, chunk.length) < 0) {
+                        if (error) *error = LCZipError(writer, @"Writing ZIP data");
+                        [handle closeFile];
+                        archive_entry_free(entry);
+                        archive_write_close(writer);
+                        archive_write_free(writer);
+                        return NO;
+                    }
+                }
+            }
+            [handle closeFile];
+        }
+
+        archive_entry_free(entry);
+    }
+
+    if (archive_write_close(writer) != ARCHIVE_OK) {
+        if (error) *error = LCZipError(writer, @"Closing ZIP");
+        archive_write_free(writer);
+        return NO;
+    }
+    archive_write_free(writer);
+    return YES;
+}
+
+'''
+if "static BOOL LCZipDirectoryToFile" not in text:
+    text = text.replace("@implementation LCUtils\n", zip_helper + "\n@implementation LCUtils\n", 1)
+
+old_zip = r'''    [infoDict writeToURL:infoPath error:error];
+    
+    dlopen("/System/Library/PrivateFrameworks/PassKitCore.framework/PassKitCore", RTLD_GLOBAL);
+    NSData *zipData = [[NSClassFromString(@"PKZipArchiver") new] zippedDataForURL:tmpPayloadPath.URLByDeletingLastPathComponent];
+    if (!zipData) return nil;
+
+    [manager removeItemAtURL:tmpPayloadPath error:error];
+    if (*error) return nil;
+    
+    if([manager fileExistsAtPath:tmpIPAPath.path]) {
+        [manager removeItemAtURL:tmpIPAPath error:error];
+        if (*error) return nil;
+    }
+
+    [zipData writeToURL:tmpIPAPath options:0 error:error];
+    if (*error) return nil;
+
+    return tmpIPAPath;
+'''
+new_zip = r'''    [infoDict writeToURL:infoPath error:error];
+    if (*error) return nil;
+
+    if ([manager fileExistsAtPath:tmpIPAPath.path]) {
+        [manager removeItemAtURL:tmpIPAPath error:error];
+        if (*error) return nil;
+    }
+
+    NSURL *archiveRoot = tmpPayloadPath.URLByDeletingLastPathComponent;
+    if (!LCZipDirectoryToFile(archiveRoot, tmpIPAPath, error)) {
+        return nil;
+    }
+
+    [manager removeItemAtURL:archiveRoot error:nil];
+    return tmpIPAPath;
+'''
+if old_zip not in text:
+    raise SystemExit("private PKZipArchiver block was not found")
+text = text.replace(old_zip, new_zip, 1)
+lcutils.write_text(text)
+
+# Remove the private archiver declaration so the selector is absent from compiled metadata too.
+lcutils_h = Path("LiveContainerSwiftUI/Utilities/LCUtils.h")
+text = lcutils_h.read_text()
+text = re.sub(
+    r'\n@interface PKZipArchiver : NSObject\s*- \(NSData \*\)zippedDataForURL:\(NSURL \*\)url;\s*@end\s*',
+    '\n',
+    text,
+    count=1,
+    flags=re.S,
+)
+lcutils_h.write_text(text)
+
 # Sanity checks for the exact App Store validation failures from the prior run.
 for needle, roots in {
     "NSExtension": [Path("MultitaskSupport"), Path("LiveContainerSwiftUI/Utilities/LCUtils.m")],
