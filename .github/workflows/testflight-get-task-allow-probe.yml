@@ -142,32 +142,21 @@ jobs:
 
           q = urllib.parse.urlencode({"filter[bundleId]": bundle_id, "limit": "10"})
           apps = request("GET", "/v1/apps?" + q).get("data", [])
-          if not apps:
-              app = request("POST", "/v1/apps", {
-                  "data": {
-                      "type": "apps",
-                      "attributes": {
-                          "bundleId": bundle_id,
-                          "name": "LiveContainer NV33 Probe",
-                          "primaryLocale": "en-US",
-                          "sku": "livecontainer-nv33-gta-probe"
-                      }
-                  }
-              })["data"]
-              print("Created App Store Connect app record.")
-          else:
-              app = apps[0]
-              print("App Store Connect app record already exists.")
-
-          attrs = app.get("attributes", {})
-          app_id = app["id"]
-          apple_id = attrs.get("appleId") or app_id
-          print("ASC app id:", app_id)
-          print("Apple id:", apple_id)
-
           with open(os.environ["GITHUB_ENV"], "a") as f:
-              f.write(f"ASC_APP_ID={app_id}\n")
-              f.write(f"ASC_APP_APPLE_ID={apple_id}\n")
+              if not apps:
+                  print("No App Store Connect app record exists yet for:", bundle_id)
+                  f.write("ASC_APP_RECORD_EXISTS=false\n")
+              else:
+                  app = apps[0]
+                  attrs = app.get("attributes", {})
+                  app_id = app["id"]
+                  apple_id = attrs.get("appleId") or app_id
+                  print("App Store Connect app record already exists.")
+                  print("ASC app id:", app_id)
+                  print("Apple id:", apple_id)
+                  f.write("ASC_APP_RECORD_EXISTS=true\n")
+                  f.write(f"ASC_APP_ID={app_id}\n")
+                  f.write(f"ASC_APP_APPLE_ID={apple_id}\n")
           PY
 
       - name: Prepare App Store signing probe entitlements
@@ -322,7 +311,7 @@ jobs:
 
       - name: Validate with App Store Connect
         id: validate
-        if: ${{ steps.export.outcome == 'success' }}
+        if: ${{ steps.export.outcome == 'success' && env.ASC_APP_RECORD_EXISTS == 'true' }}
         continue-on-error: true
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -333,7 +322,7 @@ jobs:
 
       - name: Upload to TestFlight
         id: upload
-        if: ${{ steps.export.outcome == 'success' }}
+        if: ${{ steps.export.outcome == 'success' && env.ASC_APP_RECORD_EXISTS == 'true' }}
         continue-on-error: true
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -350,6 +339,7 @@ jobs:
             echo
             echo "Source: migrate-liveexec-nightly@681df870dbcd90236af50c997fc91d40e2fb9458"
             echo "Bundle ID: ${PROBE_BUNDLE_ID}"
+            echo "ASC app record: ${ASC_APP_RECORD_EXISTS:-unknown}"
             echo "Export: ${{ steps.export.outcome }}"
             echo "Validation: ${{ steps.validate.outcome }}"
             echo "Upload: ${{ steps.upload.outcome }}"
