@@ -161,6 +161,15 @@ text = text.replace(
 )
 bootstrap.write_text(text)
 
+# Remove the private UIScene fullscreen request option; public activation still works.
+app_delegate = Path("LiveContainerSwiftUI/App/AppDelegate.swift")
+text = app_delegate.read_text()
+text = text.replace(
+    "        newOptions!._setRequestFullscreen(UIScreen.main.bounds == self.keyWindow!.bounds)\n",
+    "",
+)
+app_delegate.write_text(text)
+
 # Sanity checks for the exact App Store validation failures from the prior run.
 for needle, roots in {
     "NSExtension": [Path("MultitaskSupport"), Path("LiveContainerSwiftUI/Utilities/LCUtils.m")],
