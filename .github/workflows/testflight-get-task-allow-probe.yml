@@ -16,7 +16,7 @@ permissions:
 jobs:
   probe:
     name: LiveContainer TestFlight get-task-allow
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 90
     env:
       PROBE_BUNDLE_ID: com.nightvibes.prism.39A8Q3T3TR
@@ -55,16 +55,16 @@ jobs:
           done
           exit "$missing"
 
-      - name: Select Xcode 26
+      - name: Select Xcode 27 GM
         run: |
           set -euo pipefail
-          XCODE_PATH="$(find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' | sort -V | tail -1 || true)"
-          if [ -z "${XCODE_PATH}" ]; then
-            XCODE_PATH="$(find /Applications -maxdepth 1 -type d -name 'Xcode*.app' | sort -V | tail -1 || true)"
-          fi
-          test -n "${XCODE_PATH}"
+          XCODE_PATH="/Applications/Xcode_27.app"
+          test -d "${XCODE_PATH}"
           sudo xcode-select -s "${XCODE_PATH}/Contents/Developer"
-          xcodebuild -version
+
+          VERSION="$(xcodebuild -version)"
+          echo "${VERSION}"
+          echo "${VERSION}" | grep -q '^Xcode 27'
           xcrun --sdk iphoneos --show-sdk-version
 
       - name: Create or locate App Store Connect app
@@ -290,6 +290,8 @@ jobs:
             <string>${APPLE_TEAM_ID}</string>
             <key>manageAppVersionAndBuildNumber</key>
             <false/>
+            <key>stripSwiftSymbols</key>
+            <true/>
           </dict>
           </plist>
           EOF
@@ -323,6 +325,43 @@ jobs:
           unzip -q "$IPA_PATH" -d build/inspect
           APP_PATH="$(find build/inspect/Payload -maxdepth 1 -type d -name '*.app' -print -quit)"
           test -n "$APP_PATH"
+
+          # App Store processing requires a top-level SwiftSupport directory when
+          # the app ships Swift runtime dylibs. Xcode export should create it; if
+          # it does not, reconstruct it from the exact signed runtime dylibs that
+          # are already embedded in the exported app.
+          SWIFT_SUPPORT="build/inspect/SwiftSupport/iphoneos"
+          SWIFT_DYLIBS="$(find "$APP_PATH/Frameworks" -maxdepth 1 -type f -name 'libswift*.dylib' -print 2>/dev/null || true)"
+          if [ -n "$SWIFT_DYLIBS" ] && [ ! -d "$SWIFT_SUPPORT" ]; then
+            echo "SwiftSupport missing after Xcode export; reconstructing from embedded Swift runtime."
+            mkdir -p "$SWIFT_SUPPORT"
+            while IFS= read -r dylib; do
+              [ -n "$dylib" ] || continue
+              cp -p "$dylib" "$SWIFT_SUPPORT/$(basename "$dylib")"
+            done <<< "$SWIFT_DYLIBS"
+
+            rm -f "$IPA_PATH"
+            (
+              cd build/inspect
+              /usr/bin/zip -qry "../testflight-export/LiveContainer.ipa" Payload SwiftSupport
+            )
+            IPA_PATH="$PWD/build/testflight-export/LiveContainer.ipa"
+            echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
+          fi
+
+          if [ -n "$SWIFT_DYLIBS" ]; then
+            test -d "$SWIFT_SUPPORT"
+            test -n "$(find "$SWIFT_SUPPORT" -maxdepth 1 -type f -name 'libswift*.dylib' -print -quit)"
+            echo "SwiftSupport contents:"
+            find "$SWIFT_SUPPORT" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort
+          else
+            echo "No embedded libswift dylibs; SwiftSupport is not required by this payload."
+          fi
+
+          /usr/bin/unzip -l "$IPA_PATH" | tee probe-logs/ipa-file-list.txt
+          if [ -n "$SWIFT_DYLIBS" ]; then
+            grep -q 'SwiftSupport/iphoneos/libswift' probe-logs/ipa-file-list.txt
+          fi
 
           codesign -d --entitlements :- "$APP_PATH" > probe-logs/signed-entitlements.plist 2> probe-logs/codesign.txt || true
           security cms -D -i "$APP_PATH/embedded.mobileprovision" > probe-logs/profile.plist
