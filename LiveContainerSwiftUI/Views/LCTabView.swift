@@ -223,37 +223,14 @@ struct LCTabView: View {
             return
         }
         
-        let task = SecTaskCreateFromSelf(nil)
-        guard let value = SecTaskCopyValueForEntitlement(task, "application-identifier" as CFString, nil), let appIdentifier = value.takeRetainedValue() as? String else {
-            errorInfo = "Unable to determine application-identifier"
-            errorShow = true
+        guard Bundle.main.bundleIdentifier != nil else {
             return
-        }
-        
-        guard let bundleId = Bundle.main.bundleIdentifier else {
-            return
-        }
-        
-        var correctBundleId = ""
-        if appIdentifier.count > 11 {
-            let startIndex = appIdentifier.index(appIdentifier.startIndex, offsetBy: 11)
-            correctBundleId = String(appIdentifier[startIndex...])
-        }
-        
-        if(bundleId != correctBundleId) {
-            errorInfo = "lc.settings.bundleIdMismatch %@ %@".localizeWithFormat(bundleId, correctBundleId)
-            errorShow = true
         }
         UserDefaults.standard.set(true, forKey: "LCBundleIdChecked")
     }
     
     func checkGetTaskAllow() {
-        let task = SecTaskCreateFromSelf(nil)
-        guard let value = SecTaskCopyValueForEntitlement(task, "get-task-allow" as CFString, nil), (value.takeRetainedValue() as? NSNumber)?.boolValue ?? false else {
-            errorInfo = "lc.settings.notDevCert".loc
-            errorShow = true
-            return
-        }
+        // App Store/TestFlight distribution profiles intentionally carry get-task-allow=false.
     }
     
     func checkPrivateContainerBookmark() {
