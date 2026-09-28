@@ -209,7 +209,7 @@ jobs:
           mkdir -p probe-logs
 
           pushd "$ELLEKIT_SRC" >/dev/null
-          xcodebuild -scheme ellekit -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$ELLEKIT_DD" IPHONEOS_DEPLOYMENT_TARGET=15.0 ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build 2>&1 | tee "$GITHUB_WORKSPACE/probe-logs/ellekit-build.log"
+          xcodebuild -scheme ellekit -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath "$ELLEKIT_DD" IPHONEOS_DEPLOYMENT_TARGET=15.0 ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" LD_DYLIB_INSTALL_NAME="@rpath/CydiaSubstrate.framework/CydiaSubstrate" build 2>&1 | tee "$GITHUB_WORKSPACE/probe-logs/ellekit-build.log"
           popd >/dev/null
 
           ELLEKIT_BIN="$ELLEKIT_DD/Build/Products/Release-iphoneos/libellekit.dylib"
@@ -258,11 +258,9 @@ jobs:
           cp "$ELLEKIT_BIN" "$DEST"
           chmod 0755 "$DEST"
 
-          # The source product is libellekit.dylib. Once wrapped as
-          # CydiaSubstrate.framework its LC_ID_DYLIB must identify the framework,
-          # otherwise App Store Connect treats it as a loose/standalone dylib.
-          /usr/bin/install_name_tool -id "@rpath/CydiaSubstrate.framework/CydiaSubstrate" "$DEST"
-
+          # The framework LC_ID_DYLIB is set at link time above.
+          # Avoid install_name_tool: Xcode 27's output layout is not safely
+          # rewriteable by that tool after link.
           PLIST="Resources/Frameworks/CydiaSubstrate.framework/Info.plist"
           cat > "$PLIST" <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
