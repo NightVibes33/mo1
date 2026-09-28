@@ -1,0 +1,35 @@
+name: Prism TestFlight Public Link
+
+on:
+  push:
+    branches:
+      - tf-get-task-allow-probe-20260928
+    paths:
+      - '.github/workflows/prism-testflight-public-link.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-link:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create or print Prism public TestFlight link
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          DOPI_APP_BUNDLE_ID: com.nightvibes.prism.39A8Q3T3TR
+          DOPI_TARGET_BUILD_VERSION: "100021"
+          DOPI_BETA_GROUP_NAME: LiveContainer Public Beta
+          DOPI_APP_LOCALE: en-US
+          DOPI_BETA_APP_DESCRIPTION: LiveContainer TestFlight beta for testing user-provided iOS application archives in the compatibility environment.
+          DOPI_BETA_FEEDBACK_EMAIL: bobbytatum12345@gmail.com
+          DOPI_BETA_CONTACT_EMAIL: bobbytatum12345@gmail.com
+          DOPI_BETA_REVIEW_NOTES: No demo account is required. This beta is for testing the LiveContainer compatibility environment with user-provided application archives.
+          DOPI_PRIVACY_POLICY_URL: https://cdn.jsdelivr.net/gh/NightVibes33/mo1@main/privacy-policy.html
+          DOPI_USES_NON_EXEMPT_ENCRYPTION: "false"
+        run: ruby tool/app_store_connect_public_link.rb
