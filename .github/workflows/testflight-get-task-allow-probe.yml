@@ -1,46 +1,13 @@
-name: Bootstrap latest LiveContainer into mo1 temp branch
+name: TestFlight get-task-allow probe (staged)
 
 on:
-  push:
-    branches:
-      - tf-get-task-allow-probe-20260928
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  sync:
+  staged:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout mo1 temp branch
-        uses: actions/checkout@v4
-        with:
-          ref: tf-get-task-allow-probe-20260928
-          fetch-depth: 0
-
-      - name: Replace branch tree with latest LiveContainer branch
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          git clone --depth 1 --branch migrate-liveexec-nightly \
-            https://github.com/NightVibes33/livecontainer-32bit-unsigned-ipa.git \
-            "${RUNNER_TEMP}/livecontainer-src"
-
-          SOURCE_SHA="$(git -C "${RUNNER_TEMP}/livecontainer-src" rev-parse HEAD)"
-          echo "Source LiveContainer SHA: ${SOURCE_SHA}"
-
-          rsync -a --delete \
-            --exclude '.git' \
-            --exclude '.github/workflows/**' \
-            "${RUNNER_TEMP}/livecontainer-src/" \
-            ./
-
-          printf '%s\n' "${SOURCE_SHA}" > .livecontainer-source-sha
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Mirror latest LiveContainer migrate-liveexec-nightly into temp TestFlight branch"
-          git push --force origin HEAD:tf-get-task-allow-probe-20260928
+      - run: echo "LiveContainer TestFlight probe is being staged on this temporary branch."
