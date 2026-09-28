@@ -349,9 +349,8 @@ struct LCJITLessDiagnoseView : View {
     
     func onAppear() {
         
-        let task = SecTaskCreateFromSelf(nil)
-        guard let value = SecTaskCopyValueForEntitlement(task, "com.apple.developer.team-identifier" as CFString, nil), let teamId = value.takeRetainedValue() as? String else {
-            errorInfo = "Failed to read com.apple.developer.team-identifier"
+        guard let teamId = LCSharedUtils.teamIdentifier(), !teamId.isEmpty else {
+            errorInfo = "Failed to determine developer team identifier"
             errorShow = true
             return
         }
