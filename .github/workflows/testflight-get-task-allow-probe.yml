@@ -375,76 +375,51 @@ jobs:
           APP_PATH="$(find build/inspect/Payload -maxdepth 1 -type d -name '*.app' -print -quit)"
           test -n "$APP_PATH"
 
-          # Build SwiftSupport using Xcode's own Swift runtime scanner.
-          # This scans the host executable and every embedded framework/dylib,
-          # including CydiaSubstrate's @rpath/libswift*.dylib dependencies.
+          # App Store Connect requires SwiftSupport because the bundled
+          # CydiaSubstrate binary links Swift runtime dylibs through @rpath.
+          # Its LC_RPATH points at /usr/lib/swift, so Xcode's stdlib scanner does
+          # not copy them automatically. Add the matching Xcode 27 GM runtime
+          # copies explicitly to SwiftSupport/iphoneos.
           rm -rf build/inspect/SwiftSupport
-          SWIFT_STDLIB_TOOL="$(xcrun --find swift-stdlib-tool)"
-          test -x "$SWIFT_STDLIB_TOOL"
-
-          "$SWIFT_STDLIB_TOOL" \
-            --copy \
-            --verbose \
-            --platform iphoneos \
-            --scan-executable "$APP_PATH/LiveContainer" \
-            --scan-folder "$APP_PATH/Frameworks" \
-            --unsigned-destination "build/inspect/SwiftSupport" \
-            2>&1 | tee probe-logs/swift-stdlib-tool.log
-
           SWIFT_SUPPORT="build/inspect/SwiftSupport/iphoneos"
+          mkdir -p "$SWIFT_SUPPORT"
 
-          # Xcode 27 can return successfully here without materializing support
-          # dylibs for an unsigned archive. Fall back to the actual Mach-O load
-          # commands and copy the exact GM runtime dylibs referenced by Payload.
-          if [ ! -f "$SWIFT_SUPPORT/libswiftCore.dylib" ]; then
-            echo "swift-stdlib-tool produced no SwiftSupport payload; resolving dependencies with otool."
-            mkdir -p "$SWIFT_SUPPORT"
-            : > probe-logs/swift-runtime-deps.txt
+          swift_libs=(
+            libswiftCore.dylib
+            libswiftCoreFoundation.dylib
+            libswiftDarwin.dylib
+            libswiftDispatch.dylib
+            libswiftObjectiveC.dylib
+            libswiftos.dylib
+            libswiftFoundation.dylib
+          )
 
-            while IFS= read -r candidate; do
-              if /usr/bin/file "$candidate" | /usr/bin/grep -q 'Mach-O'; then
-                /usr/bin/otool -L "$candidate" 2>/dev/null \
-                  | /usr/bin/awk '$1 ~ /^\\/usr\\/lib\\/swift\\/libswift.*[.]dylib$/ { n=$1; sub(/^.*\\//, "", n); print n }' \
-                  >> probe-logs/swift-runtime-deps.txt || true
-              fi
-            done < <(find "$APP_PATH" -type f -print)
+          SWIFT_LIB_ROOT="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib"
+          : > probe-logs/swift-support-files.txt
 
-            sort -u probe-logs/swift-runtime-deps.txt -o probe-logs/swift-runtime-deps.txt
-            echo "Detected Swift runtime dependencies:"
-            cat probe-logs/swift-runtime-deps.txt
-            test -s probe-logs/swift-runtime-deps.txt
+          for dylib in "${swift_libs[@]}"; do
+            source="$(find "$SWIFT_LIB_ROOT" -type f -path "*/iphoneos/$dylib" -print -quit)"
+            if [ -z "$source" ]; then
+              echo "::error::Xcode 27 GM runtime is missing $dylib"
+              exit 1
+            fi
+            echo "$dylib <- $source"
+            cp -p "$source" "$SWIFT_SUPPORT/$dylib"
+            /usr/bin/codesign -dv "$SWIFT_SUPPORT/$dylib" 2>&1 \
+              | tee -a probe-logs/swift-support-files.txt
+          done
 
-            SWIFT_RUNTIME_DIR="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos"
-            while IFS= read -r dylib; do
-              [ -n "$dylib" ] || continue
-              source="$SWIFT_RUNTIME_DIR/$dylib"
-              if [ ! -f "$source" ]; then
-                source="$(find "$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift" -type f -name "$dylib" -path '*/iphoneos/*' -print -quit)"
-              fi
-              if [ ! -f "$source" ]; then
-                echo "::error::Xcode 27 GM does not contain required Swift support dylib: $dylib"
-                exit 1
-              fi
-              cp -p "$source" "$SWIFT_SUPPORT/$dylib"
-            done < probe-logs/swift-runtime-deps.txt
-          fi
+          # Confirm CydiaSubstrate is the Swift-support trigger we are satisfying.
+          /usr/bin/otool -L "$APP_PATH/Frameworks/CydiaSubstrate.framework/CydiaSubstrate" \
+            | tee probe-logs/cydiasubstrate-dylibs.txt
+          for dylib in "${swift_libs[@]}"; do
+            grep -q "$dylib" probe-logs/cydiasubstrate-dylibs.txt
+          done
 
-          test -d "$SWIFT_SUPPORT"
-          test -f "$SWIFT_SUPPORT/libswiftCore.dylib"
+          echo "SwiftSupport generated from Xcode 27 GM:"
+          find "$SWIFT_SUPPORT" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort
 
-          echo "SwiftSupport generated for upload:"
-          find "$SWIFT_SUPPORT" -maxdepth 1 -type f -name 'libswift*.dylib' -print | sort \
-            | tee probe-logs/swift-support-files.txt
-
-          if [ -f probe-logs/swift-runtime-deps.txt ]; then
-            while IFS= read -r dylib; do
-              [ -n "$dylib" ] || continue
-              test -f "$SWIFT_SUPPORT/$dylib"
-            done < probe-logs/swift-runtime-deps.txt
-          fi
-
-          # Rebuild the distribution container while preserving every top-level
-          # item Xcode exported (Payload, Symbols, Signatures) and adding SwiftSupport.
+          # Rebuild the IPA while preserving all original Xcode-exported top-level items.
           rm -f "$IPA_PATH"
           (
             cd build/inspect
@@ -457,8 +432,9 @@ jobs:
           echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
 
           /usr/bin/unzip -l "$IPA_PATH" | tee probe-logs/ipa-file-list.txt
-          grep -q 'SwiftSupport/iphoneos/libswiftCore.dylib' probe-logs/ipa-file-list.txt
-          grep -q 'SwiftSupport/iphoneos/libswiftFoundation.dylib' probe-logs/ipa-file-list.txt
+          for dylib in "${swift_libs[@]}"; do
+            grep -q "SwiftSupport/iphoneos/$dylib" probe-logs/ipa-file-list.txt
+          done
 
           codesign -d --entitlements :- "$APP_PATH" > probe-logs/signed-entitlements.plist 2> probe-logs/codesign.txt || true
           security cms -D -i "$APP_PATH/embedded.mobileprovision" > probe-logs/profile.plist
