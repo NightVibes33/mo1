@@ -8,7 +8,7 @@
 #import <UIKit/UIKit.h>
 #import "UIKitPrivate.h"
 
-extern const UIApplication *UIApp;
+#define UIApp UIApplication.sharedApplication
 
 @interface LSResourceProxy : NSObject
     @property (setter=_setLocalizedName:,nonatomic,copy) NSString *localizedName;
