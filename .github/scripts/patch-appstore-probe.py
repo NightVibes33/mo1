@@ -196,4 +196,20 @@ for needle, roots in {
     if hits:
         raise SystemExit(f"private validation token {needle!r} remains in TestFlight sources: {hits}")
 
+
+# The fullscreen scene-activation hook uses a private UIKit method. It is only
+# cosmetic for window activation, so remove it in the TestFlight flavor.
+app_delegate = Path("LiveContainerSwiftUI/App/AppDelegate.swift")
+app_text = app_delegate.read_text()
+app_text, n = re.subn(
+    r'\n@objc extension UIApplication \{.*?\n\}\n\npublic class ViewAppIntentHandler',
+    '\npublic class ViewAppIntentHandler',
+    app_text,
+    count=1,
+    flags=re.S,
+)
+if n != 1:
+    raise SystemExit("failed to remove private UIApplication scene-activation extension")
+app_delegate.write_text(app_text)
+
 print("TestFlight public-API flavor patch applied")
