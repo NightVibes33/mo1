@@ -197,10 +197,19 @@ for needle, roots in {
         raise SystemExit(f"private validation token {needle!r} remains in TestFlight sources: {hits}")
 
 
-# The fullscreen scene-activation hook uses a private UIKit method. It is only
-# cosmetic for window activation, so remove it in the TestFlight flavor.
+# The fullscreen scene-activation hook uses private UIKit behavior. Remove both
+# the swizzle installation and its replacement method in the TestFlight flavor.
 app_delegate = Path("LiveContainerSwiftUI/App/AppDelegate.swift")
 app_text = app_delegate.read_text()
+app_text, swizzle_n = re.subn(
+    r'\n\s*// allow new scene pop up as a new fullscreen window\n\s*method_exchangeImplementations\(.*?\n\s*\)\n',
+    '\n',
+    app_text,
+    count=1,
+    flags=re.S,
+)
+if swizzle_n != 1:
+    raise SystemExit("failed to remove private scene-activation swizzle")
 app_text, n = re.subn(
     r'\n@objc extension UIApplication \{.*?\n\}\n\npublic class ViewAppIntentHandler',
     '\npublic class ViewAppIntentHandler',
