@@ -81,8 +81,9 @@ struct DopeWidgetSnapshot: Decodable, Hashable {
   )
 }
 
-/// Device colors from the widget snapshot. Missing theme data uses the
-/// app's default silver device, not a decorative palette.
+/// Device colors from the widget snapshot. The shell and click wheel follow
+/// the user's theme. The menu LCD stays the classic white screen, light
+/// title bar, and glossy blue selection shown in the app.
 struct WidgetTheme: Hashable {
   let primary: Color
   let secondary: Color
@@ -96,19 +97,30 @@ struct WidgetTheme: Hashable {
   let buttonIcon: Color
   let isDark: Bool
 
+  /// Charcoal device from `DeviceColor.black`, matching the app screenshots
+  /// until a snapshot arrives.
   static let fallback = WidgetTheme(
-    primary: Color(argb: 0xFFF2F2F2),
-    secondary: Color(argb: 0xFFADADAD),
-    frameStart: Color(argb: 0xFFF2F2F2),
-    frameEnd: Color(argb: 0xFFADADAD),
-    controlBackground: Color(argb: 0xFFFFFFFF),
-    controlBorder: Color(argb: 0xFFAEADAD),
-    innerButtonStart: Color(argb: 0xFFB1B1B0),
-    innerButtonEnd: Color(argb: 0xFFE1E1E1),
-    buttonAccent: Color(argb: 0xFF8793A0),
-    buttonIcon: Color(argb: 0xFF8793A0),
-    isDark: false
+    primary: Color(argb: 0xFF939295),
+    secondary: Color(argb: 0xFF262527),
+    frameStart: Color(argb: 0xFF939295),
+    frameEnd: Color(argb: 0xFF262527),
+    controlBackground: Color(argb: 0xFF212122),
+    controlBorder: Color(argb: 0xFF000000),
+    innerButtonStart: Color(argb: 0xFF282829),
+    innerButtonEnd: Color(argb: 0xFF676467),
+    buttonAccent: .white,
+    buttonIcon: .white,
+    isDark: true
   )
+
+  /// Classic menu colors from `AppPalette`, independent of the shell.
+  static let menuBlueTop = Color(argb: 0xFFADDBF7)
+  static let menuBlue = Color(argb: 0xFF70A9DB)
+  static let menuBlueBottom = Color(argb: 0xFF5382C9)
+  static let menuBlueEdge = Color(argb: 0xFF2F4A81)
+  static let titleBarTop = Color(argb: 0xFFFCFCFC)
+  static let titleBarBottom = Color(argb: 0xFFB7B9BA)
+  static let titleBarLine = Color(argb: 0xFF71797B)
 
   init?(snapshot: DopeWidgetSnapshot) {
     guard
@@ -184,7 +196,7 @@ struct WidgetTheme: Hashable {
 
   var titleBarGradient: LinearGradient {
     LinearGradient(
-      colors: [frameStart, blend(frameStart, frameEnd, 0.55)],
+      colors: [Self.titleBarTop, Self.titleBarBottom],
       startPoint: .top,
       endPoint: .bottom
     )
@@ -192,37 +204,19 @@ struct WidgetTheme: Hashable {
 
   var selectionGradient: LinearGradient {
     LinearGradient(
-      colors: [selectionTop, selectionBottom],
+      colors: [Self.menuBlueTop, Self.menuBlue, Self.menuBlueBottom, Self.menuBlueEdge],
       startPoint: .top,
       endPoint: .bottom
     )
   }
 
-  var selectionTop: Color { blend(buttonAccent, .white, 0.38) }
-  var selectionBottom: Color { blend(frameEnd, buttonAccent, 0.42) }
-
-  /// LCD behind menus. Dark devices use the app's dark screen, not the shell.
-  var screenBackground: Color {
-    isDark ? Color(argb: 0xFF121212) : .white
-  }
-
-  var primaryText: Color {
-    isDark ? Color(argb: 0xFFE6E7EA) : .black
-  }
-
-  var secondaryText: Color {
-    isDark ? Color.white.opacity(0.62) : Color.black.opacity(0.55)
-  }
-
-  var titleText: Color { isDark ? .white : Color(argb: 0xFF111418) }
-
-  var selectionText: Color {
-    relativeLuminance(of: selectionBottom) > 0.62 ? .black : .white
-  }
-
-  var hairline: Color {
-    isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
-  }
+  /// The menu LCD in the screenshots stays white on every device color.
+  var screenBackground: Color { .white }
+  var primaryText: Color { .black }
+  var secondaryText: Color { Color.black.opacity(0.55) }
+  var titleText: Color { Color(argb: 0xFF1C1C1E) }
+  var selectionText: Color { .white }
+  var hairline: Color { Color.black.opacity(0.08) }
 }
 
 struct DopeWidgetEntry: TimelineEntry {
@@ -374,36 +368,54 @@ struct DopeNowPlayingView: View {
   private var wideLayout: some View {
     ZStack {
       theme.frameGradient
-      VStack(spacing: family == .systemLarge ? 12 : 10) {
-        HStack(spacing: 12) {
-          DopeArtwork(snapshot: entry.snapshot, theme: theme, size: family == .systemLarge ? 96 : 84)
-          VStack(alignment: .leading, spacing: 4) {
-            HStack {
-              DopeWordmark(compact: false, theme: theme, onArtwork: false)
-              Spacer()
-              DopePlayingPulse(isPlaying: entry.snapshot.isPlaying, color: theme.buttonAccent)
+      VStack(spacing: 10) {
+        VStack(spacing: 0) {
+          ThemedTitleBar(title: "Now Playing", isPlaying: entry.snapshot.isPlaying)
+          HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
+              HStack(spacing: 4) {
+                Text(entry.snapshot.trackTitle)
+                  .font(.system(size: 13, weight: .bold))
+                  .lineLimit(1)
+                Spacer(minLength: 2)
+                ClassicChevron()
+              }
+              .foregroundStyle(.white)
+              .padding(.horizontal, 6)
+              .frame(height: 26)
+              .background(ThemedSelectionBackground())
+              Text(entry.snapshot.artistName ?? "Unknown Artist")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.black)
+                .lineLimit(1)
+                .padding(.horizontal, 6)
+                .padding(.top, 4)
+              if entry.snapshot.isExplicit {
+                DopeExplicitMark(theme: theme, onDark: false)
+                  .padding(.horizontal, 6)
+                  .padding(.top, 3)
+              }
+              Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
-            Text(entry.snapshot.trackTitle)
-              .font(.system(size: family == .systemLarge ? 20 : 17, weight: .semibold))
-              .foregroundStyle(theme.isDark ? Color.white : theme.primaryText)
-              .lineLimit(2)
-            HStack(spacing: 6) {
-              Text(entry.snapshot.artistName ?? "Unknown Artist").lineLimit(1)
-              if entry.snapshot.isExplicit { DopeExplicitMark(theme: theme, onDark: theme.isDark) }
-            }
-            .font(.caption.weight(.medium))
-            .foregroundStyle(theme.isDark ? Color.white.opacity(0.72) : theme.secondaryText)
-            DopeSourceBadge(snapshot: entry.snapshot, theme: theme)
+            DopeArtwork(
+              snapshot: entry.snapshot,
+              theme: theme,
+              size: family == .systemLarge ? 88 : 72
+            )
+            .padding(4)
           }
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+          .background(.white)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.black.opacity(0.72), lineWidth: 2))
         DopeProgressBar(snapshot: entry.snapshot, theme: theme)
         DopeControlRow(snapshot: entry.snapshot, theme: theme)
         if family == .systemLarge {
           DopeCompactQueue(snapshot: entry.snapshot, theme: theme)
         }
       }
-      .padding(14)
+      .padding(12)
     }
   }
 }
@@ -438,34 +450,44 @@ struct DopeMiniIpodView: View {
   private var deviceScreen: some View {
     Link(destination: dopeWidgetURL("now-playing")) {
       VStack(spacing: 0) {
-        ThemedTitleBar(title: "ClassiPod", theme: theme) {
-          DopePlayingPulse(isPlaying: entry.snapshot.isPlaying, color: theme.titleText)
-        }
-        HStack(spacing: 8) {
-          DopeArtwork(snapshot: entry.snapshot, theme: theme, size: family == .systemLarge ? 86 : 58)
-          VStack(alignment: .leading, spacing: 3) {
-            Text(entry.snapshot.trackTitle)
-              .font(.system(size: family == .systemLarge ? 16 : 13, weight: .semibold))
-              .foregroundStyle(theme.primaryText)
-              .lineLimit(2)
+        ThemedTitleBar(title: "Music", isPlaying: entry.snapshot.isPlaying)
+        HStack(spacing: 0) {
+          VStack(spacing: 0) {
+            HStack(spacing: 4) {
+              Text(entry.snapshot.trackTitle)
+                .font(.system(size: family == .systemLarge ? 13 : 11, weight: .bold))
+                .lineLimit(1)
+              Spacer(minLength: 2)
+              ClassicChevron()
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 6)
+            .frame(height: family == .systemLarge ? 26 : 22)
+            .background(ThemedSelectionBackground())
             Text(entry.snapshot.artistName ?? "Unknown Artist")
-              .font(.caption2.weight(.medium))
-              .foregroundStyle(theme.secondaryText)
-              .lineLimit(2)
+              .font(.system(size: 11, weight: .semibold))
+              .foregroundStyle(.black)
+              .lineLimit(1)
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .padding(.horizontal, 6)
+              .padding(.top, 4)
             Spacer(minLength: 0)
-            Text(queueText(entry.snapshot))
-              .font(.caption2.monospacedDigit().weight(.medium))
-              .foregroundStyle(theme.secondaryText)
           }
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+          DopeArtwork(
+            snapshot: entry.snapshot,
+            theme: theme,
+            size: family == .systemLarge ? 92 : 64
+          )
+          .padding(4)
         }
-        .padding(8)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(theme.screenBackground)
+        .background(.white)
       }
-      .clipShape(RoundedRectangle(cornerRadius: 8))
+      .clipShape(RoundedRectangle(cornerRadius: 6))
       .overlay(
-        RoundedRectangle(cornerRadius: 8)
-          .stroke(theme.controlBorder.opacity(0.9), lineWidth: 2)
+        RoundedRectangle(cornerRadius: 6)
+          .stroke(Color.black.opacity(0.72), lineWidth: 2)
       )
     }
   }
@@ -478,32 +500,19 @@ struct DopeQueueView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      ThemedTitleBar(title: "Queue", theme: theme) {
-        Text(queueText(entry.snapshot))
-          .font(.caption2.monospacedDigit().weight(.semibold))
-      }
+      ThemedTitleBar(title: "Queue", isPlaying: entry.snapshot.isPlaying)
       Link(destination: dopeWidgetURL("now-playing")) {
-        HStack(spacing: 10) {
-          DopeArtwork(snapshot: entry.snapshot, theme: theme, size: 52)
-          VStack(alignment: .leading, spacing: 2) {
-            Text("Now Playing")
-              .font(.caption2.weight(.semibold))
-              .foregroundStyle(theme.selectionText.opacity(0.8))
-            Text(entry.snapshot.trackTitle)
-              .font(.headline.weight(.semibold))
-              .lineLimit(1)
-            Text(entry.snapshot.artistName ?? "Unknown Artist")
-              .font(.caption.weight(.medium))
-              .lineLimit(1)
-          }
+        HStack(spacing: 8) {
+          Text(entry.snapshot.trackTitle)
+            .font(.system(size: 15, weight: .bold))
+            .lineLimit(1)
           Spacer(minLength: 4)
-          Image(systemName: "chevron.right")
-            .font(.caption.weight(.semibold))
+          ClassicChevron()
         }
-        .foregroundStyle(theme.selectionText)
-        .padding(.horizontal, 12)
-        .frame(height: 76)
-        .background(ThemedSelectionBackground(theme: theme))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .frame(height: 28)
+        .background(ThemedSelectionBackground())
       }
 
       VStack(spacing: 0) {
@@ -515,7 +524,7 @@ struct DopeQueueView: View {
           Spacer()
         } else {
           ForEach(Array(entry.snapshot.queuePreview.prefix(3).enumerated()), id: \.offset) { index, item in
-            DopeQueueRow(index: index + 1, item: item, theme: theme, selected: false)
+            DopeQueueRow(item: item, theme: theme, selected: false)
             if index < min(entry.snapshot.queuePreview.count, 3) - 1 {
               Rectangle().fill(theme.hairline).frame(height: 1)
             }
@@ -527,7 +536,13 @@ struct DopeQueueView: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .background(theme.screenBackground)
     }
-    .containerBackground(for: .widget) { theme.screenBackground }
+    .background(.white)
+    .clipShape(RoundedRectangle(cornerRadius: 6))
+    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.black.opacity(0.72), lineWidth: 2))
+    .padding(10)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(theme.frameGradient)
+    .containerBackground(for: .widget) { theme.frameGradient }
     .widgetURL(dopeWidgetURL("queue"))
   }
 }
@@ -541,84 +556,112 @@ struct DopeEqView: View {
   var body: some View {
     ZStack {
       theme.frameGradient
-      VStack(alignment: .leading, spacing: family == .systemSmall ? 8 : 10) {
-        HStack(alignment: .top) {
-          VStack(alignment: .leading, spacing: 1) {
-            Text("Equalizer")
-              .font(.caption2.weight(.semibold))
-              .foregroundStyle(theme.isDark ? Color.white.opacity(0.7) : theme.secondaryText)
-            Text(entry.snapshot.eqName)
-              .font(.system(size: family == .systemSmall ? 16 : 18, weight: .semibold))
-              .foregroundStyle(theme.isDark ? Color.white : theme.primaryText)
-              .lineLimit(1)
-          }
-          Spacer()
-          DopeSourceBadge(snapshot: entry.snapshot, theme: theme)
-        }
-        DopeEqGraph(snapshot: entry.snapshot, theme: theme, compact: family == .systemSmall)
-        HStack {
-          Circle()
-            .fill(entry.snapshot.eqSupported ? theme.buttonAccent : theme.controlBorder)
-            .frame(width: 7, height: 7)
+      VStack(spacing: 0) {
+        ThemedTitleBar(title: "EQ", isPlaying: entry.snapshot.isPlaying)
+        VStack(alignment: .leading, spacing: family == .systemSmall ? 6 : 8) {
+          Text(entry.snapshot.eqName)
+            .font(.system(size: family == .systemSmall ? 15 : 17, weight: .bold))
+            .foregroundStyle(.black)
+            .lineLimit(1)
+          DopeEqGraph(snapshot: entry.snapshot, theme: theme, compact: family == .systemSmall)
           Text(eqStatus(entry.snapshot))
             .font(.caption2.weight(.medium))
+            .foregroundStyle(Color.black.opacity(0.55))
             .lineLimit(1)
-          Spacer()
-          if family != .systemSmall {
-            Text("Preamp \(gainText(entry.snapshot.eqPreampDb ?? 0))")
-              .font(.caption2.monospacedDigit())
-          }
         }
-        .foregroundStyle(theme.isDark ? Color.white.opacity(0.78) : theme.secondaryText)
+        .padding(8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(.white)
       }
-      .padding(12)
+      .clipShape(RoundedRectangle(cornerRadius: 6))
+      .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.black.opacity(0.72), lineWidth: 2))
+      .padding(10)
     }
     .containerBackground(for: .widget) { theme.frameGradient }
     .widgetURL(dopeWidgetURL("eq"))
   }
 }
 
-struct ThemedTitleBar<Trailing: View>: View {
+struct ThemedTitleBar: View {
   let title: String
-  let theme: WidgetTheme
-  @ViewBuilder var trailing: () -> Trailing
+  let isPlaying: Bool
 
   var body: some View {
-    HStack(spacing: 8) {
+    HStack(spacing: 6) {
       Text(title)
         .font(.system(size: 13, weight: .bold))
         .lineLimit(1)
       Spacer(minLength: 4)
-      trailing()
+      Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+        .font(.system(size: 8, weight: .bold))
+        .foregroundStyle(WidgetTheme.menuBlueBottom)
+      ClassicBatteryMark()
     }
-    .foregroundStyle(theme.titleText)
-    .padding(.horizontal, 10)
+    .foregroundStyle(Color(argb: 0xFF1C1C1E))
+    .padding(.horizontal, 8)
     .frame(maxWidth: .infinity)
-    .frame(height: 28)
-    .background(theme.titleBarGradient)
+    .frame(height: 22)
+    .background(
+      LinearGradient(
+        colors: [WidgetTheme.titleBarTop, WidgetTheme.titleBarBottom],
+        startPoint: .top,
+        endPoint: .bottom
+      )
+    )
     .overlay(alignment: .bottom) {
-      Rectangle().fill(theme.controlBorder.opacity(0.65)).frame(height: 1)
+      Rectangle().fill(WidgetTheme.titleBarLine).frame(height: 0.5)
     }
   }
 }
 
-struct ThemedSelectionBackground: View {
-  let theme: WidgetTheme
+struct ClassicBatteryMark: View {
+  var body: some View {
+    HStack(spacing: 1) {
+      ZStack(alignment: .leading) {
+        RoundedRectangle(cornerRadius: 1.5)
+          .stroke(Color(argb: 0xFF3A3A3C), lineWidth: 0.7)
+        RoundedRectangle(cornerRadius: 0.6)
+          .fill(Color(argb: 0xFF7DA954))
+          .padding(1.2)
+      }
+      .frame(width: 16, height: 8)
+      RoundedRectangle(cornerRadius: 0.4)
+        .fill(Color(argb: 0xFF3A3A3C))
+        .frame(width: 1.4, height: 3)
+    }
+  }
+}
 
+struct ClassicChevron: View {
   var body: some View {
     ZStack {
-      theme.selectionGradient
+      Circle().fill(WidgetTheme.menuBlueBottom)
+      Image(systemName: "chevron.right")
+        .font(.system(size: 8, weight: .bold))
+        .foregroundStyle(.white)
+    }
+    .frame(width: 15, height: 15)
+  }
+}
+
+struct ThemedSelectionBackground: View {
+  var body: some View {
+    ZStack {
       LinearGradient(
-        colors: [Color.white.opacity(0.42), Color.white.opacity(0)],
+        colors: [
+          WidgetTheme.menuBlueTop,
+          WidgetTheme.menuBlue,
+          WidgetTheme.menuBlueBottom,
+          WidgetTheme.menuBlueEdge,
+        ],
+        startPoint: .top,
+        endPoint: .bottom
+      )
+      LinearGradient(
+        colors: [Color.white.opacity(0.55), Color.white.opacity(0)],
         startPoint: .top,
         endPoint: .center
       )
-    }
-    .overlay(alignment: .top) {
-      Rectangle().fill(Color.white.opacity(0.55)).frame(height: 1)
-    }
-    .overlay(alignment: .bottom) {
-      Rectangle().fill(theme.frameEnd.opacity(0.85)).frame(height: 1)
     }
   }
 }
@@ -630,7 +673,7 @@ struct DopeCompactQueue: View {
   var body: some View {
     VStack(spacing: 0) {
       ForEach(Array(snapshot.queuePreview.prefix(2).enumerated()), id: \.offset) { index, item in
-        DopeQueueRow(index: index + 1, item: item, theme: theme, selected: false)
+        DopeQueueRow(item: item, theme: theme, selected: false)
         if index == 0 { Rectangle().fill(theme.hairline).frame(height: 1) }
       }
     }
@@ -641,35 +684,31 @@ struct DopeCompactQueue: View {
 }
 
 struct DopeQueueRow: View {
-  let index: Int
   let item: DopeWidgetSnapshot.QueueItem
   let theme: WidgetTheme
   let selected: Bool
 
   var body: some View {
     HStack(spacing: 8) {
-      Text(String(format: "%02d", index))
-        .font(.caption2.monospacedDigit().weight(.medium))
-        .foregroundStyle(selected ? theme.selectionText.opacity(0.75) : theme.secondaryText)
       VStack(alignment: .leading, spacing: 1) {
-        HStack(spacing: 5) {
-          Text(item.title)
-            .font(.caption.weight(.semibold))
-            .lineLimit(1)
-          if item.isExplicit { DopeExplicitMark(theme: theme, onDark: selected || theme.isDark) }
-        }
+        Text(item.title)
+          .font(.system(size: 14, weight: .bold))
+          .lineLimit(1)
         Text(item.artist ?? sourceTitle(item.sourceType))
           .font(.caption2.weight(.medium))
-          .foregroundStyle(selected ? theme.selectionText.opacity(0.75) : theme.secondaryText)
+          .foregroundStyle(selected ? theme.selectionText.opacity(0.8) : theme.secondaryText)
           .lineLimit(1)
       }
       Spacer(minLength: 4)
-      SourceLogoMark(sourceType: item.sourceType)
-        .frame(width: 14, height: 14)
-        .foregroundStyle(selected ? theme.selectionText : theme.buttonAccent)
+      if item.isExplicit { DopeExplicitMark(theme: theme, onDark: selected) }
     }
-    .foregroundStyle(selected ? theme.selectionText : theme.primaryText)
-    .frame(minHeight: 40)
+    .foregroundStyle(selected ? theme.selectionText : .black)
+    .frame(minHeight: 32)
+    .background {
+      if selected {
+        ThemedSelectionBackground()
+      }
+    }
   }
 }
 
@@ -685,16 +724,16 @@ struct DopeClickWheel: View {
         .fill(theme.controlBackground)
         .shadow(color: .black.opacity(theme.isDark ? 0.38 : 0.16), radius: 4, y: 2)
       Circle()
-        .strokeBorder(Color.black.opacity(theme.isDark ? 0.28 : 0.12), lineWidth: diameter * 0.035)
-      Circle().strokeBorder(theme.controlBorder, lineWidth: 1)
+        .strokeBorder(Color.white.opacity(theme.isDark ? 0.16 : 0.45), lineWidth: 1)
+      Circle().strokeBorder(theme.controlBorder.opacity(0.85), lineWidth: 1)
 
       Link(destination: dopeWidgetURL("queue")) {
         Text("MENU")
-          .font(.system(size: diameter * 0.07, weight: .semibold))
-          .tracking(0.6)
+          .font(.system(size: diameter * 0.068, weight: .semibold))
+          .tracking(0.8)
       }
-      .foregroundStyle(theme.buttonAccent)
-      .offset(y: -diameter * 0.34)
+      .foregroundStyle(theme.buttonIcon)
+      .offset(y: -diameter * 0.33)
 
       Link(destination: dopeWidgetURL("action/previous")) {
         Image(systemName: "backward.end")
@@ -718,11 +757,15 @@ struct DopeClickWheel: View {
       .offset(y: diameter * 0.34)
 
       Link(destination: dopeWidgetURL("now-playing")) {
-        Circle()
-          .fill(theme.innerButtonGradient)
-          .overlay(Circle().stroke(theme.controlBorder, lineWidth: 1))
-          .shadow(color: .black.opacity(0.16), radius: 1.5, y: 1)
-          .frame(width: diameter * 0.38, height: diameter * 0.38)
+        ZStack {
+          Circle()
+            .fill(theme.innerButtonEnd)
+            .frame(width: diameter * 0.46, height: diameter * 0.46)
+          Circle()
+            .fill(theme.innerButtonStart)
+            .overlay(Circle().stroke(Color.white.opacity(theme.isDark ? 0.28 : 0.55), lineWidth: 1))
+            .frame(width: diameter * 0.34, height: diameter * 0.34)
+        }
       }
     }
     .frame(width: diameter, height: diameter)
@@ -755,7 +798,7 @@ struct DopeEqGraph: View {
               RoundedRectangle(cornerRadius: 1.5)
                 .fill(
                   LinearGradient(
-                    colors: [theme.buttonAccent.opacity(0.45), theme.buttonAccent],
+                    colors: [WidgetTheme.menuBlue, WidgetTheme.menuBlueBottom],
                     startPoint: .bottom,
                     endPoint: .top
                   )
