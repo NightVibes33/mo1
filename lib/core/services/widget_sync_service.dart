@@ -7,6 +7,7 @@ import 'package:dope/core/services/debug_log_service.dart';
 import 'package:dope/core/services/native_eq_player_service.dart';
 import 'package:dope/features/now_playing/provider/now_playing_details_provider.dart';
 import 'package:dope/features/settings/controller/settings_preferences_controller.dart';
+import 'package:dope/features/settings/models/device_color.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -14,13 +15,45 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 bool get widgetSyncAvailable => !kIsWeb && Platform.isIOS;
 
+/// Theme fields written into the widget snapshot.
+///
+/// [style] is the [DeviceColorStyle] the device is rendering, including
+/// texture mode. Primary and secondary are the user's chosen colors when a
+/// custom theme is active; presets fall back to the frame gradient.
+Map<String, Object> widgetThemeSnapshotFields({
+  required DeviceColorStyle style,
+  int? primaryColorValue,
+  int? secondaryColorValue,
+}) {
+  final frameStart = style.frameGradientColors.first.toARGB32();
+  final frameEnd = style.frameGradientColors.last.toARGB32();
+  final innerStart = style.innerButtonGradientColors.first.toARGB32();
+  final innerEnd = style.innerButtonGradientColors.last.toARGB32();
+  return <String, Object>{
+    'themePrimaryColor': primaryColorValue ?? frameStart,
+    'themeSecondaryColor': secondaryColorValue ?? frameEnd,
+    'frameGradientStart': frameStart,
+    'frameGradientEnd': frameEnd,
+    'controlBackgroundColor': style.controlBackgroundColor.toARGB32(),
+    'controlBorderColor': style.controlBorderColor.toARGB32(),
+    'innerButtonGradientStart': innerStart,
+    'innerButtonGradientEnd': innerEnd,
+    'buttonAccentColor': style.buttonAccentColor.toARGB32(),
+    'buttonIconColor': style.buttonIconColor.toARGB32(),
+    'themeIsDark': style.isDark,
+  };
+}
+
 final widgetSyncProvider = Provider<void>((ref) {
   if (!widgetSyncAvailable) {
     return;
   }
   final controller = _WidgetSyncController(ref);
   ref.listen(nowPlayingDetailsProvider, (_, __) => controller.scheduleSync());
-  ref.listen(settingsPreferencesControllerProvider, (_, __) => controller.scheduleSync());
+  ref.listen(
+    settingsPreferencesControllerProvider,
+    (_, __) => controller.scheduleSync(force: true),
+  );
   ref.onDispose(controller.dispose);
 });
 
@@ -136,6 +169,8 @@ class _WidgetSyncController with WidgetsBindingObserver {
       }
     }
 
+    final deviceStyle = settings.resolveDeviceColorStyle();
+    final customTheme = settings.activeCustomDeviceTheme;
     final sourceType = metadata == null ? 'none' : _sourceTypeName(metadata);
     final eqSupported = metadata != null && !metadata.isAppleMusicCatalogTrack;
     final nativeEqActive = _ref.read(nativeEqPlaybackActiveProvider);
@@ -153,7 +188,12 @@ class _WidgetSyncController with WidgetsBindingObserver {
         ? rawPositionSeconds.clamp(0, durationSeconds).toInt()
         : rawPositionSeconds;
     final snapshot = <String, Object?>{
-      'schemaVersion': 2,
+      'schemaVersion': 3,
+      ...widgetThemeSnapshotFields(
+        style: deviceStyle,
+        primaryColorValue: customTheme?.primaryColorValue,
+        secondaryColorValue: customTheme?.secondaryColorValue,
+      ),
       'trackTitle': metadata?.getTrackName ?? 'Open ClassiPod',
       'artistName': metadata == null
           ? 'Choose music to start'
