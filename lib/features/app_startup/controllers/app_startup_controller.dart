@@ -27,7 +27,7 @@ final appStartupControllerProvider = FutureProvider<void>((ref) async {
       ]),
       JustAudioBackground.init(
         androidNotificationChannelId: 'classipod.audio.playback',
-        androidNotificationChannelName: 'døPe Audio playback',
+        androidNotificationChannelName: 'ClassiPod Audio playback',
         androidNotificationChannelDescription:
             'Notification to control the currently playing music files',
         androidNotificationOngoing: true,
@@ -55,7 +55,7 @@ final appStartupControllerProvider = FutureProvider<void>((ref) async {
   }
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
     JustAudioMediaKit.ensureInitialized();
-    JustAudioMediaKit.title = 'døPe';
+    JustAudioMediaKit.title = 'ClassiPod';
   }
   ref
       .read(settingsPreferencesControllerProvider.notifier)

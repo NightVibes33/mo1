@@ -1211,7 +1211,7 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Disconnect Server?'),
         content: const Text(
-          'This removes the saved Navidrome connection from døPe.',
+          'This removes the saved Navidrome connection from ClassiPod.',
         ),
         actions: [
           CupertinoDialogAction(

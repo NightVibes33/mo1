@@ -154,7 +154,7 @@ class _WidgetSyncController with WidgetsBindingObserver {
         : rawPositionSeconds;
     final snapshot = <String, Object?>{
       'schemaVersion': 2,
-      'trackTitle': metadata?.getTrackName ?? 'Open døPe',
+      'trackTitle': metadata?.getTrackName ?? 'Open ClassiPod',
       'artistName': metadata == null
           ? 'Choose music to start'
           : metadata.getTrackArtistNames ?? metadata.getAlbumArtistName,

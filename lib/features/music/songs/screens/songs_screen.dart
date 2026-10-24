@@ -68,8 +68,9 @@ class _SongsScreenState extends ConsumerState<SongsScreen> with CustomScreen {
         (currentMetadata.hasSameSourceIdentity(songMetadata));
     final message =
         songMetadata.isOnDevice && !songMetadata.isAppleMusicCatalogTrack
-        ? 'This will remove the song from døPe and delete the local file from your device.'
-        : 'This will remove the song from døPe.';
+        ? 'This will remove the song from ClassiPod and delete the '
+            'local file from your device.'
+        : 'This will remove the song from ClassiPod.';
 
     return await showCupertinoDialog<bool>(
       context: context,

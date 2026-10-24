@@ -1172,7 +1172,7 @@ class AudioFilesServiceNotifier
         copiedFileCount++;
         _setLocalImportProgress(
           'Importing MP3s',
-          'Copying songs into døPe...',
+          'Copying songs into ClassiPod...',
           completedCount: copiedFileCount,
           totalCount: pickedFiles.files.length,
         );

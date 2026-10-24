@@ -250,7 +250,7 @@ class _ImportProgressDialog extends ConsumerWidget {
             ],
             const SizedBox(height: 6),
             const Text(
-              'Keep døPe open while artwork and metadata are saved.',
+              'Keep ClassiPod open while artwork and metadata are saved.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12),
             ),
