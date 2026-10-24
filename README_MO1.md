@@ -1,12 +1,12 @@
-# døPe
+# ClassiPod
 
-This branch is the døPe-branded fork: a real retro click-wheel local music player built with Flutter.
+This branch is the ClassiPod-branded fork: a real retro click-wheel local music player built with Flutter.
 
-It keeps the native classic click wheel, local library, metadata, Cover Flow, now playing screen, background playback, and local file/audio support from the upstream project. The iOS bundle display name is `døPe` and the bundle identifier remains `app.mo1.player` for update compatibility.
+It keeps the native classic click wheel, local library, metadata, Cover Flow, now playing screen, background playback, and local file/audio support from the upstream project. The iOS bundle display name is `ClassiPod` and the bundle identifier remains `app.mo1.player` for update compatibility.
 
 ## iOS 26 Visual Refresh
 
-The døPe fork adds an iOS 26-inspired visual pass while preserving the working local MP3/audio stack:
+The ClassiPod fork adds an iOS 26-inspired visual pass while preserving the working local MP3/audio stack:
 
 - Liquid Glass-style translucent device body, screen chrome, status bar, and selected-row focus.
 - Animated aurora lighting, reflection layers, and depth shadows around the player body.

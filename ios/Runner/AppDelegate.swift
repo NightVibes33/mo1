@@ -212,6 +212,10 @@ private enum WidgetBridgeChannel {
     }
     snapshot.removeValue(forKey: "artworkPath")
 
+    for (key, value) in normalizedThemeFields(from: rawSnapshot) {
+      snapshot[key] = value
+    }
+
     if var queue = snapshot["queuePreview"] as? [[String: Any]] {
       for index in queue.indices {
         if let artworkPath = queue[index]["artworkPath"] as? String,
@@ -234,6 +238,36 @@ private enum WidgetBridgeChannel {
       to: directory.appendingPathComponent(snapshotFileName),
       options: [.atomic]
     )
+  }
+
+  /// Keeps the device-theme integers and dark flag in the app-group JSON.
+  /// The widget reads these instead of a hardcoded palette.
+  private static let themeColorKeys = [
+    "themePrimaryColor",
+    "themeSecondaryColor",
+    "frameGradientStart",
+    "frameGradientEnd",
+    "controlBackgroundColor",
+    "controlBorderColor",
+    "innerButtonGradientStart",
+    "innerButtonGradientEnd",
+    "buttonAccentColor",
+    "buttonIconColor",
+  ]
+
+  private static func normalizedThemeFields(from raw: [String: Any]) -> [String: Any] {
+    var fields: [String: Any] = [:]
+    for key in themeColorKeys {
+      if let number = raw[key] as? NSNumber {
+        fields[key] = number.int64Value
+      }
+    }
+    if let isDark = raw["themeIsDark"] as? Bool {
+      fields["themeIsDark"] = isDark
+    } else if let number = raw["themeIsDark"] as? NSNumber {
+      fields["themeIsDark"] = number.boolValue
+    }
+    return fields
   }
 
   private static func clearSnapshot() throws {

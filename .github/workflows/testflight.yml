@@ -270,7 +270,7 @@ jobs:
           if [ -z "${TESTFLIGHT_BUILD_NUMBER}" ]; then
             TESTFLIGHT_BUILD_NUMBER="$((5000 + GITHUB_RUN_NUMBER))"
           fi
-          echo "Building døPe TestFlight build ${TESTFLIGHT_BUILD_NUMBER}"
+          echo "Building ClassiPod TestFlight build ${TESTFLIGHT_BUILD_NUMBER}"
           echo "TESTFLIGHT_BUILD_NUMBER=${TESTFLIGHT_BUILD_NUMBER}" >> "${GITHUB_ENV}"
           flutter build ios --release --no-codesign --no-pub --build-number="${TESTFLIGHT_BUILD_NUMBER}"
 
@@ -374,9 +374,9 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           DOPI_APP_BUNDLE_ID: app.mo1.player.39A8Q3T3TR
           DOPI_APP_LOCALE: en-US
-          DOPI_BETA_GROUP_NAME: døPe Public Beta
+          DOPI_BETA_GROUP_NAME: ClassiPod Public Beta
           DOPI_BETA_APP_DESCRIPTION: >-
-            døPe is a retro music player for iPhone and iPad. Test local MP3 import, optional Apple Music browsing for devices signed into an active Apple Music subscription, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
+            ClassiPod is a retro music player for iPhone and iPad. Test local MP3 import, optional Apple Music browsing for devices signed into an active Apple Music subscription, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.
           DOPI_BETA_FEEDBACK_EMAIL: bobbytatum12345@gmail.com
           DOPI_BETA_CONTACT_EMAIL: bobbytatum12345@gmail.com
           DOPI_BETA_REVIEW_NOTES: >-

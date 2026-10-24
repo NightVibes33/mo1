@@ -12,15 +12,20 @@ API_HOST = 'api.appstoreconnect.apple.com'
 BUNDLE_ID = ENV.fetch('DOPI_APP_BUNDLE_ID', 'app.mo1.player.39A8Q3T3TR')
 PLATFORM = ENV.fetch('DOPI_PLATFORM', 'IOS')
 LOCALE = ENV.fetch('DOPI_APP_LOCALE', 'en-US')
+APP_NAME = ENV.fetch('DOPI_APP_NAME', 'ClassiPod')
+APP_SUBTITLE = ENV.fetch('DOPI_APP_SUBTITLE', 'Retro Click Wheel Music Player')
 APP_DESCRIPTION = ENV.fetch(
   'DOPI_APP_DESCRIPTION',
-  'døPi is a retro music player for iPhone and iPad built for personal music libraries. Import MP3 files, connect Apple Music, browse albums with a visual carousel, view lyrics, tune playback with an equalizer, and use smooth song transitions in a focused player built for music fans.'
+  'ClassiPod turns your iPhone into a retro click-wheel music player for the library you actually own. Spin the wheel to browse your songs, flip through albums in a cover carousel, and play your music the way it used to feel. Import your own MP3 files with no subscription needed, connect your own Apple Music library, or stream from your Navidrome or Jellyfin server. Features a 10-band custom equalizer with presets, time-synced lyrics, editable song info, home screen widgets, lock screen controls, and click-wheel navigation with haptics. No ads. No tracking. Just your music.'
 )
-APP_KEYWORDS = ENV.fetch('DOPI_APP_KEYWORDS', 'music player,mp3,apple music,album carousel,lyrics,equalizer,audio player')
+APP_KEYWORDS = ENV.fetch(
+  'DOPI_APP_KEYWORDS',
+  'click wheel,retro,classic,music player,mp3,offline,navidrome,jellyfin,equalizer,lyrics,cover flow'
+)
 SUPPORT_URL = ENV.fetch('DOPI_SUPPORT_URL', 'https://github.com/NightVibes33/mo1')
 BETA_DESCRIPTION = ENV.fetch(
   'DOPI_BETA_APP_DESCRIPTION',
-  'døPi is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.'
+  'ClassiPod is a retro music player for iPhone and iPad. Test MP3 import, Apple Music library browsing, album carousel, lyrics, equalizer controls, song transitions, and radial navigation.'
 )
 REVIEW_NOTES = ENV.fetch(
   'DOPI_REVIEW_NOTES',
@@ -28,6 +33,64 @@ REVIEW_NOTES = ENV.fetch(
 )
 PRIVACY_POLICY_URL = ENV.fetch('DOPI_PRIVACY_POLICY_URL', 'https://github.com/NightVibes33/mo1/blob/main/privacy-policy.md')
 BETA_FEEDBACK_EMAIL = ENV.fetch('DOPI_BETA_FEEDBACK_EMAIL', 'bobbytatum12345@gmail.com')
+
+# Name and subtitle belong on appInfoLocalizations. They are not attributes of
+# appStoreVersionLocalizations. ageRatingDeclaration was removed from
+# appStoreVersions and is read from appInfos. seventeenPlus was removed from
+# the update schema. Rating overrides are not content descriptors.
+EDITABLE_STATES = %w[
+  WAITING_FOR_REVIEW
+  PREPARE_FOR_SUBMISSION
+  READY_FOR_REVIEW
+  IN_REVIEW
+  DEVELOPER_REJECTED
+  REJECTED
+  METADATA_REJECTED
+].freeze
+AGE_RATING_ATTRIBUTES = {
+  'alcoholTobaccoOrDrugUseOrReferences' => 'NONE',
+  'contests' => 'NONE',
+  'gamblingSimulated' => 'NONE',
+  'gunsOrOtherWeapons' => 'NONE',
+  'horrorOrFearThemes' => 'NONE',
+  'matureOrSuggestiveThemes' => 'NONE',
+  'medicalOrTreatmentInformation' => 'NONE',
+  'profanityOrCrudeHumor' => 'NONE',
+  'sexualContentGraphicAndNudity' => 'NONE',
+  'sexualContentOrNudity' => 'NONE',
+  'violenceCartoonOrFantasy' => 'NONE',
+  'violenceRealistic' => 'NONE',
+  'violenceRealisticProlongedGraphicOrSadistic' => 'NONE',
+  'advertising' => false,
+  'ageAssurance' => false,
+  'gambling' => false,
+  'healthOrWellnessTopics' => false,
+  'lootBox' => false,
+  'messagingAndChat' => false,
+  'parentalControls' => false,
+  'socialMedia' => false,
+  'socialMediaAgeRestricted' => false,
+  'unrestrictedWebAccess' => false,
+  'userGeneratedContent' => false,
+  'kidsAgeBand' => nil
+}.freeze
+
+if APP_NAME.length > 30
+  warn "DOPI_APP_NAME is #{APP_NAME.length} characters; the App Store limit is 30."
+  exit 1
+end
+if APP_SUBTITLE.length > 30
+  warn "DOPI_APP_SUBTITLE is #{APP_SUBTITLE.length} characters; the App Store limit is 30."
+  exit 1
+end
+if APP_KEYWORDS.length > 100
+  warn "DOPI_APP_KEYWORDS is #{APP_KEYWORDS.length} characters; the App Store limit is 100."
+  exit 1
+end
+if APP_DESCRIPTION.length > 4000
+  warn "DOPI_APP_DESCRIPTION is #{APP_DESCRIPTION.length} characters; the App Store limit is 4000."
+  exit 1
+end
 
 KEY_ID = ENV.fetch('APP_STORE_CONNECT_KEY_ID')
 ISSUER_ID = ENV.fetch('APP_STORE_CONNECT_ISSUER_ID')
@@ -104,6 +167,105 @@ end
 
 def included(response, type)
   response.fetch('included', []).select { |item| item['type'] == type }
+end
+
+def editable_state?(record)
+  attrs = attributes(record)
+  EDITABLE_STATES.include?(attrs['appStoreState'].to_s) ||
+    EDITABLE_STATES.include?(attrs['state'].to_s) ||
+    EDITABLE_STATES.include?(attrs['appVersionState'].to_s)
+end
+
+def preferred_app_info(app_id)
+  response = api_request(:get, "/v1/apps/#{app_id}/appInfos", query: {
+    'limit' => '20',
+    'fields[appInfos]' => 'appStoreState,state'
+  })
+  infos = response.fetch('data', [])
+  infos.find { |item| editable_state?(item) } || infos.first
+end
+
+def update_name_and_subtitle(app_id)
+  app_info = preferred_app_info(app_id)
+  unless app_info
+    warn 'No appInfo found; skipping name and subtitle.'
+    return
+  end
+
+  localizations = api_request(:get, "/v1/appInfos/#{app_info.fetch('id')}/appInfoLocalizations", query: {
+    'limit' => '200',
+    'fields[appInfoLocalizations]' => 'locale,name,subtitle'
+  })
+  localization = localizations.fetch('data', []).find { |item| attributes(item)['locale'] == LOCALE } ||
+                 localizations.fetch('data', []).first
+  unless localization
+    warn 'No appInfoLocalization found; skipping name and subtitle.'
+    return
+  end
+
+  puts "Updating App Store name and subtitle for #{attributes(localization)['locale'] || LOCALE}."
+  api_request(:patch, "/v1/appInfoLocalizations/#{localization.fetch('id')}", body: {
+    data: {
+      type: 'appInfoLocalizations',
+      id: localization.fetch('id'),
+      attributes: {
+        name: APP_NAME,
+        subtitle: APP_SUBTITLE
+      }
+    }
+  })
+end
+
+def declaration_from_response(response)
+  included_item = included(response, 'ageRatingDeclarations').first
+  return included_item if included_item
+
+  data = response['data']
+  return data if data.is_a?(Hash) && data['type'] == 'ageRatingDeclarations' && data['id']
+
+  relationship = response.dig('data', 'relationships', 'ageRatingDeclaration', 'data')
+  return relationship if relationship.is_a?(Hash) && relationship['id']
+
+  nil
+end
+
+def fetch_age_rating_declaration(app_id, version_id)
+  # Separate from the wording GET. A removed relationship returns 400 and
+  # would abort the description update if it were on that request.
+  version_attempt = api_request(:get, "/v1/appStoreVersions/#{version_id}", query: {
+    'include' => 'ageRatingDeclaration',
+    'fields[appStoreVersions]' => 'versionString,ageRatingDeclaration'
+  }, allow: [400, 404])
+  declaration = declaration_from_response(version_attempt)
+  return declaration if declaration
+
+  app_info = preferred_app_info(app_id)
+  return nil unless app_info
+
+  info_attempt = api_request(
+    :get,
+    "/v1/appInfos/#{app_info.fetch('id')}/ageRatingDeclaration",
+    allow: [400, 404]
+  )
+  declaration_from_response(info_attempt)
+end
+
+def update_age_rating(app_id, version_id)
+  declaration = fetch_age_rating_declaration(app_id, version_id)
+  unless declaration
+    warn 'No ageRatingDeclaration returned; skipping age rating update.'
+    return
+  end
+
+  declaration_id = declaration.fetch('id')
+  puts "Updating age rating declaration #{declaration_id} to a clean 4+ questionnaire."
+  api_request(:patch, "/v1/ageRatingDeclarations/#{declaration_id}", body: {
+    data: {
+      type: 'ageRatingDeclarations',
+      id: declaration_id,
+      attributes: AGE_RATING_ATTRIBUTES
+    }
+  })
 end
 
 app_response = api_request(:get, '/v1/apps', query: {
@@ -212,5 +374,8 @@ if beta_review_detail
     }
   })
 end
+
+update_name_and_subtitle(app_id)
+update_age_rating(app_id, version_id)
 
 puts 'DONE wording-only App Store Connect update.'

@@ -58,7 +58,7 @@ class _DebugLogsScreenState extends ConsumerState<DebugLogsScreen> {
         .map((entry) => '- ${entry.label}: ${entry.displaySize} | ${entry.path}')
         .join('\n');
     return [
-      '== døPe Debug Bundle ==',
+      '== ClassiPod Debug Bundle ==',
       'createdAt=${DateTime.now().toIso8601String()}',
       'debugSessionId=$debugSessionId',
       '',
