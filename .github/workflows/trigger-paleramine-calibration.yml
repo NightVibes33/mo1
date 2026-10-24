@@ -1,0 +1,28 @@
+name: Trigger Paleramine Safe Calibration Build
+
+on:
+  push:
+    branches:
+      - automation/apple-signing-kit
+    paths:
+      - ".github/workflows/trigger-paleramine-calibration.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: automation/apple-signing-kit
+      - name: Trigger calibration OTA workflow
+        run: |
+          set -euxo pipefail
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          printf '\n# Safe calibration rebuild trigger: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> tool/prepare_paleramine_profile_ota.py
+          git add tool/prepare_paleramine_profile_ota.py
+          git commit -m 'Trigger bounded Paleramine calibration OTA'
+          git push origin HEAD:automation/apple-signing-kit

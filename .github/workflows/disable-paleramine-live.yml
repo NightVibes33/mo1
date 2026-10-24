@@ -1,0 +1,36 @@
+name: Disable Paleramine Live Installer
+
+on:
+  push:
+    branches:
+      - automation/apple-signing-kit
+    paths:
+      - ".github/workflows/disable-paleramine-live.yml"
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  disable:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel unsafe live installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/29792703629/cancel" || true
+      - name: Clear published URL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 --branch automation/apple-signing-kit "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
+          cd repo
+          printf '%s\n' 'DISABLED_AFTER_DEVICE_REBOOT' > paleramine-installer-url.txt
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add paleramine-installer-url.txt
+          git commit -m 'Disable unsafe Paleramine live installer' || exit 0
+          git push origin HEAD:automation/apple-signing-kit

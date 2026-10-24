@@ -1,0 +1,96 @@
+name: Fix Dopamine OTA install version
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - automation/apple-signing-kit
+    paths:
+      - ".github/workflows/fix-dopamine-install-version.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-dopamine-ota-version
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout signing branch
+        uses: actions/checkout@v4
+        with:
+          ref: automation/apple-signing-kit
+
+      - name: Patch unique OTA build version
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("tool/dopamine_one_tap_server.py")
+          text = path.read_text()
+
+          def replace_once(old: str, new: str, label: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one match, found {count}")
+              text = text.replace(old, new, 1)
+
+          if "BUILD_NUMBER = os.environ.get(" not in text:
+              replace_once(
+                  'API_ISSUER_ID = os.environ["APP_STORE_CONNECT_ISSUER_ID"]\n',
+                  'API_ISSUER_ID = os.environ["APP_STORE_CONNECT_ISSUER_ID"]\n'
+                  'BUILD_NUMBER = os.environ.get("DOPAMINE_BUILD_NUMBER", str(int(time.time())))\n',
+                  "build number constant",
+              )
+
+          if 'info["CFBundleVersion"] = BUILD_NUMBER' not in text:
+              replace_once(
+                  '        info["CFBundleName"] = "Dopamine"\n',
+                  '        info["CFBundleName"] = "Dopamine"\n'
+                  '        info["CFBundleShortVersionString"] = "2.4.99"\n'
+                  '        info["CFBundleVersion"] = BUILD_NUMBER\n',
+                  "IPA version fields",
+              )
+
+          text = text.replace('"bundle-version": "2.5.0"', '"bundle-version": BUILD_NUMBER')
+          text = text.replace(
+              'message="Dopamine is signed and ready to install.",',
+              'message=f"Dopamine build {BUILD_NUMBER} is signed and ready to install.",',
+          )
+          text = text.replace(
+              '<a id=\\"install\\" class=\\"button hidden\\" href=\\"{html.escape(install_url)}\\">Install Dopamine</a>',
+              '<a id=\\"install\\" class=\\"button hidden\\" target=\\"_self\\" href=\\"{html.escape(install_url)}\\">Install Dopamine Build {BUILD_NUMBER}</a>',
+          )
+
+          required = (
+              'BUILD_NUMBER = os.environ.get(',
+              'info["CFBundleVersion"] = BUILD_NUMBER',
+              '"bundle-version": BUILD_NUMBER',
+          )
+          missing = [item for item in required if item not in text]
+          if missing:
+              raise SystemExit(f"Patch verification failed: {missing}")
+
+          path.write_text(text)
+          PY
+          python3 -m py_compile tool/dopamine_one_tap_server.py
+          git diff --check
+          git diff -- tool/dopamine_one_tap_server.py
+
+      - name: Commit installer fix
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "Installer version fix is already applied."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tool/dopamine_one_tap_server.py
+          git commit -m "Fix ignored Dopamine OTA update installs"
+          git push origin HEAD:automation/apple-signing-kit
